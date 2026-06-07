@@ -79,7 +79,7 @@ function Nav({ page, setPage, user, onLogout }) {
       <div style={{ padding: "28px 24px 24px", borderBottom: "1px solid #1e1e1e" }}>
         <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "#fce499", fontWeight: 700 }}>Signatur</div>
         <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>Monster</div>
-        <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>v0.1 · self-hosted</div>
+        <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>v0.7 · self-hosted</div>
       </div>
       <div style={{ padding: "12px 12px", flex: 1, overflowY: "auto" }}>
         {groups.map(group => (
