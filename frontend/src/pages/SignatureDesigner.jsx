@@ -220,16 +220,24 @@ function blockToHTML(block) {
     return `<div style="padding:${gp(p)};text-align:${textAlign};">${links}</div>`;
   }
   if (block.type === "banner") {
+    const href = p.linkUrl ? buildUrl(p.linkUrl, p) : null;
+    const r    = parseInt(p.borderRadius) || 0;
+
+    // ── Animated GIF mode (universal email compatibility) ──
+    if (p.gif_data) {
+      const img = `<img src="data:image/gif;base64,${p.gif_data}" width="600" alt="${p.text.replace(/"/g, "&quot;")}" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:${r}px;" />`;
+      return href ? `<a href="${href}" style="display:block;text-decoration:none;">${img}</a>` : img;
+    }
+
+    // ── Static HTML banner (CSS gradient + VML Outlook fallback) ──
     const cssDirMap = { horizontal: "to right", vertical: "to bottom", diagonal: "to bottom right" };
     const vmlAngle  = { horizontal: 90, vertical: 0, diagonal: 45 }[p.gradientDir] ?? 90;
     const bg        = p.bgType === "gradient"
       ? `linear-gradient(${cssDirMap[p.gradientDir] || "to right"},${p.color1},${p.color2})`
       : p.color1;
     const fallback  = p.outlookColor || p.color1;
-    const href      = p.linkUrl ? buildUrl(p.linkUrl, p) : null;
     const pad       = parseInt(p.padding) || 16;
     const h         = parseInt(p.height)  || 80;
-    const r         = parseInt(p.borderRadius) || 0;
     const textP     = `margin:0;color:${p.textColor};font-size:${p.fontSize}px;font-weight:${p.fontWeight};text-align:${p.textAlign};font-family:Arial,sans-serif;line-height:1.4;`;
     const subP      = p.subtext ? `<p style="margin:6px 0 0;color:${p.subtextColor};font-size:${p.subtextSize}px;text-align:${p.textAlign};font-family:Arial,sans-serif;line-height:1.4;">${p.subtext}</p>` : "";
     const inner     = `<p style="${textP}">${p.text}</p>${subP}`;

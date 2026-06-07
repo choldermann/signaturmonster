@@ -15,6 +15,7 @@ from routers import auth as auth_router
 from routers import license as license_router
 from routers import smtp_users as smtp_users_router
 from routers import update as update_router
+from routers import logs as logs_router
 
 app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -46,9 +47,9 @@ async def startup():
     from routers.auth import hash_password
     from sqlalchemy import select
     from models import User
+    from log_service import write_log
     async with AsyncSessionLocal() as db:
         await migrate_legacy_smtp(db)
-        # Default-User anlegen wenn noch keine Benutzer vorhanden
         result = await db.execute(select(User))
         if not result.scalars().first():
             db.add(User(
@@ -58,6 +59,8 @@ async def startup():
                 is_admin = True,
             ))
             await db.commit()
+    import asyncio
+    await asyncio.to_thread(write_log, "INFO", "backend", "Signaturmonster Backend gestartet")
 
 app.include_router(auth_router.router,          prefix="/api/auth",          tags=["auth"])
 app.include_router(license_router.router,       prefix="/api/license",       tags=["license"])
@@ -74,6 +77,7 @@ app.include_router(disclaimers_router.router,   prefix="/api/disclaimers",   tag
 app.include_router(banners_router.router,       prefix="/api/banners",       tags=["banners"])
 app.include_router(smtp_users_router.router,    prefix="/api/smtp-users",    tags=["smtp-users"])
 app.include_router(update_router.router,        prefix="/api/update",        tags=["update"])
+app.include_router(logs_router.router,          prefix="/api/logs",          tags=["logs"])
 
 @app.get("/health")
 async def health():

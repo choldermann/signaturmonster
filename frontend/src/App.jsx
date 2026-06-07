@@ -47,6 +47,7 @@ function Nav({ page, setPage, user, onLogout }) {
         { id: "admin-users", icon: "users",      label: "Benutzer" },
         { id: "license",     icon: "key",        label: "Lizenz" },
         { id: "update",      icon: "refresh",    label: "Update" },
+        { id: "logs",        icon: "terminal-2", label: "System-Log" },
       ]
     },
     {
@@ -665,6 +666,13 @@ const UpdatePageLoader = ({ toast }) => {
   return <Comp toast={toast} />;
 };
 
+const LogsPageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/LogsPage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "#555", padding: 40 }}>Lade…</div>;
+  return <Comp toast={toast} />;
+};
+
 // ─── SMTP Users Loader ────────────────────────────────────────────────────────
 const SMTPUsersLoader = ({ toast }) => {
   const [Comp, setComp] = useState(null);
@@ -725,7 +733,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers";
+  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0d0d0d", color: "#ccc" }}>
@@ -752,6 +760,7 @@ export default function App() {
         {page === "license"     && <LicensePageLoader toast={toast} />}
         {page === "disclaimers" && <DisclaimersPageLoader toast={toast} />}
         {page === "banners"     && <BannersPageLoader toast={toast} />}
+        {page === "logs"        && <LogsPageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>

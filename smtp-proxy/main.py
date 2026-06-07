@@ -13,7 +13,13 @@ logger = logging.getLogger(__name__)
 
 async def main():
     backend_url  = os.getenv("BACKEND_URL", "http://backend:8000")
+    proxy_secret = os.getenv("PROXY_SECRET", "signaturmonster-internal-secret")
     smtp_port    = int(os.getenv("SMTP_PORT", 587))
+
+    from backend_log_handler import BackendLogHandler
+    _bh = BackendLogHandler(backend_url, proxy_secret)
+    for _name in ["__main__", "auth", "handler", "relay", "rule_engine", "rate_limiter", "beautifier", "tls_utils"]:
+        logging.getLogger(_name).addHandler(_bh)
     rate_per_min = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
 
     ssl_ctx      = ensure_tls_context()

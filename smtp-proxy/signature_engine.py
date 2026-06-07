@@ -43,13 +43,30 @@ class SignatureEngine:
 
         return message
 
+    def _set_html_payload(self, part: Message, html: str):
+        """Setzt HTML-Payload mit korrektem UTF-8/Base64-Encoding.
+
+        Python's set_payload() aktualisiert Content-Transfer-Encoding nur wenn
+        der Header noch fehlt — bei bereits gesetztem CTE bleibt der alte Wert
+        stehen, obwohl der Inhalt jetzt anders kodiert ist. Striktes Überschreiben
+        verhindert CTE-Mismatches bei mobilen Clients.
+        """
+        import base64
+        payload_bytes = html.encode("utf-8")
+        b64 = base64.encodebytes(payload_bytes).decode("ascii")
+        part.set_param("charset", "utf-8")
+        if "content-transfer-encoding" in part:
+            del part["content-transfer-encoding"]
+        part["Content-Transfer-Encoding"] = "base64"
+        part.set_payload(b64)
+
     def _beautify_html(self, part: Message, sig_html: str, ci: dict):
         """Modus 2: Text bereinigen + CI-Wrapper + Signatur."""
         try:
             charset = part.get_content_charset() or "utf-8"
             content = part.get_payload(decode=True).decode(charset)
             beautified = self.beautifier.beautify(content, ci, sig_html)
-            part.set_payload(beautified, charset=charset)
+            self._set_html_payload(part, beautified)
         except Exception as e:
             logger.error(f"Beautify failed, falling back to inject: {e}")
             self._inject_html(part, sig_html)
@@ -66,7 +83,7 @@ class SignatureEngine:
                 new_content = content[:pos] + sig_block + content[pos:]
             else:
                 new_content = content + sig_block
-            part.set_payload(new_content, charset=charset)
+            self._set_html_payload(part, new_content)
         except Exception as e:
             logger.error(f"HTML injection failed: {e}")
 

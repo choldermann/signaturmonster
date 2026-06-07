@@ -127,3 +127,12 @@ class SMTPUser(Base):
     password   = Column(String, nullable=False)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+
+class LogEntry(Base):
+    __tablename__ = "logs"
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(String, index=True)
+    level     = Column(String, index=True)
+    service   = Column(String, index=True)
+    message   = Column(Text)
+    details   = Column(Text)

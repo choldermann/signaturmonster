@@ -50,10 +50,14 @@ def _user_out(user: User, token: str) -> dict:
 
 @router.post("/login")
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+    import asyncio
+    from log_service import write_log
     result = await db.execute(select(User).where(User.name == req.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(req.password, user.password):
+        await asyncio.to_thread(write_log, "WARNING", "backend", f"Login fehlgeschlagen: Benutzer '{req.username}'")
         raise HTTPException(401, "Ungültiger Benutzername oder Passwort")
+    await asyncio.to_thread(write_log, "INFO", "backend", f"Login erfolgreich: Benutzer '{user.name}'")
     return _user_out(user, create_token(user.id))
 
 @router.post("/register")
