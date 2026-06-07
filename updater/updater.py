@@ -30,13 +30,30 @@ def _registry_labels(image: str, tag: str = "latest") -> dict:
     h = {
         "Authorization": f"Bearer {token}",
         "Accept": (
+            "application/vnd.oci.image.index.v1+json,"
             "application/vnd.oci.image.manifest.v1+json,"
-            "application/vnd.docker.distribution.manifest.v2+json"
+            "application/vnd.docker.distribution.manifest.v2+json,"
+            "application/vnd.docker.distribution.manifest.list.v2+json"
         ),
     }
     manifest = requests.get(
         f"https://{REGISTRY}/v2/{repo_path}/manifests/{tag}", headers=h, timeout=10
     ).json()
+
+    # OCI Index / Docker Manifest List: pick first manifest (linux/amd64 or any)
+    if "manifests" in manifest:
+        platforms = manifest["manifests"]
+        chosen = next(
+            (m for m in platforms if (m.get("platform") or {}).get("os") != "unknown"),
+            platforms[0],
+        )
+        sub = requests.get(
+            f"https://{REGISTRY}/v2/{repo_path}/manifests/{chosen['digest']}",
+            headers={**h, "Accept": "application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json"},
+            timeout=10,
+        ).json()
+        manifest = sub
+
     digest = (manifest.get("config") or {}).get("digest", "")
     if not digest:
         return {}
