@@ -16,7 +16,7 @@ from routers import license as license_router
 from routers import smtp_users as smtp_users_router
 from routers import update as update_router
 
-app = FastAPI(title="Signaturmonster API", version="0.4.0")
+app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 import os as _os
