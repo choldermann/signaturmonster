@@ -14,6 +14,7 @@ from routers import banners as banners_router
 from routers import auth as auth_router
 from routers import license as license_router
 from routers import smtp_users as smtp_users_router
+from routers import update as update_router
 
 app = FastAPI(title="Signaturmonster API", version="0.4.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -72,6 +73,7 @@ app.include_router(smtp_accounts_router.router, prefix="/api/smtp-accounts", tag
 app.include_router(disclaimers_router.router,   prefix="/api/disclaimers",   tags=["disclaimers"])
 app.include_router(banners_router.router,       prefix="/api/banners",       tags=["banners"])
 app.include_router(smtp_users_router.router,    prefix="/api/smtp-users",    tags=["smtp-users"])
+app.include_router(update_router.router,        prefix="/api/update",        tags=["update"])
 
 @app.get("/health")
 async def health():

@@ -24,6 +24,23 @@ services:
     networks:
       - smnet
 
+  updater:
+    build:
+      context: ./updater
+      dockerfile: Dockerfile
+    container_name: sm-updater
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      PROJECT_DIR: "/project"
+      COMPOSE_FILE: "/project/docker-compose.yml"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/project
+    networks:
+      - smnet
+
   backend:
     build:
       context: ./backend
@@ -37,6 +54,7 @@ services:
       SECRET_KEY: "${SECRET_KEY:-changeme}"
       LEXWARE_API_TOKEN: "${LEXWARE_API_TOKEN:-}"
       PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
+      UPDATER_URL: "http://updater:9000"
     volumes:
       - smdata:/data
     healthcheck:

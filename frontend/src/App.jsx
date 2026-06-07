@@ -42,10 +42,11 @@ function Nav({ page, setPage, user, onLogout }) {
       label: "Konfiguration",
       items: [
         { id: "smtp",        icon: "server",     label: "SMTP-Konten" },
-        { id: "smtp-users",  icon: "user-bolt", label: "SMTP-Zugänge" },
+        { id: "smtp-users",  icon: "user-bolt",  label: "SMTP-Zugänge" },
         { id: "test",        icon: "send",       label: "Test" },
         { id: "admin-users", icon: "users",      label: "Benutzer" },
         { id: "license",     icon: "key",        label: "Lizenz" },
+        { id: "update",      icon: "refresh",    label: "Update" },
       ]
     },
     {
@@ -656,6 +657,14 @@ const LicensePageLoader = ({ toast }) => {
   return <Comp toast={toast} />;
 };
 
+// ─── Update Page Loader ───────────────────────────────────────────────────────
+const UpdatePageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/UpdatePage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "#555", padding: 40 }}>Lade…</div>;
+  return <Comp toast={toast} />;
+};
+
 // ─── SMTP Users Loader ────────────────────────────────────────────────────────
 const SMTPUsersLoader = ({ toast }) => {
   const [Comp, setComp] = useState(null);
@@ -738,6 +747,7 @@ export default function App() {
         {page === "templates"  && <TemplatesPageLoader toast={toast} />}
         {page === "ci"          && <CIPageLoader toast={toast} />}
         {page === "smtp-users"   && <SMTPUsersLoader toast={toast} />}
+        {page === "update"       && <UpdatePageLoader toast={toast} />}
         {page === "admin-users" && <UsersManagementLoader toast={toast} />}
         {page === "license"     && <LicensePageLoader toast={toast} />}
         {page === "disclaimers" && <DisclaimersPageLoader toast={toast} />}
