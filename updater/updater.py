@@ -18,9 +18,20 @@ subprocess.run(
 )
 
 
+
+GIT_ENV = {
+    **os.environ,
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new",
+}
+
+
 def _git(*args):
     return subprocess.check_output(
-        ["git", "-C", PROJECT_DIR, *args], stderr=subprocess.DEVNULL
+        ["git", "-C", PROJECT_DIR, *args],
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        env=GIT_ENV,
     ).decode().strip()
 
 
@@ -77,16 +88,24 @@ def changelog():
 @app.post("/update")
 def update():
     try:
-        pull = subprocess.check_output(
-            ["git", "-C", PROJECT_DIR, "pull", "origin", "main"],
+        fetch_out = subprocess.check_output(
+            ["git", "-C", PROJECT_DIR, "fetch", "origin", "main"],
             stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            env=GIT_ENV,
         ).decode()
-        logger.info(f"git pull: {pull.strip()}")
+        reset_out = subprocess.check_output(
+            ["git", "-C", PROJECT_DIR, "reset", "--hard", "origin/main"],
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            env=GIT_ENV,
+        ).decode()
+        logger.info(f"git fetch+reset: {reset_out.strip()}")
         subprocess.Popen(
             ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--build"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        return jsonify({"ok": True, "pull_output": pull})
+        return jsonify({"ok": True, "pull_output": fetch_out + reset_out})
     except subprocess.CalledProcessError as e:
         return jsonify({"ok": False, "error": e.output.decode()}), 500
     except Exception as e:

@@ -35,9 +35,12 @@ services:
     environment:
       PROJECT_DIR: "/project"
       COMPOSE_FILE: "/project/docker-compose.yml"
+      SSH_AUTH_SOCK: /ssh-agent
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/project
+      - ${SSH_AUTH_SOCK}:/ssh-agent
+      - ${HOME}/.ssh/known_hosts:/root/.ssh/known_hosts:ro
     networks:
       - smnet
 
