@@ -2045,7 +2045,6 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
                       isSelected={selected === block.id}
                       onUpdate={np => updateProps(block.id, np)}
                       selectedSubId={selected}
-                      onSelectSub={setSelected}
                       draggingType={draggingType}
                       onDropToColumn={(side) => addToColumn(block.id, side, draggingType)}
                       onRemoveSubBlock={(side, subId) => removeSubBlock(block.id, side, subId)}

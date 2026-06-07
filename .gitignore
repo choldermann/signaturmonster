@@ -1,5 +1,5 @@
 # Laufzeitdaten
-data/
+/data/
 *.db
 
 # Umgebungsvariablen (Secrets!)
