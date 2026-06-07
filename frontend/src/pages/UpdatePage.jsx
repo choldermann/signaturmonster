@@ -110,7 +110,7 @@ export default function UpdatePage({ toast }) {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Software-Update</h1>
         <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-          Updates werden direkt aus dem GitHub-Repository gezogen.
+          Updates werden als fertige Container aus der GitHub Container Registry geladen.
         </p>
       </div>
 

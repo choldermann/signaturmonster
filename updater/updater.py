@@ -1,65 +1,107 @@
-import subprocess, os, logging
+import subprocess, os, logging, json
+import requests
 from flask import Flask, jsonify
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-PROJECT_DIR  = os.getenv("PROJECT_DIR",  "/project")
-COMPOSE_FILE = os.getenv("COMPOSE_FILE", f"{PROJECT_DIR}/docker-compose.yml")
-
-# Git weigert sich auf Verzeichnisse zuzugreifen deren Owner nicht dem laufenden
-# User entspricht (Sicherheitsfeature seit Git 2.35.2). Da der Container als root
-# läuft, das Host-Verzeichnis aber einem anderen User gehört, muss die Ausnahme
-# explizit gesetzt werden.
-subprocess.run(
-    ["git", "config", "--global", "--add", "safe.directory", PROJECT_DIR],
-    check=True,
-)
+COMPOSE_FILE  = os.getenv("COMPOSE_FILE", "/project/docker-compose.yml")
+GITHUB_REPO   = os.getenv("GITHUB_REPO", "choldermann/signaturmonster")
+GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
+REGISTRY      = "ghcr.io"
+OWNER         = GITHUB_REPO.split("/")[0]
+REF_IMAGE     = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
+REF_CONTAINER = "sm-backend"
 
 
-
-GIT_ENV = {
-    **os.environ,
-    "GIT_TERMINAL_PROMPT": "0",
-    "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new",
-}
-
-
-def _git(*args):
-    return subprocess.check_output(
-        ["git", "-C", PROJECT_DIR, *args],
-        stderr=subprocess.DEVNULL,
-        stdin=subprocess.DEVNULL,
-        env=GIT_ENV,
-    ).decode().strip()
+def _anon_token(repo_path: str) -> str:
+    r = requests.get(
+        f"https://{REGISTRY}/token",
+        params={"service": REGISTRY, "scope": f"repository:{repo_path}:pull"},
+        timeout=10,
+    )
+    return r.json().get("token", "")
 
 
-def _fetch():
-    _git("fetch", "--quiet", "origin", "main")
+def _registry_labels(image: str, tag: str = "latest") -> dict:
+    repo_path = image.removeprefix(f"{REGISTRY}/")
+    token = _anon_token(repo_path)
+    h = {
+        "Authorization": f"Bearer {token}",
+        "Accept": (
+            "application/vnd.oci.image.manifest.v1+json,"
+            "application/vnd.docker.distribution.manifest.v2+json"
+        ),
+    }
+    manifest = requests.get(
+        f"https://{REGISTRY}/v2/{repo_path}/manifests/{tag}", headers=h, timeout=10
+    ).json()
+    digest = (manifest.get("config") or {}).get("digest", "")
+    if not digest:
+        return {}
+    config = requests.get(
+        f"https://{REGISTRY}/v2/{repo_path}/blobs/{digest}", headers=h, timeout=10
+    ).json()
+    return (config.get("config") or {}).get("Labels") or {}
+
+
+def _local_labels(container: str) -> dict:
+    try:
+        raw = subprocess.check_output(
+            ["docker", "inspect", "--format", "{{json .Config.Labels}}", container],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        return json.loads(raw) or {}
+    except Exception:
+        return {}
+
+
+def _gh_headers() -> dict:
+    h = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    if GITHUB_TOKEN:
+        h["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return h
 
 
 @app.get("/version")
 def version():
     try:
-        _fetch()
-    except Exception:
-        pass
-    try:
-        current       = _git("rev-parse", "--short", "HEAD")
-        current_msg   = _git("log", "-1", "--pretty=%s")
-        current_date  = _git("log", "-1", "--pretty=%ci")[:10]
+        cur      = _local_labels(REF_CONTAINER)
+        cur_sha  = (cur.get("org.opencontainers.image.revision") or "")[:7]
+        cur_msg  = cur.get("git.commit.message", "")
+        cur_date = (cur.get("org.opencontainers.image.created") or "")[:10]
+
         try:
-            latest      = _git("rev-parse", "--short", "origin/main")
-            latest_msg  = _git("log", "-1", "--pretty=%s",  "origin/main")
-            latest_date = _git("log", "-1", "--pretty=%ci", "origin/main")[:10]
-            behind = int(_git("rev-list", "--count", "HEAD..origin/main"))
+            lat      = _registry_labels(REF_IMAGE, "latest")
+            lat_sha  = (lat.get("org.opencontainers.image.revision") or "")[:7]
+            lat_msg  = lat.get("git.commit.message", "")
+            lat_date = (lat.get("org.opencontainers.image.created") or "")[:10]
+            up_to_date = bool(cur_sha and cur_sha == lat_sha)
         except Exception:
-            latest = current; latest_msg = current_msg; latest_date = current_date; behind = 0
+            lat_sha, lat_msg, lat_date = cur_sha, cur_msg, cur_date
+            up_to_date = True
+
+        behind = 0
+        if not up_to_date and cur_sha and lat_sha:
+            try:
+                data = requests.get(
+                    f"https://api.github.com/repos/{GITHUB_REPO}/compare/{cur_sha}...{lat_sha}",
+                    headers=_gh_headers(), timeout=10,
+                ).json()
+                behind = data.get("ahead_by", 1)
+            except Exception:
+                behind = 1
+
         return jsonify({
-            "current": current, "current_message": current_msg, "current_date": current_date,
-            "latest":  latest,  "latest_message":  latest_msg,  "latest_date":  latest_date,
-            "up_to_date": behind == 0, "behind": behind,
+            "current":         cur_sha  or "—",
+            "current_message": cur_msg,
+            "current_date":    cur_date,
+            "latest":          lat_sha  or "—",
+            "latest_message":  lat_msg,
+            "latest_date":     lat_date,
+            "up_to_date":      up_to_date,
+            "behind":          behind,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -68,19 +110,22 @@ def version():
 @app.get("/changelog")
 def changelog():
     try:
-        _fetch()
-        raw = subprocess.check_output(
-            ["git", "-C", PROJECT_DIR, "log",
-             "--pretty=format:%h\t%s\t%ci", "HEAD..origin/main"],
-            stderr=subprocess.DEVNULL,
-        ).decode().strip()
-        result = []
-        if raw:
-            for line in raw.splitlines():
-                parts = line.split("\t", 2)
-                if len(parts) == 3:
-                    result.append({"hash": parts[0], "message": parts[1], "date": parts[2][:10]})
-        return jsonify(result)
+        cur_sha = (_local_labels(REF_CONTAINER).get("org.opencontainers.image.revision") or "")[:7]
+        lat_sha = (_registry_labels(REF_IMAGE, "latest").get("org.opencontainers.image.revision") or "")[:7]
+
+        if not cur_sha or not lat_sha or cur_sha == lat_sha:
+            return jsonify([])
+
+        data = requests.get(
+            f"https://api.github.com/repos/{GITHUB_REPO}/compare/{cur_sha}...{lat_sha}",
+            headers=_gh_headers(), timeout=10,
+        ).json()
+        commits = data.get("commits", [])
+        return jsonify([{
+            "hash":    c["sha"][:7],
+            "message": c["commit"]["message"].split("\n")[0],
+            "date":    c["commit"]["committer"]["date"][:10],
+        } for c in reversed(commits)])
     except Exception:
         return jsonify([])
 
@@ -88,24 +133,16 @@ def changelog():
 @app.post("/update")
 def update():
     try:
-        fetch_out = subprocess.check_output(
-            ["git", "-C", PROJECT_DIR, "fetch", "origin", "main"],
+        pull = subprocess.check_output(
+            ["docker", "compose", "-f", COMPOSE_FILE, "pull"],
             stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            env=GIT_ENV,
         ).decode()
-        reset_out = subprocess.check_output(
-            ["git", "-C", PROJECT_DIR, "reset", "--hard", "origin/main"],
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            env=GIT_ENV,
-        ).decode()
-        logger.info(f"git fetch+reset: {reset_out.strip()}")
+        logger.info("docker compose pull done")
         subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--build"],
+            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        return jsonify({"ok": True, "pull_output": fetch_out + reset_out})
+        return jsonify({"ok": True, "pull_output": pull})
     except subprocess.CalledProcessError as e:
         return jsonify({"ok": False, "error": e.output.decode()}), 500
     except Exception as e:
@@ -114,7 +151,7 @@ def update():
 
 @app.get("/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9000)

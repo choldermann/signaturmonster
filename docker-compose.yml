@@ -1,9 +1,7 @@
 services:
 
   smtp-proxy:
-    build:
-      context: ./smtp-proxy
-      dockerfile: Dockerfile
+    image: ghcr.io/choldermann/signaturmonster-smtp-proxy:latest
     container_name: sm-smtp
     restart: unless-stopped
     ports:
@@ -25,29 +23,23 @@ services:
       - smnet
 
   updater:
-    build:
-      context: ./updater
-      dockerfile: Dockerfile
+    image: ghcr.io/choldermann/signaturmonster-updater:latest
     container_name: sm-updater
     restart: unless-stopped
     expose:
       - "9000"
     environment:
-      PROJECT_DIR: "/project"
       COMPOSE_FILE: "/project/docker-compose.yml"
-      SSH_AUTH_SOCK: /ssh-agent
+      GITHUB_REPO: "choldermann/signaturmonster"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/project
-      - ${SSH_AUTH_SOCK}:/ssh-agent
-      - ${HOME}/.ssh/known_hosts:/root/.ssh/known_hosts:ro
     networks:
       - smnet
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/choldermann/signaturmonster-backend:latest
     container_name: sm-backend
     restart: unless-stopped
     expose:
@@ -69,11 +61,7 @@ services:
       - smnet
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ""
+    image: ghcr.io/choldermann/signaturmonster-frontend:latest
     container_name: sm-frontend
     restart: unless-stopped
     expose:
