@@ -93,5 +93,9 @@ def update():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"})
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9000)
