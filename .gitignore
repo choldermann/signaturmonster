@@ -1,0 +1,30 @@
+# Laufzeitdaten
+data/
+*.db
+
+# Umgebungsvariablen (Secrets!)
+.env
+backend/.env
+smtp-proxy/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Claude
+.claude/settings.local.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Sonstiges
+*.log
+{smtp-proxy,backend

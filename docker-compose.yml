@@ -1,0 +1,89 @@
+services:
+
+  smtp-proxy:
+    build:
+      context: ./smtp-proxy
+      dockerfile: Dockerfile
+    container_name: sm-smtp
+    restart: unless-stopped
+    ports:
+      - "${SMTP_PORT:-587}:587"
+    environment:
+      BACKEND_URL: "http://backend:8000"
+      RELAY_HOST: "${RELAY_HOST}"
+      RELAY_PORT: "${RELAY_PORT:-587}"
+      RELAY_USER: "${RELAY_USER}"
+      RELAY_PASS: "${RELAY_PASS}"
+      SMTP_PORT: "587"
+      PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
+    volumes:
+      - smdata:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - smnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sm-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: "sqlite+aiosqlite:////data/signaturmonster.db"
+      SECRET_KEY: "${SECRET_KEY:-changeme}"
+      LEXWARE_API_TOKEN: "${LEXWARE_API_TOKEN:-}"
+      PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
+    volumes:
+      - smdata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smnet
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: sm-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - smnet
+
+  nginx:
+    image: nginx:alpine
+    container_name: sm-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - smnet
+
+networks:
+  smnet:
+    driver: bridge
+
+volumes:
+  smdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data

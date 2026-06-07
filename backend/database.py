@@ -1,0 +1,36 @@
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import text
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:////data/signaturmonster.db")
+engine = create_async_engine(DATABASE_URL)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+class Base(DeclarativeBase):
+    pass
+
+async def init_db():
+    from models import Signature, Rule, User, Setting, SenderProfile, SMTPAccount, Disclaimer, Banner, SMTPUser
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        for migration in [
+            "ALTER TABLE signatures ADD COLUMN designer_json TEXT",
+            "ALTER TABLE sender_profiles ADD COLUMN street TEXT DEFAULT ''",
+            "ALTER TABLE sender_profiles ADD COLUMN postal_code TEXT DEFAULT ''",
+            "ALTER TABLE sender_profiles ADD COLUMN city TEXT DEFAULT ''",
+            "ALTER TABLE sender_profiles ADD COLUMN country TEXT DEFAULT ''",
+            "ALTER TABLE rules ADD COLUMN smtp_account_id INTEGER REFERENCES smtp_accounts(id)",
+            "ALTER TABLE rules ADD COLUMN disclaimer_id INTEGER REFERENCES disclaimers(id)",
+        ]:
+            try:
+                await conn.execute(text(migration))
+            except Exception:
+                pass
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
