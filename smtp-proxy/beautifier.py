@@ -100,13 +100,13 @@ class MailBeautifier:
         if cfg.get("show_header") and (cfg.get("logo_url") or cfg.get("company_name")):
             logo = ""
             if cfg.get("logo_url"):
-                logo = '<td width="60" valign="middle" style="padding-right:12px;">'
-                logo += '<img src="' + cfg["logo_url"] + '" alt="' + cfg.get("company_name", "") + '" style="max-height:50px;display:block;border:0;" />'
+                logo = '<td width="1" valign="middle" style="padding-right:10px;white-space:nowrap;">'
+                logo += '<img src="' + cfg["logo_url"] + '" alt="' + cfg.get("company_name", "") + '" height="50" style="height:50px;width:auto;display:block;border:0;" />'
                 logo += '</td>'
             name = ""
             if cfg.get("company_name"):
-                name = '<td valign="middle">'
-                name += '<span style="font-size:18px;font-weight:bold;color:' + cfg["primary_color"] + ';">' + cfg["company_name"] + '</span>'
+                name = '<td valign="middle" style="padding-left:4px;">'
+                name += '<span style="font-size:18px;font-weight:bold;color:' + cfg["primary_color"] + ';white-space:nowrap;">' + cfg["company_name"] + '</span>'
                 name += '</td>'
             header = (
                 "<tr>"

@@ -395,19 +395,28 @@ function BlockPreview({ block }) {
   }
 
   if (block.type === "banner") {
-    const cssDirMap = { horizontal: "to right", vertical: "to bottom", diagonal: "to bottom right" };
-    const bg = p.bgType === "gradient"
-      ? `linear-gradient(${cssDirMap[p.gradientDir] || "to right"}, ${p.color1}, ${p.color2})`
-      : p.color1;
     const href = p.linkUrl ? buildUrl(p.linkUrl, p) : null;
-    const pad = parseInt(p.padding) || 16;
-    const h   = parseInt(p.height)  || 80;
-    const r   = parseInt(p.borderRadius) || 0;
-    const justify = p.textAlign === "center" ? "center" : p.textAlign === "right" ? "flex-end" : "flex-start";
+    const r    = parseInt(p.borderRadius) || 0;
+
+    // ── GIF mode: show the actual animated GIF ──
+    if (p.gif_data) {
+      const img = <img src={`data:image/gif;base64,${p.gif_data}`} alt={p.text} style={{ display: "block", width: "100%", borderRadius: r }} />;
+      return href ? <a href={href} style={{ display: "block", textDecoration: "none" }}>{img}</a> : img;
+    }
+
+    // ── Scene mode without GIF: show first scene as static preview ──
+    const sp = (Array.isArray(p.scenes) && p.scenes.length > 0) ? { ...p, ...p.scenes[0] } : p;
+    const cssDirMap = { horizontal: "to right", vertical: "to bottom", diagonal: "to bottom right" };
+    const bg = sp.bgType === "gradient"
+      ? `linear-gradient(${cssDirMap[sp.gradientDir] || "to right"}, ${sp.color1}, ${sp.color2})`
+      : sp.color1;
+    const pad     = parseInt(sp.padding) || 16;
+    const h       = parseInt(p.height)   || 80;
+    const justify = sp.textAlign === "center" ? "center" : sp.textAlign === "right" ? "flex-end" : "flex-start";
     const content = (
-      <div style={{ textAlign: p.textAlign }}>
-        <p style={{ margin: 0, color: p.textColor, fontSize: `${p.fontSize}px`, fontWeight: p.fontWeight, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>{p.text}</p>
-        {p.subtext && <p style={{ margin: "6px 0 0", color: p.subtextColor, fontSize: `${p.subtextSize}px`, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>{p.subtext}</p>}
+      <div style={{ textAlign: sp.textAlign }}>
+        <p style={{ margin: 0, color: sp.textColor, fontSize: `${sp.fontSize}px`, fontWeight: sp.fontWeight, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>{sp.text}</p>
+        {sp.subtext && <p style={{ margin: "6px 0 0", color: sp.subtextColor, fontSize: `${sp.subtextSize}px`, fontFamily: "Arial, sans-serif", lineHeight: 1.4 }}>{sp.subtext}</p>}
       </div>
     );
     const wrapper = (
@@ -653,17 +662,26 @@ function BannerLibraryPicker({ onInsert }) {
   function renderPreview(propsJson) {
     let p = DEFAULT_BANNER;
     try { p = { ...DEFAULT_BANNER, ...JSON.parse(propsJson) }; } catch {}
+
+    // GIF mode
+    if (p.gif_data) {
+      return <img src={`data:image/gif;base64,${p.gif_data}`} alt={p.text}
+               style={{ display: "block", width: "100%", borderRadius: parseInt(p.borderRadius) || 0 }} />;
+    }
+
+    // Scene mode without GIF: use first scene's props
+    const sp = (Array.isArray(p.scenes) && p.scenes.length > 0) ? { ...p, ...p.scenes[0] } : p;
     const cssDirMap = { horizontal: "to right", vertical: "to bottom", diagonal: "to bottom right" };
-    const bg = p.bgType === "gradient"
-      ? `linear-gradient(${cssDirMap[p.gradientDir] || "to right"}, ${p.color1}, ${p.color2})`
-      : p.color1;
-    const h = parseInt(p.height) || 80;
-    const r = parseInt(p.borderRadius) || 0;
-    const pad = parseInt(p.padding) || 16;
-    const justify = { center: "center", right: "flex-end", left: "flex-start" }[p.textAlign] || "flex-start";
+    const bg = sp.bgType === "gradient"
+      ? `linear-gradient(${cssDirMap[sp.gradientDir] || "to right"}, ${sp.color1}, ${sp.color2})`
+      : sp.color1;
+    const h       = parseInt(p.height)       || 80;
+    const r       = parseInt(p.borderRadius) || 0;
+    const pad     = parseInt(sp.padding)     || 16;
+    const justify = { center: "center", right: "flex-end", left: "flex-start" }[sp.textAlign] || "flex-start";
     return (
       <div style={{ background: bg, padding: pad, borderRadius: r, minHeight: h, display: "flex", alignItems: "center", justifyContent: justify }}>
-        <p style={{ margin: 0, color: p.textColor, fontSize: `${p.fontSize}px`, fontWeight: p.fontWeight, fontFamily: "Arial,sans-serif" }}>{p.text}</p>
+        <p style={{ margin: 0, color: sp.textColor, fontSize: `${sp.fontSize}px`, fontWeight: sp.fontWeight, fontFamily: "Arial,sans-serif" }}>{sp.text}</p>
       </div>
     );
   }
@@ -681,18 +699,90 @@ function BannerLibraryPicker({ onInsert }) {
             <div style={{ fontSize: 11, color: "#444", textAlign: "center", padding: "10px 0" }}>
               Keine Banner — zuerst unter <strong style={{ color: "#888" }}>Signaturen → Banner</strong> anlegen.
             </div>
-          ) : banners.map(b => (
+          ) : banners.map(b => {
+            let bProps = DEFAULT_BANNER;
+            try { bProps = { ...DEFAULT_BANNER, ...JSON.parse(b.props_json) }; } catch {}
+            const isScene = Array.isArray(bProps.scenes) && bProps.scenes.length >= 1;
+            return (
             <div key={b.id}
-              onClick={() => { try { onInsert({ ...DEFAULT_BANNER, ...JSON.parse(b.props_json) }); } catch { onInsert(DEFAULT_BANNER); } setOpen(false); }}
+              onClick={() => { onInsert(bProps); setOpen(false); }}
               style={{ marginBottom: 8, cursor: "pointer", borderRadius: 6, overflow: "hidden", border: "1px solid #2a2a2a", transition: "border-color .1s" }}
               onMouseEnter={e => e.currentTarget.style.borderColor = "#fce499"}
               onMouseLeave={e => e.currentTarget.style.borderColor = "#2a2a2a"}>
               <div style={{ pointerEvents: "none" }}>{renderPreview(b.props_json)}</div>
-              <div style={{ padding: "5px 8px", background: "#161616", fontSize: 10, color: "#666" }}>{b.name}</div>
+              <div style={{ padding: "5px 8px", background: "#161616", display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, flexShrink: 0,
+                  background: isScene ? "#1a0f3a" : "#1a1500",
+                  color:      isScene ? "#c4b5fd" : "#fce499",
+                  border:     `1px solid ${isScene ? "#c4b5fd44" : "#fce49944"}`,
+                  letterSpacing: ".3px",
+                }}>{isScene ? "S" : "E"}</span>
+                <span style={{ fontSize: 10, color: "#888", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{b.name}</span>
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+function resizeToMaxWidth(file, maxW) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxW) { resolve(ev.target.result); return; }
+        const scale = maxW / img.width;
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = maxW; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, maxW, h);
+        resolve(canvas.toDataURL(file.type || "image/png"));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function ImageSrcField({ value, onChange, iStyle }) {
+  const fileRef = useRef(null);
+  const isData = value && value.startsWith("data:");
+
+  async function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const resized = await resizeToMaxWidth(file, 600);
+    onChange(resized);
+    e.target.value = "";
+  }
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Bild</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <button onClick={() => fileRef.current.click()}
+          style={{ flex: "0 0 auto", padding: "7px 10px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#fce499", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+          <i className="ti ti-upload" style={{ fontSize: 13 }} /> Hochladen
+        </button>
+        <input style={{ ...iStyle, flex: 1, fontSize: 11 }} value={isData ? "(eingebettetes Bild)" : (value || "")}
+          readOnly={isData}
+          onChange={isData ? undefined : e => onChange(e.target.value)}
+          placeholder="https://..." />
+        {isData && (
+          <button onClick={() => onChange("")}
+            style={{ flex: "0 0 auto", padding: "7px 8px", background: "transparent", border: "1px solid #3a1a1a", borderRadius: 7, color: "#f87171", fontSize: 12, cursor: "pointer" }}>
+            <i className="ti ti-x" style={{ fontSize: 13 }} />
+          </button>
+        )}
+      </div>
+      {isData && <div style={{ fontSize: 10, color: "#4ade80" }}>Bild eingebettet (base64) — wird in allen E-Mail-Clients angezeigt</div>}
+      {value && !isData && <div style={{ fontSize: 10, color: "#f87171" }}>Externe URL — Outlook blockiert externe Bilder standardmäßig</div>}
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
     </div>
   );
 }
@@ -753,7 +843,7 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
   if (block.type === "image") return (
     <div>
-      <F label="Bild-URL"><input style={iStyle} value={p.src} onChange={e => u("src", e.target.value)} placeholder="https://..." /></F>
+      <ImageSrcField value={p.src} onChange={v => u("src", v)} iStyle={iStyle} />
       <F label="Alt-Text"><input style={iStyle} value={p.alt} onChange={e => u("alt", e.target.value)} placeholder="Bildbeschreibung" /></F>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <F label="Breite (px)"><input style={iStyle} value={p.width} onChange={e => u("width", e.target.value)} /></F>
@@ -797,87 +887,6 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
   if (block.type === "banner") return (
     <div>
       <BannerLibraryPicker onInsert={newProps => onChange(newProps)} />
-      {/* Text */}
-      <F label="Haupttext">
-        <input style={iStyle} value={p.text} onChange={e => u("text", e.target.value)}
-          onFocus={e => trackFocus(e.target, v => u("text", v))} placeholder="z.B. Jetzt Termin buchen!" />
-      </F>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <F label="Schriftgröße (px)"><input style={iStyle} type="number" value={p.fontSize} onChange={e => u("fontSize", e.target.value)} /></F>
-        <F label="Ausrichtung">
-          <select style={iStyle} value={p.textAlign} onChange={e => u("textAlign", e.target.value)}>
-            {["left","center","right"].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </F>
-      </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <button onClick={() => u("fontWeight", p.fontWeight === "bold" ? "normal" : "bold")}
-          style={{ flex: 1, padding: "5px", background: p.fontWeight === "bold" ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.fontWeight === "bold" ? "#1a1a0a" : "#888", fontWeight: "bold", cursor: "pointer", fontSize: 13 }}>B</button>
-      </div>
-      <F label="Textfarbe"><ColorInput value={p.textColor} onChange={v => u("textColor", v)} /></F>
-      <F label="Subtext (optional)">
-        <input style={iStyle} value={p.subtext} onChange={e => u("subtext", e.target.value)}
-          onFocus={e => trackFocus(e.target, v => u("subtext", v))} placeholder="Zusatzzeile unter dem Haupttext…" />
-      </F>
-      {p.subtext && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <F label="Subtext-Farbe"><ColorInput value={p.subtextColor} onChange={v => u("subtextColor", v)} /></F>
-          <F label="Subtext-Größe (px)"><input style={iStyle} type="number" value={p.subtextSize} onChange={e => u("subtextSize", e.target.value)} /></F>
-        </div>
-      )}
-
-      {/* Link */}
-      <F label="Link-URL (optional)">
-        <input style={iStyle} value={p.linkUrl} onChange={e => u("linkUrl", e.target.value)} placeholder="https://..." />
-      </F>
-      {p.linkUrl && <UTMEditor props={p} onChange={um} />}
-
-      {/* Background */}
-      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e1e1e", marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>Hintergrund</div>
-        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-          {[["solid","Vollfarbe"],["gradient","Verlauf"]].map(([val, lbl]) => (
-            <button key={val} onClick={() => u("bgType", val)}
-              style={{ flex: 1, padding: "5px 8px", background: p.bgType === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.bgType === val ? "#1a1a0a" : "#888", cursor: "pointer", fontSize: 12, fontWeight: p.bgType === val ? 700 : 400 }}>
-              {lbl}
-            </button>
-          ))}
-        </div>
-        <F label={p.bgType === "gradient" ? "Farbe 1" : "Hintergrundfarbe"}>
-          <ColorInput value={p.color1} onChange={v => u("color1", v)} />
-        </F>
-        {p.bgType === "gradient" && (
-          <>
-            <F label="Farbe 2"><ColorInput value={p.color2} onChange={v => u("color2", v)} /></F>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>Richtung</div>
-              <div style={{ display: "flex", gap: 4 }}>
-                {[["horizontal","↔ Horizontal"],["vertical","↕ Vertikal"],["diagonal","↘ Diagonal"]].map(([val, lbl]) => (
-                  <button key={val} onClick={() => u("gradientDir", val)}
-                    style={{ flex: 1, padding: "5px 4px", background: p.gradientDir === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.gradientDir === val ? "#1a1a0a" : "#888", cursor: "pointer", fontSize: 10, fontWeight: p.gradientDir === val ? 700 : 400 }}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <F label="Outlook-Fallback Farbe">
-              <ColorInput value={p.outlookColor} onChange={v => u("outlookColor", v)} />
-            </F>
-            <div style={{ padding: "6px 8px", background: "#1a1500", border: "1px solid #3a2800", borderRadius: 5, fontSize: 10, color: "#888", lineHeight: "15px", marginBottom: 8 }}>
-              <i className="ti ti-alert-triangle" style={{ color: "#fce499", marginRight: 4 }} />
-              Outlook unterstützt CSS-Gradienten nicht — die Fallback-Farbe wird dort angezeigt.
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Dimensions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <F label="Höhe (px)"><input style={iStyle} type="number" value={p.height} onChange={e => u("height", e.target.value)} /></F>
-        <F label="Innenabstand (px)"><input style={iStyle} type="number" value={p.padding} onChange={e => u("padding", e.target.value)} /></F>
-        <F label="Eckenradius (px)"><input style={iStyle} type="number" value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
-      </div>
-
     </div>
   );
 

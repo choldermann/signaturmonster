@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ACCENT_COLORS, CI_PALETTES } from "../data/colorPresets.js";
 
 const API = "";
@@ -51,6 +51,66 @@ const EMPTY = {
   show_header: true, show_footer: true, footer_text: "",
   content_bg: "#ffffff", shadow: "0 2px 12px rgba(0,0,0,0.08)",
 };
+
+function resizeImage(file, maxH) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = maxH / img.height;
+        const w = Math.round(img.width * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = maxH;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, maxH);
+        resolve(canvas.toDataURL(file.type || "image/png"));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function LogoUpload({ value, onChange }) {
+  const fileRef = useRef(null);
+
+  async function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const resized = await resizeImage(file, 50);
+    onChange(resized);
+    e.target.value = "";
+  }
+
+  const isDataUri = value && value.startsWith("data:");
+  const isUrl = value && !isDataUri;
+
+  return (
+    <div>
+      {value ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 8 }}>
+          <img src={value} alt="Logo" style={{ maxHeight: 36, maxWidth: 100, objectFit: "contain", borderRadius: 4 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: isUrl ? "#f87171" : "#4ade80" }}>
+              {isUrl ? "Externe URL — wird in E-Mails nicht angezeigt" : "Eingebettetes Bild (base64)"}
+            </div>
+          </div>
+          <button onClick={() => fileRef.current.click()} style={{ ...btnSecondary, padding: "5px 10px", fontSize: 11 }}>
+            <i className="ti ti-upload" style={{ fontSize: 12 }} /> Tauschen
+          </button>
+          <button onClick={() => onChange("")} style={{ ...btnDanger, padding: "5px 8px" }}>
+            <i className="ti ti-x" style={{ fontSize: 12 }} />
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => fileRef.current.click()} style={{ ...btnSecondary, width: "100%", justifyContent: "center", padding: "10px" }}>
+          <i className="ti ti-upload" style={{ fontSize: 14 }} /> Logo-Bild hochladen
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+    </div>
+  );
+}
 
 function CIPreview({ cfg }) {
   const c = { ...EMPTY, ...cfg };
@@ -142,8 +202,8 @@ function CIEditor({ ci, onSave, onCancel, toast }) {
             <Field label="Firmenname">
               <input style={inputStyle} value={form.company_name} onChange={e => u("company_name", e.target.value)} placeholder="z.B. Holdermann IT" />
             </Field>
-            <Field label="Logo-URL">
-              <input style={inputStyle} value={form.logo_url} onChange={e => u("logo_url", e.target.value)} placeholder="https://..." />
+            <Field label="Logo" hint="Bild wird als base64 eingebettet und erscheint in allen E-Mail-Clients">
+              <LogoUpload value={form.logo_url} onChange={v => u("logo_url", v)} />
             </Field>
           </div>
 
