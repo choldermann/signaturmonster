@@ -44,6 +44,10 @@ async def stream_update():
         try:
             async with httpx.AsyncClient() as c:
                 async with c.stream("POST", f"{_UPDATER}/update/stream", timeout=300) as r:
+                    if r.status_code != 200:
+                        body = await r.aread()
+                        yield f"data: {json.dumps({'step': 'error', 'msg': f'Updater {r.status_code}: {body.decode()[:200]}'})}\n\n".encode()
+                        return
                     async for chunk in r.aiter_bytes():
                         yield chunk
         except Exception as e:

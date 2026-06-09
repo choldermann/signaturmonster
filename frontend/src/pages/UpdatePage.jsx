@@ -163,13 +163,24 @@ export default function UpdatePage({ toast }) {
 
     try {
       const resp = await fetch("/api/update/stream", { method: "POST" });
+      if (!resp.ok) {
+        setLogEntries([{ step: "error", msg: `HTTP ${resp.status}`, detail: await resp.text() }]);
+        return;
+      }
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
+      let gotEvent = false;
+      const timeout = setTimeout(() => {
+        if (!gotEvent) {
+          setLogEntries(prev => [...prev, { step: "error", msg: "Keine Antwort vom Updater — bitte manuell updaten: docker compose pull && docker compose up -d" }]);
+        }
+      }, 15000);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        gotEvent = true;
         buf += dec.decode(value, { stream: true });
         const lines = buf.split("\n");
         buf = lines.pop();
@@ -191,6 +202,7 @@ export default function UpdatePage({ toast }) {
           } catch {}
         }
       }
+      clearTimeout(timeout);
     } catch (e) {
       setLogEntries(prev => [...prev, { step: "error", msg: String(e) }]);
       toast("err", "Update-Verbindung unterbrochen");
