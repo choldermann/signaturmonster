@@ -29,7 +29,7 @@ echo -e "${GREEN}✓ Docker $(docker --version | grep -oP '\d+\.\d+\.\d+' | head
 # ── Installationsverzeichnis ──────────────────────────────────
 DEFAULT_DIR="${HOME}/signaturmonster"
 echo ""
-read -p "Installationsverzeichnis [${DEFAULT_DIR}]: " CUSTOM_DIR
+read -p "Installationsverzeichnis [${DEFAULT_DIR}]: " CUSTOM_DIR </dev/tty
 INSTALL_DIR="${CUSTOM_DIR:-$DEFAULT_DIR}"
 
 mkdir -p "${INSTALL_DIR}/data"
@@ -41,13 +41,13 @@ echo ""
 echo -e "${BOLD}SMTP-Relay konfigurieren${NC}"
 echo -e "${YELLOW}(Dein eigentlicher ausgehender Mailserver — z.B. Strato, IONOS, Gmail)${NC}"
 echo ""
-read -p "  RELAY_HOST (z.B. smtp.ionos.de): " RELAY_HOST
-read -p "  RELAY_PORT [587]: " RELAY_PORT;   RELAY_PORT="${RELAY_PORT:-587}"
-read -p "  RELAY_USER (E-Mail-Adresse):  " RELAY_USER
-read -s -p "  RELAY_PASS (Passwort):        " RELAY_PASS; echo ""
+read -p "  RELAY_HOST (z.B. smtp.ionos.de): " RELAY_HOST </dev/tty
+read -p "  RELAY_PORT [587]: " RELAY_PORT </dev/tty;   RELAY_PORT="${RELAY_PORT:-587}"
+read -p "  RELAY_USER (E-Mail-Adresse):  " RELAY_USER </dev/tty
+read -s -p "  RELAY_PASS (Passwort):        " RELAY_PASS </dev/tty; echo ""
 echo ""
-read -p "  Port für Thunderbird/Mailprogramm [2587]: " SMTP_PORT; SMTP_PORT="${SMTP_PORT:-2587}"
-read -p "  Port für das Web-Dashboard      [8080]:  " HTTP_PORT; HTTP_PORT="${HTTP_PORT:-8080}"
+read -p "  Port für Thunderbird/Mailprogramm [2587]: " SMTP_PORT </dev/tty; SMTP_PORT="${SMTP_PORT:-2587}"
+read -p "  Port für das Web-Dashboard      [8080]:  " HTTP_PORT </dev/tty; HTTP_PORT="${HTTP_PORT:-8080}"
 
 # Zufälligen Secret Key generieren
 SECRET_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9!@#%^&*_+=' </dev/urandom 2>/dev/null | head -c 48 || \
@@ -63,18 +63,9 @@ curl -fsSL "${BASE}/nginx/nginx.conf"   -o nginx/nginx.conf
 echo -e "${GREEN}✓ docker-compose.yml und nginx.conf geladen${NC}"
 
 # ── .env schreiben ────────────────────────────────────────────
-cat > .env <<EOF
-# Signaturmonster Konfiguration — generiert von install.sh
-RELAY_HOST=${RELAY_HOST}
-RELAY_PORT=${RELAY_PORT}
-RELAY_USER=${RELAY_USER}
-RELAY_PASS=${RELAY_PASS}
-SMTP_PORT=${SMTP_PORT}
-HTTP_PORT=${HTTP_PORT}
-SECRET_KEY=${SECRET_KEY}
-GITHUB_TOKEN=
-LEXWARE_API_TOKEN=
-EOF
+printf '# Signaturmonster Konfiguration — generiert von install.sh\nRELAY_HOST=%s\nRELAY_PORT=%s\nRELAY_USER=%s\nRELAY_PASS=%s\nSMTP_PORT=%s\nHTTP_PORT=%s\nSECRET_KEY=%s\nGITHUB_TOKEN=\nLEXWARE_API_TOKEN=\n' \
+    "${RELAY_HOST}" "${RELAY_PORT}" "${RELAY_USER}" "${RELAY_PASS}" \
+    "${SMTP_PORT}" "${HTTP_PORT}" "${SECRET_KEY}" > .env
 echo -e "${GREEN}✓ .env erstellt${NC}"
 
 # ── Container starten ─────────────────────────────────────────
