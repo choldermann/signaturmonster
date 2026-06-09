@@ -198,53 +198,70 @@ def update_stream():
     def _evt(step: str, msg: str, detail: str = "") -> str:
         return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
 
+    def _ps() -> str:
+        r = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"],
+            capture_output=True, text=True,
+        )
+        return r.stdout.strip() or "(keine Container)"
+
+    def _rm(name: str) -> str:
+        r = subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True)
+        return f"rm -f {name}: {(r.stdout + r.stderr).strip() or 'ok'}"
+
+    def _up(svc: str) -> str:
+        r = subprocess.run(
+            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
+            capture_output=True, text=True,
+        )
+        out = (r.stdout + r.stderr).strip()
+        if r.returncode != 0:
+            raise subprocess.CalledProcessError(r.returncode, f"up {svc}", out.encode())
+        return out
+
     def generate():
-        services = ["smtp-proxy", "backend", "frontend", "nginx"]
+        # backend first — smtp-proxy/frontend/nginx depend on it
+        services        = ["backend", "frontend", "smtp-proxy", "nginx"]
+        container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
         try:
             yield _evt("pull", "Lade neue Images von GitHub...")
             subprocess.check_output(
                 ["docker", "compose", "-f", COMPOSE_FILE, "pull"],
                 stderr=subprocess.STDOUT,
             )
-            logger.info("docker compose pull done")
             yield _evt("pull_ok", "Images geladen")
 
             yield _evt("rm", "Stoppe und entferne alte Container...")
-            out = subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "down"] + services,
-                stderr=subprocess.STDOUT,
-            ).decode()
-            logger.info("old containers removed: %s", out)
-            yield _evt("rm_ok", "Alte Container entfernt", out[-300:] if out.strip() else "")
+            ps_before = _ps()
+            yield _evt("rm", "Zustand VOR Entfernen", ps_before)
+            rm_log = [_rm(n) for n in container_names]
+            ps_after = _ps()
+            yield _evt("rm_ok", "Alte Container entfernt",
+                       "\n".join(rm_log) + "\n\nNach rm:\n" + ps_after)
 
             yield _evt("up", "Starte neue Container...")
-            up_out = []
             for svc in services:
-                o = subprocess.check_output(
-                    ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
-                    stderr=subprocess.STDOUT,
-                ).decode()
-                up_out.append(f"{svc}: {o.strip()[-80:]}")
-            logger.info("services restarted")
-            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_out))
+                ps_pre = _ps()
+                out = _up(svc)
+                ps_post = _ps()
+                yield _evt("up", f"Gestartet: {svc}",
+                           f"Output: {out}\n\nVorher:\n{ps_pre}\n\nNachher:\n{ps_post}")
+            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet")
 
             yield _evt("self", "Starte Updater neu...")
             subprocess.Popen(
-                ["docker", "compose", "-f", COMPOSE_FILE, "stop", "updater"],
+                ["docker", "rm", "-f", "sm-updater"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             subprocess.Popen(
-                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "updater"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            subprocess.Popen(
-                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "updater"],
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", "updater"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             yield _evt("done", "Update abgeschlossen")
 
         except subprocess.CalledProcessError as e:
-            yield _evt("error", "Fehler beim Update", e.output.decode()[-400:])
+            err = e.output.decode() if isinstance(e.output, bytes) else str(e.output)
+            yield _evt("error", "Fehler beim Update", err[-600:])
         except Exception as e:
             yield _evt("error", str(e))
 
