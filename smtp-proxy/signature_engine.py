@@ -17,6 +17,17 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+POWERED_BY_HTML = (
+    '\n<table width="100%" cellpadding="0" cellspacing="0" border="0">'
+    '<tr><td align="center" bgcolor="#181818" style="background-color:#181818;'
+    'padding:6px 12px;font-family:Arial,Helvetica,sans-serif;font-size:10px;">'
+    '<a href="https://signaturmonster.monstersuite.de" style="text-decoration:none;">'
+    '<span style="color:#888888;">powered&nbsp;by&nbsp;</span>'
+    '<span style="color:#fce499;">Signatur</span>'
+    '<span style="color:#ffffff;">monster</span>'
+    '</a></td></tr></table>'
+)
+
 # Matches: src="data:image/gif;base64,AAA..." (single or double quotes)
 _DATA_URI_RE = re.compile(
     r'(src=["\'])data:(image/[\w+]+);base64,([A-Za-z0-9+/=\s]+?)(["\'])',
@@ -28,7 +39,7 @@ class SignatureEngine:
     def __init__(self):
         self.beautifier = MailBeautifier()
 
-    async def inject(self, message: Message, signature: dict, enrichment: dict | None = None, ci: dict | None = None, sender: dict | None = None, disclaimer: dict | None = None) -> Message:
+    async def inject(self, message: Message, signature: dict, enrichment: dict | None = None, ci: dict | None = None, sender: dict | None = None, disclaimer: dict | None = None, powered_by: bool = True) -> Message:
         context = {}
         if sender:
             context.update(self._sender_context(sender))
@@ -59,6 +70,14 @@ class SignatureEngine:
                     self._inject_html(message, html_sig)
             else:
                 self._inject_text(message, text_sig)
+
+        if powered_by:
+            if message.is_multipart():
+                for part in message.walk():
+                    if part.get_content_type() == "text/html":
+                        self._inject_powered_by(part)
+            elif message.get_content_type() == "text/html":
+                self._inject_powered_by(message)
 
         # Convert embedded data:image URIs to CID inline attachments
         # so Gmail (which strips data: URIs) still shows the banner.
@@ -287,6 +306,20 @@ class SignatureEngine:
             self._set_html_payload(part, new_content)
         except Exception as e:
             logger.error(f"HTML injection failed: {e}")
+
+    def _inject_powered_by(self, part: Message):
+        try:
+            charset = part.get_content_charset() or "utf-8"
+            content = part.get_payload(decode=True).decode(charset)
+            lower = content.lower()
+            pos = lower.rfind("</body>")
+            if pos != -1:
+                new_content = content[:pos] + POWERED_BY_HTML + content[pos:]
+            else:
+                new_content = content + POWERED_BY_HTML
+            self._set_html_payload(part, new_content)
+        except Exception as e:
+            logger.error(f"Powered-by injection failed: {e}")
 
     def _inject_text(self, part: Message, sig_text: str):
         try:

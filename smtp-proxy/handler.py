@@ -39,6 +39,7 @@ class SignaturmonsterHandler(AsyncMessage):
                 )
                 ci         = rule.get("ci_config")   or None
                 disclaimer = rule.get("disclaimer")   or None
+                powered_by = rule.get("powered_by", True)
                 message = await self.signature_engine.inject(
                     message,
                     rule["signature"],
@@ -46,6 +47,7 @@ class SignaturmonsterHandler(AsyncMessage):
                     ci=ci,
                     sender=sender_profile,
                     disclaimer=disclaimer,
+                    powered_by=powered_by,
                 )
                 mode = "branded" if ci else "signature"
                 logger.info(f"[{mode}] Signature '{rule['signature']['name']}' injected for {sender_email}")

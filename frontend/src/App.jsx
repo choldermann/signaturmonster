@@ -321,13 +321,24 @@ function RulesPage({ toast }) {
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [poweredBy, setPoweredBy] = useState(true);
+  const [isFree, setIsFree] = useState(true);
 
   const [cis, setCIs] = useState([]);
   const [smtpAccounts, setSmtpAccounts]   = useState([]);
   const [disclaimers, setDisclaimers]     = useState([]);
   const load = useCallback(async () => {
-    const [r, s, c, sa, dis] = await Promise.all([api("GET", "/api/rules/"), api("GET", "/api/signatures/"), api("GET", "/api/ci/"), api("GET", "/api/smtp-accounts/"), api("GET", "/api/disclaimers/")]);
-    setRules(r); setSigs(s); setCIs(c); setSmtpAccounts(Array.isArray(sa) ? sa : []); setDisclaimers(Array.isArray(dis) ? dis : []); setLoading(false);
+    const [r, s, c, sa, dis, settings, lic] = await Promise.all([
+      api("GET", "/api/rules/"), api("GET", "/api/signatures/"), api("GET", "/api/ci/"),
+      api("GET", "/api/smtp-accounts/"), api("GET", "/api/disclaimers/"),
+      api("GET", "/api/settings/"), api("GET", "/api/license/"),
+    ]);
+    setRules(r); setSigs(s); setCIs(c);
+    setSmtpAccounts(Array.isArray(sa) ? sa : []);
+    setDisclaimers(Array.isArray(dis) ? dis : []);
+    setPoweredBy(settings?.powered_by_enabled !== "false");
+    setIsFree((lic?.status ?? "free") === "free");
+    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -352,6 +363,18 @@ function RulesPage({ toast }) {
 
   async function del(id) { await api("DELETE", `/api/rules/${id}`); toast("ok", "Regel gelöscht"); load(); }
 
+  async function togglePoweredBy() {
+    if (isFree) { toast("err", "Nur mit Kauflizenz deaktivierbar"); return; }
+    const newVal = poweredBy ? "false" : "true";
+    const r = await api("PUT", "/api/settings/powered-by", { value: newVal });
+    if (r.powered_by_enabled !== undefined) {
+      setPoweredBy(r.powered_by_enabled !== "false");
+      toast("ok", "Einstellung gespeichert");
+    } else {
+      toast("err", r.detail || "Fehler");
+    }
+  }
+
   if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
 
   return (
@@ -365,6 +388,41 @@ function RulesPage({ toast }) {
           <Icon name={editingId ? "x" : "plus"} size={15} />{editingId ? "Abbrechen" : "Neue Regel"}
         </button>
       </div>
+
+      {/* ── Powered-by Branding ─────────────────────────────────── */}
+      <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Icon name="badge" size={14} style={{ color: "#fce499" }} />
+            Powered-by Branding
+            {isFree && <span style={{ fontSize: 10, background: "#1a1400", color: "#fce499", border: "1px solid #78600a", padding: "1px 7px", borderRadius: 20 }}>Kostenlos</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "#555", lineHeight: "17px" }}>
+            Fügt einen kleinen <span style={{ fontFamily: "monospace", background: "#181818", padding: "1px 5px", borderRadius: 3 }}>
+              <span style={{ color: "#fce499" }}>Signatur</span><span style={{ color: "#fff" }}>monster</span>
+            </span>-Footer an jede verarbeitete Mail an.
+            {isFree && <span style={{ color: "#666" }}> Mit Kauflizenz deaktivierbar.</span>}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {isFree && <Icon name="lock" size={14} style={{ color: "#555" }} />}
+          <button
+            onClick={togglePoweredBy}
+            disabled={isFree}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: "none", cursor: isFree ? "not-allowed" : "pointer",
+              background: poweredBy ? "#fce499" : "#2a2a2a", position: "relative", transition: "background .2s", flexShrink: 0,
+            }}
+          >
+            <span style={{
+              position: "absolute", top: 3, left: poweredBy ? 23 : 3, width: 18, height: 18,
+              borderRadius: "50%", background: poweredBy ? "#1a1a0a" : "#555", transition: "left .2s",
+            }} />
+          </button>
+          <span style={{ fontSize: 12, color: poweredBy ? "#fce499" : "#555", minWidth: 22 }}>{poweredBy ? "An" : "Aus"}</span>
+        </div>
+      </div>
+
       <InfoBanner icon="info-circle" color="#93c5fd" title="Signatur-Regeln"
         text="Diese Regeln steuern welche Signatur an reguläre Mails angehängt wird. Für Angebote mit Produktlisten bitte Template-Regeln verwenden." />
       {editingId !== null && (

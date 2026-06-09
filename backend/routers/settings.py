@@ -41,6 +41,23 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Setting))
     return {s.key: s.value for s in result.scalars().all()}
 
+@router.put("/powered-by")
+async def set_powered_by(data: SettingUpdate, db: AsyncSession = Depends(get_db)):
+    if data.value == "false":
+        from routers.license import _resolve_license
+        lic = await _resolve_license(db)
+        if lic.get("status") == "free":
+            from fastapi import HTTPException
+            raise HTTPException(403, "Powered-by kann nur mit einer Kauflizenz deaktiviert werden")
+    s = await db.get(Setting, "powered_by_enabled")
+    if s:
+        s.value = data.value
+    else:
+        s = Setting(key="powered_by_enabled", value=data.value)
+        db.add(s)
+    await db.commit()
+    return {"powered_by_enabled": data.value}
+
 @router.put("/{key}")
 async def update_setting(key: str, data: SettingUpdate, db: AsyncSession = Depends(get_db)):
     s = await db.get(Setting, key)

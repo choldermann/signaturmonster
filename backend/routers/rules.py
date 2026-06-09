@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
-from models import Rule, Signature, CIConfig, SMTPAccount, Disclaimer
+from models import Rule, Signature, CIConfig, SMTPAccount, Disclaimer, Setting
 from pydantic import BaseModel
 from typing import Optional
 
@@ -97,6 +97,9 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
                     "text_content": disclaimer.text_content,
                 }
 
+        pb_setting = await db.get(Setting, "powered_by_enabled")
+        powered_by = pb_setting is None or pb_setting.value != "false"
+
         return {
             "rule_id": rule.id,
             "signature": {
@@ -109,6 +112,7 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
             "ci_config":         ci_dict,
             "smtp_account":      smtp_account_dict,
             "disclaimer":        disclaimer_dict,
+            "powered_by":        powered_by,
         }
     return None
 
