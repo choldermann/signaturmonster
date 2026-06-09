@@ -1,6 +1,6 @@
 import subprocess, os, logging, json
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response, stream_with_context
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -185,6 +185,57 @@ def update():
         return jsonify({"ok": False, "error": e.output.decode()}), 500
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.post("/update/stream")
+def update_stream():
+    def _evt(step: str, msg: str, detail: str = "") -> str:
+        return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
+
+    def generate():
+        services = ["smtp-proxy", "backend", "frontend", "nginx"]
+        try:
+            yield _evt("pull", "Lade neue Images von GitHub...")
+            pull_out = subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "pull"],
+                stderr=subprocess.STDOUT,
+            ).decode()
+            logger.info("docker compose pull done")
+            yield _evt("pull_ok", "Images geladen")
+
+            yield _evt("rm", "Stoppe und entferne alte Container...")
+            subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "-s"] + services,
+                stderr=subprocess.STDOUT,
+            )
+            logger.info("old containers removed")
+            yield _evt("rm_ok", "Alte Container entfernt")
+
+            yield _evt("up", "Starte neue Container...")
+            subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d"] + services,
+                stderr=subprocess.STDOUT,
+            )
+            logger.info("services restarted")
+            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet")
+
+            yield _evt("self", "Starte Updater neu...")
+            subprocess.Popen(
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--force-recreate", "updater"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            yield _evt("done", "Update abgeschlossen")
+
+        except subprocess.CalledProcessError as e:
+            yield _evt("error", "Fehler beim Update", e.output.decode()[-400:])
+        except Exception as e:
+            yield _evt("error", str(e))
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/health")

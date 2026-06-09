@@ -56,12 +56,91 @@ function VersionBlock({ label, hash, message, date }) {
   );
 }
 
+const STEPS = [
+  { key: "pull",  ok: "pull_ok",  label: "Images laden"            },
+  { key: "rm",    ok: "rm_ok",    label: "Alte Container entfernen" },
+  { key: "up",    ok: "up_ok",    label: "Neue Container starten"   },
+  { key: "self",  ok: "done",     label: "Updater neu starten"      },
+];
+
+function UpdateDialog({ entries, restarting }) {
+  const logRef = React.useRef(null);
+  React.useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [entries, restarting]);
+
+  function stepStatus(key, okKey) {
+    const hasOk    = entries.some(e => e.step === okKey);
+    const hasStart = entries.some(e => e.step === key);
+    const hasErr   = entries.some(e => e.step === "error");
+    if (hasOk)    return "ok";
+    if (hasErr && hasStart && !hasOk) return "error";
+    if (hasStart) return "running";
+    return "pending";
+  }
+
+  const isDone  = entries.some(e => e.step === "done");
+  const isError = entries.some(e => e.step === "error");
+  const errorMsg = (entries.find(e => e.step === "error") || {}).detail || (entries.find(e => e.step === "error") || {}).msg || "";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+        @keyframes fadeUp { from { opacity:0;transform:translateY(12px) } to { opacity:1;transform:translateY(0) } }
+      `}</style>
+      <div style={{ background: "#161616", border: "1px solid #2a2a2a", borderRadius: 14, padding: "28px 32px", width: 480, maxWidth: "95vw", animation: "fadeUp .25s ease" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <Icon name="refresh" size={18} style={{ color: "#fce499", animation: isDone || isError ? "none" : "spin 1.2s linear infinite" }} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Software-Update</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {STEPS.map(({ key, ok, label }) => {
+            const status = stepStatus(key, ok);
+            return (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {status === "ok"      && <Icon name="circle-check" size={16} style={{ color: "#4ade80" }} />}
+                  {status === "running" && <Icon name="loader-2"     size={16} style={{ color: "#fce499", animation: "spin 1s linear infinite" }} />}
+                  {status === "error"   && <Icon name="circle-x"     size={16} style={{ color: "#f87171" }} />}
+                  {status === "pending" && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2a2a2a", margin: "0 auto" }} />}
+                </div>
+                <span style={{ fontSize: 13, color: status === "ok" ? "#aaa" : status === "running" ? "#fff" : status === "error" ? "#f87171" : "#444", fontWeight: status === "running" ? 600 : 400 }}>
+                  {label}
+                  {status === "running" && <span style={{ color: "#555" }}> …</span>}
+                  {status === "ok"      && <span style={{ color: "#4ade80", fontSize: 11, marginLeft: 6 }}>✓</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {restarting && (
+          <div style={{ borderTop: "1px solid #222", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="loader-2" size={14} style={{ color: "#93c5fd", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: "#555" }}>Warte auf Server … Seite lädt automatisch neu.</span>
+          </div>
+        )}
+
+        {isError && (
+          <div style={{ borderTop: "1px solid #3a1a1a", paddingTop: 14, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "#f87171", marginBottom: 6, fontWeight: 600 }}>Fehlerdetails</div>
+            <pre style={{ fontSize: 11, color: "#888", background: "#111", borderRadius: 6, padding: "10px 12px", margin: 0, overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 140 }}>{errorMsg}</pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function UpdatePage({ toast }) {
-  const [info, setInfo]         = useState(null);
-  const [changelog, setChangelog] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [info, setInfo]             = useState(null);
+  const [changelog, setChangelog]   = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [logEntries, setLogEntries] = useState([]);
   const [restarting, setRestarting] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,35 +157,50 @@ export default function UpdatePage({ toast }) {
 
   async function runUpdate() {
     if (!confirm("Jetzt updaten? Die Anwendung wird neu gestartet.")) return;
-    setUpdating(true);
-    const r = await api("POST", "/api/update/run");
-    if (r.ok) {
-      setRestarting(true);
-      setUpdating(false);
-      // Poll until backend is reachable again, then reload
-      const poll = setInterval(async () => {
-        try {
-          const res = await fetch("/health");
-          if (res.ok) { clearInterval(poll); window.location.reload(); }
-        } catch { /* still restarting */ }
-      }, 3000);
-    } else {
-      setUpdating(false);
-      toast("err", r.error || "Update fehlgeschlagen");
+    setLogEntries([]);
+    setRestarting(false);
+    setShowDialog(true);
+
+    try {
+      const resp = await fetch("/api/update/stream", { method: "POST" });
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            setLogEntries(prev => [...prev, evt]);
+            if (evt.step === "done") {
+              setRestarting(true);
+              const poll = setInterval(async () => {
+                try {
+                  const r = await fetch("/health");
+                  if (r.ok) { clearInterval(poll); window.location.reload(); }
+                } catch {}
+              }, 3000);
+            }
+            if (evt.step === "error") toast("err", evt.msg);
+          } catch {}
+        }
+      }
+    } catch (e) {
+      setLogEntries(prev => [...prev, { step: "error", msg: String(e) }]);
+      toast("err", "Update-Verbindung unterbrochen");
     }
   }
 
-  if (restarting) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 300, gap: 16 }}>
-      <Icon name="refresh" size={32} style={{ color: "#fce499", animation: "spin 1s linear infinite" }} />
-      <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc" }}>Container werden neu gestartet…</div>
-      <div style={{ fontSize: 12, color: "#555" }}>Seite lädt automatisch sobald der Server wieder erreichbar ist.</div>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-
   return (
     <div>
+      {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} />}
+
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Software-Update</h1>
         <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
@@ -122,9 +216,9 @@ export default function UpdatePage({ toast }) {
               <Icon name="refresh" size={13} />Prüfen
             </button>
             {info && !info.up_to_date && (
-              <button style={btnPrimary} onClick={runUpdate} disabled={updating || loading}>
-                <Icon name={updating ? "loader" : "download"} size={14} />
-                {updating ? "Wird aktualisiert…" : `Update (${info.behind} Commit${info.behind !== 1 ? "s" : ""})`}
+              <button style={btnPrimary} onClick={runUpdate} disabled={loading}>
+                <Icon name="download" size={14} />
+                {`Update (${info.behind} Commit${info.behind !== 1 ? "s" : ""})`}
               </button>
             )}
           </div>
@@ -135,21 +229,11 @@ export default function UpdatePage({ toast }) {
           <div style={{ color: "#f87171", fontSize: 13 }}>Updater nicht erreichbar — läuft der sm-updater Container?</div>
         ) : (
           <div style={{ display: "flex", gap: 16 }}>
-            <VersionBlock
-              label="Installiert"
-              hash={info.current}
-              message={info.current_message}
-              date={info.current_date}
-            />
+            <VersionBlock label="Installiert" hash={info.current} message={info.current_message} date={info.current_date} />
             {!info.up_to_date && (
               <>
                 <div style={{ display: "flex", alignItems: "center", color: "#333", fontSize: 18 }}>→</div>
-                <VersionBlock
-                  label="Verfügbar (GitHub)"
-                  hash={info.latest}
-                  message={info.latest_message}
-                  date={info.latest_date}
-                />
+                <VersionBlock label="Verfügbar (GitHub)" hash={info.latest} message={info.latest_message} date={info.latest_date} />
               </>
             )}
           </div>
