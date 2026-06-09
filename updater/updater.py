@@ -156,17 +156,13 @@ def update():
         ).decode()
         logger.info("docker compose pull done")
 
-        # Dependency order: backend first, dependents after.
-        # --no-deps prevents compose from trying to create backend multiple
-        # times (it's both a direct target and a depends_on of the others).
         services = ["backend", "frontend", "smtp-proxy", "nginx"]
 
+        # "compose down [services]" stops AND removes in one atomic step —
+        # more reliable than separate stop+rm which can leave containers
+        # in a transitional state.
         subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "stop"] + services,
-            stderr=subprocess.STDOUT,
-        )
-        subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f"] + services,
+            ["docker", "compose", "-f", COMPOSE_FILE, "down"] + services,
             stderr=subprocess.STDOUT,
         )
         logger.info("old containers removed")
@@ -214,25 +210,23 @@ def update_stream():
             yield _evt("pull_ok", "Images geladen")
 
             yield _evt("rm", "Stoppe und entferne alte Container...")
-            subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "stop"] + services,
+            out = subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "down"] + services,
                 stderr=subprocess.STDOUT,
-            )
-            subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f"] + services,
-                stderr=subprocess.STDOUT,
-            )
-            logger.info("old containers removed")
-            yield _evt("rm_ok", "Alte Container entfernt")
+            ).decode()
+            logger.info("old containers removed: %s", out)
+            yield _evt("rm_ok", "Alte Container entfernt", out[-300:] if out.strip() else "")
 
             yield _evt("up", "Starte neue Container...")
+            up_out = []
             for svc in services:
-                subprocess.check_output(
+                o = subprocess.check_output(
                     ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
                     stderr=subprocess.STDOUT,
-                )
+                ).decode()
+                up_out.append(f"{svc}: {o.strip()[-80:]}")
             logger.info("services restarted")
-            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet")
+            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_out))
 
             yield _evt("self", "Starte Updater neu...")
             subprocess.Popen(
