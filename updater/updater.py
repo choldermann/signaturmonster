@@ -178,6 +178,16 @@ def _run_update():
         logger.info("%s: %s", step, msg)
 
     try:
+        # Pre-check: at least 500 MB free
+        rc0, df0 = _safe_run(["df", "-BM", "--output=avail", "/"])
+        try:
+            free_mb = int([l for l in df0.splitlines() if l.strip().rstrip("M").isdigit()][0].strip().rstrip("M"))
+        except Exception:
+            free_mb = 9999
+        if free_mb < 500:
+            _update_status.update(step="error", msg=f"Nicht genug Speicherplatz ({free_mb} MB frei, 500 MB benötigt). Bitte 'docker system prune -af' ausführen.", error=True)
+            return
+
         s("pull", "Lade neue Images von GitHub...")
         rc, out = _safe_run(_dc("pull"))
         if rc != 0:

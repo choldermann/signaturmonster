@@ -179,7 +179,11 @@ export default function UpdatePage({ toast }) {
         if (!r.ok) { errStreak++; return; }
         errStreak = 0;
         const s = await r.json();
-        if (s.step) setLogEntries([s]);
+        if (s.step) setLogEntries(prev => {
+          const last = prev[prev.length - 1];
+          if (last && last.step === s.step && last.msg === s.msg) return prev;
+          return [s];
+        });
         if (s.done) {
           clearInterval(poll);
           setRestarting(true);
@@ -193,6 +197,10 @@ export default function UpdatePage({ toast }) {
         if (s.error) {
           clearInterval(poll);
           toast("err", s.msg);
+          setLogEntries(prev => {
+            const hasErr = prev.some(e => e.step === "error");
+            return hasErr ? prev : [...prev, { step: "error", msg: s.msg, detail: s.detail || "" }];
+          });
         }
       } catch {
         errStreak++;
