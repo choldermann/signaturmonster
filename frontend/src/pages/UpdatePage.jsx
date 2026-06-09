@@ -47,7 +47,7 @@ function Badge({ ok }) {
 
 function VersionBlock({ label, hash, message, date }) {
   return (
-    <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "14px 16px", border: "1px solid #1e1e1e" }}>
+    <div style={{ flex: 1, minWidth: 0, background: "#111", borderRadius: 10, padding: "14px 16px", border: "1px solid #1e1e1e" }}>
       <div style={{ fontSize: 10, color: "#444", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>{label}</div>
       <div style={{ fontFamily: "monospace", fontSize: 13, color: "#fce499", fontWeight: 700, marginBottom: 4 }}>{hash || "—"}</div>
       <div style={{ fontSize: 12, color: "#888", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message || "—"}</div>
