@@ -159,8 +159,10 @@ def update():
         # Restart all services except the updater itself first (blocking).
         # If we included "updater" here, Docker would kill this container
         # mid-execution and the other services would never be restarted.
+        # --force-recreate ensures old containers are removed before new ones
+        # are created, avoiding "container name already in use" conflicts.
         subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d",
+            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--force-recreate",
              "smtp-proxy", "backend", "frontend", "nginx"],
             stderr=subprocess.STDOUT,
         )
@@ -169,7 +171,7 @@ def update():
         # Restart the updater last. This kills us, but everything else
         # is already updated at this point.
         subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "updater"],
+            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--force-recreate", "updater"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         return jsonify({"ok": True, "pull_output": pull})
