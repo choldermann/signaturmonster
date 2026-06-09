@@ -156,17 +156,19 @@ def update():
         ).decode()
         logger.info("docker compose pull done")
 
-        services      = ["smtp-proxy", "backend", "frontend", "nginx"]
-        container_names = ["sm-smtp", "sm-backend", "sm-frontend", "sm-nginx"]
+        services = ["smtp-proxy", "backend", "frontend", "nginx"]
 
-        # docker rm -f is synchronous and guaranteed — the container is gone
-        # once the command returns. docker compose rm can be async and causes
-        # "container name already in use" races.
-        for name in container_names:
-            subprocess.run(
-                ["docker", "rm", "-f", name],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+        # stop → rm -f → up is the most reliable sequence.
+        # "compose stop" sends SIGTERM and BLOCKS until all containers exit,
+        # so rm -f works on already-stopped containers without any race.
+        subprocess.check_output(
+            ["docker", "compose", "-f", COMPOSE_FILE, "stop"] + services,
+            stderr=subprocess.STDOUT,
+        )
+        subprocess.check_output(
+            ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f"] + services,
+            stderr=subprocess.STDOUT,
+        )
         logger.info("old containers removed")
 
         subprocess.check_output(
@@ -176,7 +178,11 @@ def update():
         logger.info("services restarted")
 
         subprocess.Popen(
-            ["docker", "rm", "-f", "sm-updater"],
+            ["docker", "compose", "-f", COMPOSE_FILE, "stop", "updater"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        subprocess.Popen(
+            ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "updater"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         subprocess.Popen(
@@ -196,8 +202,7 @@ def update_stream():
         return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
 
     def generate():
-        services        = ["smtp-proxy", "backend", "frontend", "nginx"]
-        container_names = ["sm-smtp", "sm-backend", "sm-frontend", "sm-nginx"]
+        services = ["smtp-proxy", "backend", "frontend", "nginx"]
         try:
             yield _evt("pull", "Lade neue Images von GitHub...")
             subprocess.check_output(
@@ -208,11 +213,14 @@ def update_stream():
             yield _evt("pull_ok", "Images geladen")
 
             yield _evt("rm", "Stoppe und entferne alte Container...")
-            for name in container_names:
-                subprocess.run(
-                    ["docker", "rm", "-f", name],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
+            subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "stop"] + services,
+                stderr=subprocess.STDOUT,
+            )
+            subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f"] + services,
+                stderr=subprocess.STDOUT,
+            )
             logger.info("old containers removed")
             yield _evt("rm_ok", "Alte Container entfernt")
 
@@ -226,7 +234,11 @@ def update_stream():
 
             yield _evt("self", "Starte Updater neu...")
             subprocess.Popen(
-                ["docker", "rm", "-f", "sm-updater"],
+                ["docker", "compose", "-f", COMPOSE_FILE, "stop", "updater"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            subprocess.Popen(
+                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "updater"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             subprocess.Popen(
