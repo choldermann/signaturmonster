@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import LoginPage from "./pages/LoginPage.jsx";
 
 const API = "";
@@ -189,6 +189,7 @@ function SignaturesPage({ toast }) {
   const [designer, setDesigner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [DesignerComp, setDesignerComp] = useState(null);
+  const importRef = useRef(null);
 
   useEffect(() => {
     import("./pages/SignatureDesigner.jsx").then(m => setDesignerComp(() => m.default));
@@ -205,6 +206,45 @@ function SignaturesPage({ toast }) {
     await api("DELETE", `/api/signatures/${id}`);
     toast("ok", "Signatur gelöscht");
     load();
+  }
+
+  function handleExport() {
+    const data = {
+      type: "signaturmonster-signatures",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      signatures: sigs.map(({ name, html_content, text_content, is_default, designer_json }) => ({
+        name, html_content, text_content, is_default, designer_json,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `signaturen-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const data = JSON.parse(await file.text());
+      if (data.type !== "signaturmonster-signatures" || !Array.isArray(data.signatures)) {
+        toast("err", "Ungültiges Format"); return;
+      }
+      for (const s of data.signatures) {
+        await api("POST", "/api/signatures/", {
+          name: s.name, html_content: s.html_content || "",
+          text_content: s.text_content || "", is_default: false,
+          designer_json: s.designer_json || null,
+        });
+      }
+      toast("ok", `${data.signatures.length} Signatur(en) importiert`);
+      load();
+    } catch { toast("err", "Import fehlgeschlagen"); }
   }
 
   if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
@@ -229,9 +269,18 @@ function SignaturesPage({ toast }) {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Signaturen</h1>
           <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>Werden automatisch an ausgehende Mails angehängt.</p>
         </div>
-        <button style={btnPrimary} onClick={() => setDesigner("new")}>
-          <Icon name="plus" size={15} />Neue Signatur
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={btnPrimary} onClick={() => setDesigner("new")}>
+            <Icon name="wand" size={15} />Designer
+          </button>
+          <input type="file" accept=".json" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
+          <button style={btnSecondary} onClick={() => importRef.current?.click()}>
+            <Icon name="upload" size={15} />Import
+          </button>
+          <button style={btnSecondary} onClick={handleExport} disabled={sigs.length === 0}>
+            <Icon name="download" size={15} />Export
+          </button>
+        </div>
       </div>
       <InfoBanner icon="wand" color="#6ee7b7" title="Signatur-Designer"
         text="Signaturen mit Drag & Drop gestalten — Text, Bilder, Links, Social-Icons und UTM-Tracking. Werden automatisch an jede ausgehende Mail angehängt." />

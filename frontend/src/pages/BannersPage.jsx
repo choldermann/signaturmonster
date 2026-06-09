@@ -1585,6 +1585,7 @@ export default function BannersPage({ toast }) {
   const [editing, setEditing] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [dragId, setDragId]   = useState(null);
+  const importRef = useRef(null);
 
   const load = useCallback(async () => {
     try { const d = await api("GET", "/api/banners/"); setBanners(Array.isArray(d) ? d : []); }
@@ -1598,6 +1599,44 @@ export default function BannersPage({ toast }) {
     await api("DELETE", `/api/banners/${id}`);
     toast("ok", "Banner gelöscht");
     load();
+  }
+
+  function handleExport() {
+    const data = {
+      type: "signaturmonster-banners",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      banners: banners.map(({ name, props_json }) => {
+        let props = {};
+        try { props = JSON.parse(props_json); } catch {}
+        const { gif_data: _, ...rest } = props;
+        return { name, props_json: JSON.stringify(rest) };
+      }),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `banner-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const data = JSON.parse(await file.text());
+      if (data.type !== "signaturmonster-banners" || !Array.isArray(data.banners)) {
+        toast("err", "Ungültiges Format"); return;
+      }
+      for (const b of data.banners) {
+        await api("POST", "/api/banners/", { name: b.name, props_json: b.props_json || "{}" });
+      }
+      toast("ok", `${data.banners.length} Banner importiert`);
+      load();
+    } catch { toast("err", "Import fehlgeschlagen"); }
   }
 
   function handleDragStart(id) { setDragId(id); }
@@ -1626,9 +1665,18 @@ export default function BannersPage({ toast }) {
             Zentral verwaltete Banner — im Signatur-Designer aus der Bibliothek einfügen.
           </p>
         </div>
-        <button style={btnPrimary} onClick={() => setEditing("new")}>
-          <Icon name="plus" />Neuer Banner
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={btnPrimary} onClick={() => setEditing("new")}>
+            <Icon name="plus" />Neuer Banner
+          </button>
+          <input type="file" accept=".json" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
+          <button style={btnSecondary} onClick={() => importRef.current?.click()}>
+            <Icon name="upload" />Import
+          </button>
+          <button style={btnSecondary} onClick={handleExport} disabled={banners.length === 0}>
+            <Icon name="download" />Export
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: "12px 16px", background: "#1a1a1a", border: "1px solid #93c5fd22", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
