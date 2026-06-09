@@ -37,22 +37,11 @@ New-Item -ItemType Directory -Force -Path "$installDir\data" | Out-Null
 New-Item -ItemType Directory -Force -Path "$installDir\nginx"| Out-Null
 Set-Location $installDir
 
-# ── Konfiguration abfragen ────────────────────────────────────
+# ── Ports abfragen ────────────────────────────────────────────
 Write-Host ""
-Write-Host "  SMTP-Relay konfigurieren" -ForegroundColor Yellow
-Write-Host "  (dein eigentlicher ausgehender Mailserver)" -ForegroundColor Gray
-Write-Host ""
-$relayHost = Read-Host "    RELAY_HOST (z.B. smtp.ionos.de)"
-$relayPortRaw = Read-Host "    RELAY_PORT [587]"
-$relayPort = if ($relayPortRaw) { $relayPortRaw } else { "587" }
-$relayUser = Read-Host "    RELAY_USER (E-Mail-Adresse)"
-$relayPassSec = Read-Host "    RELAY_PASS (Passwort)" -AsSecureString
-$relayPass = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($relayPassSec))
-Write-Host ""
-$smtpPortRaw = Read-Host "    Port fuer Thunderbird/Mailprogramm [2587]"
+$smtpPortRaw = Read-Host "  Port fuer Thunderbird/Mailprogramm [2587]"
 $smtpPort    = if ($smtpPortRaw) { $smtpPortRaw } else { "2587" }
-$httpPortRaw = Read-Host "    Port fuer das Web-Dashboard        [8080]"
+$httpPortRaw = Read-Host "  Port fuer das Web-Dashboard        [8080]"
 $httpPort    = if ($httpPortRaw) { $httpPortRaw } else { "8080" }
 
 # Zufaelliger Secret Key
@@ -70,10 +59,10 @@ Write-Ok "docker-compose.yml und nginx.conf geladen"
 # ── .env schreiben ────────────────────────────────────────────
 @"
 # Signaturmonster Konfiguration - generiert von install.ps1
-RELAY_HOST=$relayHost
-RELAY_PORT=$relayPort
-RELAY_USER=$relayUser
-RELAY_PASS=$relayPass
+RELAY_HOST=
+RELAY_PORT=587
+RELAY_USER=
+RELAY_PASS=
 SMTP_PORT=$smtpPort
 HTTP_PORT=$httpPort
 SECRET_KEY=$secretKey
