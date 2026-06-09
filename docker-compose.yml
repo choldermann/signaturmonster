@@ -24,6 +24,7 @@ services:
 
   updater:
     image: ghcr.io/choldermann/signaturmonster-updater:latest
+    build: ./updater
     container_name: sm-updater
     restart: unless-stopped
     expose:

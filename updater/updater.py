@@ -15,8 +15,25 @@ OWNER           = GITHUB_REPO.split("/")[0]
 REF_IMAGE       = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
 REF_CONTAINER   = "sm-backend"
 
-
+STATUS_FILE = os.getenv("UPDATE_STATUS_FILE", "/project/data/update-status.json")
 _update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
+
+
+def _write_status():
+    try:
+        os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
+        with open(STATUS_FILE, "w", encoding="utf-8") as f:
+            json.dump(_update_status, f)
+    except Exception as exc:
+        logger.warning("Status-Datei nicht schreibbar: %s", exc)
+
+
+def _read_status() -> dict:
+    try:
+        with open(STATUS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return _update_status
 
 
 def _dc(*args):
@@ -175,6 +192,7 @@ def _run_update():
 
     def s(step, msg, detail=""):
         _update_status.update(step=step, msg=msg, detail=detail, done=False, error=False)
+        _write_status()
         logger.info("%s: %s", step, msg)
 
     try:
@@ -186,12 +204,14 @@ def _run_update():
             free_mb = 9999
         if free_mb < 500:
             _update_status.update(step="error", msg=f"Nicht genug Speicherplatz ({free_mb} MB frei, 500 MB benötigt). Bitte 'docker system prune -af' ausführen.", error=True)
+            _write_status()
             return
 
         s("pull", "Lade neue Images von GitHub...")
         rc, out = _safe_run(_dc("pull"))
         if rc != 0:
             _update_status.update(step="error", msg="Pull fehlgeschlagen", detail=out, error=True)
+            _write_status()
             return
         s("pull_ok", "Images geladen")
 
@@ -205,6 +225,7 @@ def _run_update():
             rc2, o2 = _safe_run(_dc("up", "-d", "--no-deps", svc))
             if rc2 != 0:
                 _update_status.update(step="error", msg=f"Fehler bei {svc}", detail=o2, error=True)
+                _write_status()
                 return
         s("up_ok", "Backend · Frontend · Nginx gestartet")
 
@@ -214,24 +235,28 @@ def _run_update():
         subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         _update_status.update(step="done", msg="Update abgeschlossen", done=True, error=False)
+        _write_status()
 
     except Exception as exc:
         _update_status.update(step="error", msg=str(exc), error=True)
+        _write_status()
 
 
 @app.post("/update/start")
 def update_start():
     global _update_status
-    if _update_status.get("step") and not _update_status.get("done") and not _update_status.get("error"):
+    cur = _read_status()
+    if cur.get("step") and not cur.get("done") and not cur.get("error"):
         return jsonify({"ok": False, "error": "Update läuft bereits"})
     _update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
+    _write_status()
     threading.Thread(target=_run_update, daemon=True).start()
     return jsonify({"ok": True})
 
 
 @app.get("/update/status")
 def update_status_endpoint():
-    return jsonify(_update_status)
+    return jsonify(_read_status())
 
 
 @app.post("/update")
@@ -247,4 +272,4 @@ def health():
     return jsonify({"ok": True})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=9000)
+    app.run(host="0.0.0.0", port=9000, threaded=True)

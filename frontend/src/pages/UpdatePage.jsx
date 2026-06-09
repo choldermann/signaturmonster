@@ -63,7 +63,7 @@ const STEPS = [
   { key: "self",  ok: "done",     label: "Updater neu starten"      },
 ];
 
-function UpdateDialog({ entries, restarting }) {
+function UpdateDialog({ entries, restarting, waiting }) {
   const logRef = React.useRef(null);
   React.useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -116,10 +116,14 @@ function UpdateDialog({ entries, restarting }) {
           })}
         </div>
 
-        {restarting && (
+        {(restarting || waiting) && (
           <div style={{ borderTop: "1px solid #222", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
             <Icon name="loader-2" size={14} style={{ color: "#93c5fd", animation: "spin 1s linear infinite", flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: "#555" }}>Warte auf Server … Seite lädt automatisch neu.</span>
+            <span style={{ fontSize: 12, color: "#555" }}>
+              {restarting
+                ? "Warte auf Server … Seite lädt automatisch neu."
+                : "Container werden neu gestartet — Statusabfrage pausiert kurz."}
+            </span>
           </div>
         )}
 
@@ -140,6 +144,7 @@ export default function UpdatePage({ toast }) {
   const [loading, setLoading]       = useState(true);
   const [logEntries, setLogEntries] = useState([]);
   const [restarting, setRestarting] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
 
   const load = useCallback(async () => {
@@ -159,6 +164,7 @@ export default function UpdatePage({ toast }) {
     if (!confirm("Jetzt updaten? Die Anwendung wird neu gestartet.")) return;
     setLogEntries([]);
     setRestarting(false);
+    setWaiting(false);
     setShowDialog(true);
 
     try {
@@ -173,20 +179,30 @@ export default function UpdatePage({ toast }) {
     }
 
     let errStreak = 0;
+    let lastStep = "";
     const poll = setInterval(async () => {
       try {
         const r = await fetch("/api/update/status");
-        if (!r.ok) { errStreak++; return; }
+        if (!r.ok) {
+          errStreak++;
+          if (lastStep && lastStep !== "pull") setWaiting(true);
+          return;
+        }
         errStreak = 0;
+        setWaiting(false);
         const s = await r.json();
-        if (s.step) setLogEntries(prev => {
-          const last = prev[prev.length - 1];
-          if (last && last.step === s.step && last.msg === s.msg) return prev;
-          return [s];
-        });
+        if (s.step) {
+          lastStep = s.step;
+          setLogEntries(prev => {
+            const last = prev.find(e => e.step === s.step);
+            if (last && last.msg === s.msg) return prev;
+            return [...prev.filter(e => e.step !== s.step && e.step !== "error"), s];
+          });
+        }
         if (s.done) {
           clearInterval(poll);
           setRestarting(true);
+          setWaiting(false);
           const healthPoll = setInterval(async () => {
             try {
               const h = await fetch("/health");
@@ -196,17 +212,22 @@ export default function UpdatePage({ toast }) {
         }
         if (s.error) {
           clearInterval(poll);
+          setWaiting(false);
           toast("err", s.msg);
-          setLogEntries(prev => {
-            const hasErr = prev.some(e => e.step === "error");
-            return hasErr ? prev : [...prev, { step: "error", msg: s.msg, detail: s.detail || "" }];
-          });
+          setLogEntries(prev => [...prev.filter(e => e.step !== "error"), { step: "error", msg: s.msg, detail: s.detail || "" }]);
         }
       } catch {
         errStreak++;
-        if (errStreak > 15) {
+        if (lastStep && lastStep !== "pull") setWaiting(true);
+        // 5 Min. Toleranz (Pull + Container-Neustart können lange dauern)
+        if (errStreak > 150) {
           clearInterval(poll);
-          setLogEntries(prev => [...prev, { step: "error", msg: "Verbindung zum Updater verloren" }]);
+          setWaiting(false);
+          setLogEntries(prev => [...prev.filter(e => e.step !== "error"), {
+            step: "error",
+            msg: "Verbindung zum Updater verloren",
+            detail: "Der Updater antwortet seit über 5 Minuten nicht. Prüfe mit 'docker ps', ob das Update im Hintergrund abgeschlossen wurde.",
+          }]);
         }
       }
     }, 2000);
@@ -214,7 +235,7 @@ export default function UpdatePage({ toast }) {
 
   return (
     <div>
-      {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} />}
+      {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} waiting={waiting} />}
 
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Software-Update</h1>
