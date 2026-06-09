@@ -1,6 +1,6 @@
-import subprocess, os, logging, json
+import subprocess, os, logging, json, queue, threading
 import requests
-from flask import Flask, jsonify, Response, stream_with_context
+from flask import Flask, jsonify, Response
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -192,27 +192,29 @@ def update():
 
 @app.post("/update/stream")
 def update_stream():
-    def generate():
+    q = queue.Queue()
+
+    def worker():
         services        = ["backend", "frontend", "smtp-proxy", "nginx"]
         container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
         try:
-            yield _evt("pull", "Lade neue Images von GitHub...")
+            q.put(_evt("pull", "Lade neue Images von GitHub..."))
             rc, out = _safe_run(_dc("pull"))
             if rc != 0:
-                yield _evt("error", "Pull fehlgeschlagen", out); return
-            yield _evt("pull_ok", "Images geladen")
+                q.put(_evt("error", "Pull fehlgeschlagen", out)); return
+            q.put(_evt("pull_ok", "Images geladen"))
 
-            yield _evt("rm", "Stoppe und entferne alte Container...")
+            q.put(_evt("rm", "Stoppe und entferne alte Container..."))
             _, ps_before = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
             rm_lines = []
             for name in container_names:
                 rc2, o2 = _safe_run(["docker", "rm", "-f", name])
                 rm_lines.append(f"rm -f {name}: {o2 or 'ok'}")
             _, ps_after = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
-            yield _evt("rm_ok", "Alte Container entfernt",
-                       "VOR:\n" + ps_before + "\n\nRM:\n" + "\n".join(rm_lines) + "\n\nNACH:\n" + ps_after)
+            q.put(_evt("rm_ok", "Alte Container entfernt",
+                       "VOR:\n" + ps_before + "\n\nRM:\n" + "\n".join(rm_lines) + "\n\nNACH:\n" + ps_after))
 
-            yield _evt("up", "Starte neue Container...")
+            q.put(_evt("up", "Starte neue Container..."))
             up_lines = []
             for svc in services:
                 rc3, o3 = _safe_run(_dc("up", "-d", "--no-deps", svc))
@@ -220,23 +222,34 @@ def update_stream():
                 up_lines.append(f"{svc}: {status} — {o3[:150]}")
                 if rc3 != 0:
                     _, ps_err = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
-                    yield _evt("error", f"Fehler bei {svc}",
-                               "\n".join(up_lines) + "\n\nContainer:\n" + ps_err)
+                    q.put(_evt("error", f"Fehler bei {svc}",
+                               "\n".join(up_lines) + "\n\nContainer:\n" + ps_err))
                     return
-            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_lines))
+            q.put(_evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_lines)))
 
-            yield _evt("self", "Starte Updater neu...")
+            q.put(_evt("self", "Starte Updater neu..."))
             subprocess.Popen(["docker", "rm", "-f", "sm-updater"],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            yield _evt("done", "Update abgeschlossen")
+            q.put(_evt("done", "Update abgeschlossen"))
 
-        except BaseException as exc:
-            yield _evt("error", f"Unerwarteter Fehler: {type(exc).__name__}", str(exc))
+        except Exception as exc:
+            q.put(_evt("error", f"{type(exc).__name__}: {exc}"))
+        finally:
+            q.put(None)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    def generate():
+        while True:
+            item = q.get()
+            if item is None:
+                break
+            yield item
 
     return Response(
-        stream_with_context(generate()),
+        generate(),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
