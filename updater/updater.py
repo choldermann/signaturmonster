@@ -156,15 +156,17 @@ def update():
         ).decode()
         logger.info("docker compose pull done")
 
-        services = ["smtp-proxy", "backend", "frontend", "nginx"]
+        services      = ["smtp-proxy", "backend", "frontend", "nginx"]
+        container_names = ["sm-smtp", "sm-backend", "sm-frontend", "sm-nginx"]
 
-        # Explicitly stop and remove old containers before recreating.
-        # --force-recreate alone has a race where the old container isn't
-        # fully removed before Docker tries to create the new one.
-        subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "-s"] + services,
-            stderr=subprocess.STDOUT,
-        )
+        # docker rm -f is synchronous and guaranteed — the container is gone
+        # once the command returns. docker compose rm can be async and causes
+        # "container name already in use" races.
+        for name in container_names:
+            subprocess.run(
+                ["docker", "rm", "-f", name],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
         logger.info("old containers removed")
 
         subprocess.check_output(
@@ -173,11 +175,12 @@ def update():
         )
         logger.info("services restarted")
 
-        # Restart the updater last. Docker daemon handles the recreation
-        # independently once the socket command is sent — this process
-        # will be killed mid-way, but the daemon finishes on its own.
         subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--force-recreate", "updater"],
+            ["docker", "rm", "-f", "sm-updater"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        subprocess.Popen(
+            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "updater"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         return jsonify({"ok": True, "pull_output": pull})
@@ -193,21 +196,23 @@ def update_stream():
         return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
 
     def generate():
-        services = ["smtp-proxy", "backend", "frontend", "nginx"]
+        services        = ["smtp-proxy", "backend", "frontend", "nginx"]
+        container_names = ["sm-smtp", "sm-backend", "sm-frontend", "sm-nginx"]
         try:
             yield _evt("pull", "Lade neue Images von GitHub...")
-            pull_out = subprocess.check_output(
+            subprocess.check_output(
                 ["docker", "compose", "-f", COMPOSE_FILE, "pull"],
                 stderr=subprocess.STDOUT,
-            ).decode()
+            )
             logger.info("docker compose pull done")
             yield _evt("pull_ok", "Images geladen")
 
             yield _evt("rm", "Stoppe und entferne alte Container...")
-            subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "-s"] + services,
-                stderr=subprocess.STDOUT,
-            )
+            for name in container_names:
+                subprocess.run(
+                    ["docker", "rm", "-f", name],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
             logger.info("old containers removed")
             yield _evt("rm_ok", "Alte Container entfernt")
 
@@ -221,7 +226,11 @@ def update_stream():
 
             yield _evt("self", "Starte Updater neu...")
             subprocess.Popen(
-                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--force-recreate", "updater"],
+                ["docker", "rm", "-f", "sm-updater"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            subprocess.Popen(
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "updater"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             yield _evt("done", "Update abgeschlossen")
