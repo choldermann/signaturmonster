@@ -6,13 +6,32 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-COMPOSE_FILE  = os.getenv("COMPOSE_FILE", "/project/docker-compose.yml")
-GITHUB_REPO   = os.getenv("GITHUB_REPO", "choldermann/signaturmonster")
-GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
-REGISTRY      = "ghcr.io"
-OWNER         = GITHUB_REPO.split("/")[0]
-REF_IMAGE     = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
-REF_CONTAINER = "sm-backend"
+COMPOSE_FILE    = os.getenv("COMPOSE_FILE", "/project/docker-compose.yml")
+COMPOSE_PROJECT = os.getenv("COMPOSE_PROJECT_NAME", "signaturmonster")
+GITHUB_REPO     = os.getenv("GITHUB_REPO", "choldermann/signaturmonster")
+GITHUB_TOKEN    = os.getenv("GITHUB_TOKEN", "")
+REGISTRY        = "ghcr.io"
+OWNER           = GITHUB_REPO.split("/")[0]
+REF_IMAGE       = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
+REF_CONTAINER   = "sm-backend"
+
+
+def _dc(*args):
+    """Build a docker compose command with consistent project name."""
+    return ["docker", "compose", "-p", COMPOSE_PROJECT, "-f", COMPOSE_FILE] + list(args)
+
+
+def _safe_run(cmd):
+    """Run a command, return (returncode, output_string). Never raises."""
+    try:
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return r.returncode, r.stdout.decode("utf-8", errors="replace").strip()
+    except Exception as exc:
+        return -1, str(exc)
+
+
+def _evt(step, msg, detail=""):
+    return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
 
 
 def _anon_token(repo_path: str) -> str:
@@ -40,7 +59,6 @@ def _registry_labels(image: str, tag: str = "latest") -> dict:
         f"https://{REGISTRY}/v2/{repo_path}/manifests/{tag}", headers=h, timeout=10
     ).json()
 
-    # OCI Index / Docker Manifest List: pick first manifest (linux/amd64 or any)
     if "manifests" in manifest:
         platforms = manifest["manifests"]
         chosen = next(
@@ -90,10 +108,10 @@ def version():
         cur_date = (cur.get("org.opencontainers.image.created") or "")[:10]
 
         try:
-            lat      = _registry_labels(REF_IMAGE, "latest")
-            lat_sha  = (lat.get("org.opencontainers.image.revision") or "")[:7]
-            lat_msg  = lat.get("git.commit.message", "")
-            lat_date = (lat.get("org.opencontainers.image.created") or "")[:10]
+            lat        = _registry_labels(REF_IMAGE, "latest")
+            lat_sha    = (lat.get("org.opencontainers.image.revision") or "")[:7]
+            lat_msg    = lat.get("git.commit.message", "")
+            lat_date   = (lat.get("org.opencontainers.image.created") or "")[:10]
             up_to_date = bool(cur_sha and cur_sha == lat_sha)
         except Exception:
             lat_sha, lat_msg, lat_date = cur_sha, cur_msg, cur_date
@@ -151,61 +169,25 @@ def changelog():
 def update():
     try:
         pull = subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "pull"],
-            stderr=subprocess.STDOUT,
+            _dc("pull"), stderr=subprocess.STDOUT,
         ).decode()
         logger.info("docker compose pull done")
 
         services = ["backend", "frontend", "smtp-proxy", "nginx"]
-
-        # "compose down [services]" stops AND removes in one atomic step —
-        # more reliable than separate stop+rm which can leave containers
-        # in a transitional state.
-        subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "down"] + services,
-            stderr=subprocess.STDOUT,
-        )
+        subprocess.check_output(_dc("down") + services, stderr=subprocess.STDOUT)
         logger.info("old containers removed")
 
         for svc in services:
-            subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
-                stderr=subprocess.STDOUT,
-            )
+            subprocess.check_output(_dc("up", "-d", "--no-deps", svc), stderr=subprocess.STDOUT)
         logger.info("services restarted")
 
-        subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "stop", "updater"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "rm", "-f", "updater"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        subprocess.Popen(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "updater"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
+        subprocess.Popen(_dc("rm", "-f", "sm-updater"), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return jsonify({"ok": True, "pull_output": pull})
     except subprocess.CalledProcessError as e:
         return jsonify({"ok": False, "error": e.output.decode()}), 500
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-def _safe_run(cmd):
-    """Run a command, return (returncode, output_string). Never raises."""
-    try:
-        r = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        )
-        return r.returncode, r.stdout.decode("utf-8", errors="replace").strip()
-    except Exception as exc:
-        return -1, str(exc)
-
-
-def _evt(step, msg, detail=""):
-    return f"data: {json.dumps({'step': step, 'msg': msg, 'detail': detail})}\n\n"
 
 
 @app.post("/update/stream")
@@ -214,63 +196,40 @@ def update_stream():
         services        = ["backend", "frontend", "smtp-proxy", "nginx"]
         container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
         try:
-            # ── Pull ──────────────────────────────────────────────
             yield _evt("pull", "Lade neue Images von GitHub...")
-            rc, out = _safe_run(["docker", "compose", "-f", COMPOSE_FILE, "pull"])
+            rc, out = _safe_run(_dc("pull"))
             if rc != 0:
                 yield _evt("error", "Pull fehlgeschlagen", out); return
             yield _evt("pull_ok", "Images geladen")
 
-            # ── Remove ────────────────────────────────────────────
             yield _evt("rm", "Stoppe und entferne alte Container...")
-            _, ps_before = _safe_run(
-                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"]
-            )
+            _, ps_before = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
             rm_lines = []
             for name in container_names:
                 rc2, o2 = _safe_run(["docker", "rm", "-f", name])
                 rm_lines.append(f"rm -f {name}: {o2 or 'ok'}")
-            _, ps_after = _safe_run(
-                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"]
-            )
-            detail = (
-                "VOR:\n" + ps_before +
-                "\n\nRM:\n" + "\n".join(rm_lines) +
-                "\n\nNACH:\n" + ps_after
-            )
-            yield _evt("rm_ok", "Alte Container entfernt", detail)
+            _, ps_after = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
+            yield _evt("rm_ok", "Alte Container entfernt",
+                       "VOR:\n" + ps_before + "\n\nRM:\n" + "\n".join(rm_lines) + "\n\nNACH:\n" + ps_after)
 
-            # ── Start ─────────────────────────────────────────────
             yield _evt("up", "Starte neue Container...")
             up_lines = []
             for svc in services:
-                rc3, o3 = _safe_run(
-                    ["docker", "compose", "-f", COMPOSE_FILE,
-                     "up", "-d", "--no-deps", svc]
-                )
+                rc3, o3 = _safe_run(_dc("up", "-d", "--no-deps", svc))
                 status = "ok" if rc3 == 0 else f"FEHLER rc={rc3}"
-                up_lines.append(f"{svc}: {status} — {o3[:120]}")
+                up_lines.append(f"{svc}: {status} — {o3[:150]}")
                 if rc3 != 0:
-                    _, ps_err = _safe_run(
-                        ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"]
-                    )
+                    _, ps_err = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
                     yield _evt("error", f"Fehler bei {svc}",
                                "\n".join(up_lines) + "\n\nContainer:\n" + ps_err)
                     return
-            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet",
-                       "\n".join(up_lines))
+            yield _evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_lines))
 
-            # ── Self-restart ──────────────────────────────────────
             yield _evt("self", "Starte Updater neu...")
-            subprocess.Popen(
-                ["docker", "rm", "-f", "sm-updater"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            subprocess.Popen(
-                ["docker", "compose", "-f", COMPOSE_FILE,
-                 "up", "-d", "--no-deps", "updater"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            subprocess.Popen(["docker", "rm", "-f", "sm-updater"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             yield _evt("done", "Update abgeschlossen")
 
         except BaseException as exc:

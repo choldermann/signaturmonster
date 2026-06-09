@@ -30,6 +30,7 @@ services:
       - "9000"
     environment:
       COMPOSE_FILE: "/project/docker-compose.yml"
+      COMPOSE_PROJECT_NAME: "signaturmonster"
       GITHUB_REPO: "choldermann/signaturmonster"
       GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
     volumes:
