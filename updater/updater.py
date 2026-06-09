@@ -243,7 +243,11 @@ def update_stream():
 
     def generate():
         while True:
-            item = q.get()
+            try:
+                item = q.get(timeout=3)
+            except queue.Empty:
+                yield ": keepalive\n\n"
+                continue
             if item is None:
                 break
             yield item
