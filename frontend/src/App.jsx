@@ -208,20 +208,18 @@ function SignaturesPage({ toast }) {
     load();
   }
 
-  function handleExport() {
+  function exportOne(sig) {
     const data = {
       type: "signaturmonster-signatures",
       version: 1,
       exported_at: new Date().toISOString(),
-      signatures: sigs.map(({ name, html_content, text_content, is_default, designer_json }) => ({
-        name, html_content, text_content, is_default, designer_json,
-      })),
+      signatures: [{ name: sig.name, html_content: sig.html_content, text_content: sig.text_content, is_default: sig.is_default, designer_json: sig.designer_json }],
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `signaturen-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `signatur-${sig.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -277,9 +275,6 @@ function SignaturesPage({ toast }) {
           <button style={btnSecondary} onClick={() => importRef.current?.click()}>
             <Icon name="upload" size={15} />Import
           </button>
-          <button style={btnSecondary} onClick={handleExport} disabled={sigs.length === 0}>
-            <Icon name="download" size={15} />Export
-          </button>
         </div>
       </div>
       <InfoBanner icon="wand" color="#6ee7b7" title="Signatur-Designer"
@@ -306,6 +301,9 @@ function SignaturesPage({ toast }) {
           <div style={{ display: "flex", gap: 7 }}>
             <button style={{ ...btnPrimary, padding: "6px 12px", fontSize: 12 }} onClick={() => setDesigner(sig)}>
               <Icon name="wand" size={13} /> Designer
+            </button>
+            <button style={{ ...btnSecondary, padding: "6px 10px", fontSize: 12 }} onClick={() => exportOne(sig)}>
+              <Icon name="download" size={13} /> Export
             </button>
             <button style={btnDanger} onClick={() => del(sig.id)}><Icon name="trash" size={13} /></button>
           </div>

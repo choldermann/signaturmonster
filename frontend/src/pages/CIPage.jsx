@@ -299,6 +299,7 @@ export default function CIPage({ toast }) {
   const [configs, setConfigs] = useState([]);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
+  const importRef = useRef(null);
 
   const load = useCallback(async () => {
     try { const d = await api("GET", "/api/ci/"); setConfigs(d); }
@@ -314,6 +315,41 @@ export default function CIPage({ toast }) {
     load();
   }
 
+  function exportOne(ci) {
+    const { id: _, created_at: __, ...fields } = ci;
+    const data = {
+      type: "signaturmonster-ci",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      profiles: [fields],
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ci-profil-${ci.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const data = JSON.parse(await file.text());
+      if (data.type !== "signaturmonster-ci" || !Array.isArray(data.profiles)) {
+        toast("err", "Ungültiges Format"); return;
+      }
+      for (const p of data.profiles) {
+        const { id: _, created_at: __, ...fields } = p;
+        await api("POST", "/api/ci/", fields);
+      }
+      toast("ok", `${data.profiles.length} CI-Profil(e) importiert`);
+      load();
+    } catch { toast("err", "Import fehlgeschlagen"); }
+  }
+
   if (editing !== null) return (
     <CIEditor ci={editing === "new" ? null : editing} onSave={() => { setEditing(null); load(); }} onCancel={() => setEditing(null)} toast={toast} />
   );
@@ -327,9 +363,15 @@ export default function CIPage({ toast }) {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>CI-Profile</h1>
           <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>Corporate Identity für den Mail Beautifier — pro Regel konfigurierbar.</p>
         </div>
-        <button style={btnPrimary} onClick={() => setEditing("new")}>
-          <i className="ti ti-plus" style={{ fontSize: 15 }} />Neues CI-Profil
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={btnPrimary} onClick={() => setEditing("new")}>
+            <i className="ti ti-plus" style={{ fontSize: 15 }} />Neues CI-Profil
+          </button>
+          <input type="file" accept=".json" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
+          <button style={btnSecondary} onClick={() => importRef.current?.click()}>
+            <i className="ti ti-upload" style={{ fontSize: 15 }} />Import
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: "12px 16px", background: "#1a1a1a", border: "1px solid #fce49922", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
@@ -370,6 +412,10 @@ export default function CIPage({ toast }) {
                   <button style={{ flex: 1, padding: "7px 0", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 7, color: "#888", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
                     onClick={() => setEditing(ci)}>
                     <i className="ti ti-edit" style={{ fontSize: 13 }} />Bearbeiten
+                  </button>
+                  <button style={{ padding: "7px 10px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 7, color: "#888", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                    onClick={() => exportOne(ci)}>
+                    <i className="ti ti-download" style={{ fontSize: 13 }} />Export
                   </button>
                   <button style={btnDanger} onClick={() => del(ci.id)}>
                     <i className="ti ti-trash" style={{ fontSize: 13 }} />

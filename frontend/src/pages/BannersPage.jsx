@@ -1601,23 +1601,21 @@ export default function BannersPage({ toast }) {
     load();
   }
 
-  function handleExport() {
+  function exportOne(banner) {
+    let props = {};
+    try { props = JSON.parse(banner.props_json); } catch {}
+    const { gif_data: _, ...rest } = props;
     const data = {
       type: "signaturmonster-banners",
       version: 1,
       exported_at: new Date().toISOString(),
-      banners: banners.map(({ name, props_json }) => {
-        let props = {};
-        try { props = JSON.parse(props_json); } catch {}
-        const { gif_data: _, ...rest } = props;
-        return { name, props_json: JSON.stringify(rest) };
-      }),
+      banners: [{ name: banner.name, props_json: JSON.stringify(rest) }],
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `banner-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `banner-${banner.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1673,9 +1671,6 @@ export default function BannersPage({ toast }) {
           <button style={btnSecondary} onClick={() => importRef.current?.click()}>
             <Icon name="upload" />Import
           </button>
-          <button style={btnSecondary} onClick={handleExport} disabled={banners.length === 0}>
-            <Icon name="download" />Export
-          </button>
         </div>
       </div>
 
@@ -1729,6 +1724,9 @@ export default function BannersPage({ toast }) {
                   <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                     <button style={{ ...btnSecondary, padding: "4px 8px", fontSize: 11 }} onClick={() => setEditing(b)}>
                       <Icon name="edit" size={12} />Bearbeiten
+                    </button>
+                    <button style={{ ...btnSecondary, padding: "4px 8px", fontSize: 11 }} onClick={() => exportOne(b)}>
+                      <Icon name="download" size={12} />Export
                     </button>
                     <button style={{ ...btnDanger, padding: "4px 8px" }} onClick={() => del(b.id)}><Icon name="trash" size={12} /></button>
                   </div>
