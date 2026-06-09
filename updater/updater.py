@@ -156,11 +156,11 @@ def update():
         ).decode()
         logger.info("docker compose pull done")
 
-        services = ["smtp-proxy", "backend", "frontend", "nginx"]
+        # Dependency order: backend first, dependents after.
+        # --no-deps prevents compose from trying to create backend multiple
+        # times (it's both a direct target and a depends_on of the others).
+        services = ["backend", "frontend", "smtp-proxy", "nginx"]
 
-        # stop → rm -f → up is the most reliable sequence.
-        # "compose stop" sends SIGTERM and BLOCKS until all containers exit,
-        # so rm -f works on already-stopped containers without any race.
         subprocess.check_output(
             ["docker", "compose", "-f", COMPOSE_FILE, "stop"] + services,
             stderr=subprocess.STDOUT,
@@ -171,10 +171,11 @@ def update():
         )
         logger.info("old containers removed")
 
-        subprocess.check_output(
-            ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d"] + services,
-            stderr=subprocess.STDOUT,
-        )
+        for svc in services:
+            subprocess.check_output(
+                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
+                stderr=subprocess.STDOUT,
+            )
         logger.info("services restarted")
 
         subprocess.Popen(
@@ -225,10 +226,11 @@ def update_stream():
             yield _evt("rm_ok", "Alte Container entfernt")
 
             yield _evt("up", "Starte neue Container...")
-            subprocess.check_output(
-                ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d"] + services,
-                stderr=subprocess.STDOUT,
-            )
+            for svc in services:
+                subprocess.check_output(
+                    ["docker", "compose", "-f", COMPOSE_FILE, "up", "-d", "--no-deps", svc],
+                    stderr=subprocess.STDOUT,
+                )
             logger.info("services restarted")
             yield _evt("up_ok", "Backend · Frontend · Nginx gestartet")
 
