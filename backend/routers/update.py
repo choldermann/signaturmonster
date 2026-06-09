@@ -34,5 +34,9 @@ async def changelog():
 
 @router.post("/run")
 async def run_update():
-    return await _post("/update")
+    return await _post("/update/start")
+
+@router.get("/status")
+async def update_status():
+    return await _get("/update/status")
 

@@ -1,6 +1,6 @@
-import subprocess, os, logging, json, queue, threading
+import subprocess, os, logging, json, threading
 import requests
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -14,6 +14,9 @@ REGISTRY        = "ghcr.io"
 OWNER           = GITHUB_REPO.split("/")[0]
 REF_IMAGE       = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
 REF_CONTAINER   = "sm-backend"
+
+
+_update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
 
 
 def _dc(*args):
@@ -165,98 +168,68 @@ def changelog():
         return jsonify([])
 
 
+def _run_update():
+    global _update_status
+    services        = ["backend", "frontend", "smtp-proxy", "nginx"]
+    container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
+
+    def s(step, msg, detail=""):
+        _update_status.update(step=step, msg=msg, detail=detail, done=False, error=False)
+        logger.info("%s: %s", step, msg)
+
+    try:
+        s("pull", "Lade neue Images von GitHub...")
+        rc, out = _safe_run(_dc("pull"))
+        if rc != 0:
+            _update_status.update(step="error", msg="Pull fehlgeschlagen", detail=out, error=True)
+            return
+        s("pull_ok", "Images geladen")
+
+        s("rm", "Stoppe und entferne alte Container...")
+        for name in container_names:
+            _safe_run(["docker", "rm", "-f", name])
+        s("rm_ok", "Alte Container entfernt")
+
+        s("up", "Starte neue Container...")
+        for svc in services:
+            rc2, o2 = _safe_run(_dc("up", "-d", "--no-deps", svc))
+            if rc2 != 0:
+                _update_status.update(step="error", msg=f"Fehler bei {svc}", detail=o2, error=True)
+                return
+        s("up_ok", "Backend · Frontend · Nginx gestartet")
+
+        s("self", "Starte Updater neu...")
+        subprocess.Popen(["docker", "rm", "-f", "sm-updater"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        _update_status.update(step="done", msg="Update abgeschlossen", done=True, error=False)
+
+    except Exception as exc:
+        _update_status.update(step="error", msg=str(exc), error=True)
+
+
+@app.post("/update/start")
+def update_start():
+    global _update_status
+    if _update_status.get("step") and not _update_status.get("done") and not _update_status.get("error"):
+        return jsonify({"ok": False, "error": "Update läuft bereits"})
+    _update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
+    threading.Thread(target=_run_update, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.get("/update/status")
+def update_status_endpoint():
+    return jsonify(_update_status)
+
+
 @app.post("/update")
 def update():
-    try:
-        pull = subprocess.check_output(
-            _dc("pull"), stderr=subprocess.STDOUT,
-        ).decode()
-        logger.info("docker compose pull done")
-
-        services = ["backend", "frontend", "smtp-proxy", "nginx"]
-        subprocess.check_output(_dc("down") + services, stderr=subprocess.STDOUT)
-        logger.info("old containers removed")
-
-        for svc in services:
-            subprocess.check_output(_dc("up", "-d", "--no-deps", svc), stderr=subprocess.STDOUT)
-        logger.info("services restarted")
-
-        subprocess.Popen(_dc("rm", "-f", "sm-updater"), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return jsonify({"ok": True, "pull_output": pull})
-    except subprocess.CalledProcessError as e:
-        return jsonify({"ok": False, "error": e.output.decode()}), 500
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+    _run_update()
+    return jsonify({"ok": True})
 
 
-@app.post("/update/stream")
-def update_stream():
-    q = queue.Queue()
-
-    def worker():
-        services        = ["backend", "frontend", "smtp-proxy", "nginx"]
-        container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
-        try:
-            q.put(_evt("pull", "Lade neue Images von GitHub..."))
-            rc, out = _safe_run(_dc("pull"))
-            if rc != 0:
-                q.put(_evt("error", "Pull fehlgeschlagen", out)); return
-            q.put(_evt("pull_ok", "Images geladen"))
-
-            q.put(_evt("rm", "Stoppe und entferne alte Container..."))
-            _, ps_before = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
-            rm_lines = []
-            for name in container_names:
-                rc2, o2 = _safe_run(["docker", "rm", "-f", name])
-                rm_lines.append(f"rm -f {name}: {o2 or 'ok'}")
-            _, ps_after = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
-            q.put(_evt("rm_ok", "Alte Container entfernt",
-                       "VOR:\n" + ps_before + "\n\nRM:\n" + "\n".join(rm_lines) + "\n\nNACH:\n" + ps_after))
-
-            q.put(_evt("up", "Starte neue Container..."))
-            up_lines = []
-            for svc in services:
-                rc3, o3 = _safe_run(_dc("up", "-d", "--no-deps", svc))
-                status = "ok" if rc3 == 0 else f"FEHLER rc={rc3}"
-                up_lines.append(f"{svc}: {status} — {o3[:150]}")
-                if rc3 != 0:
-                    _, ps_err = _safe_run(["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"])
-                    q.put(_evt("error", f"Fehler bei {svc}",
-                               "\n".join(up_lines) + "\n\nContainer:\n" + ps_err))
-                    return
-            q.put(_evt("up_ok", "Backend · Frontend · Nginx gestartet", "\n".join(up_lines)))
-
-            q.put(_evt("self", "Starte Updater neu..."))
-            subprocess.Popen(["docker", "rm", "-f", "sm-updater"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            q.put(_evt("done", "Update abgeschlossen"))
-
-        except Exception as exc:
-            q.put(_evt("error", f"{type(exc).__name__}: {exc}"))
-        finally:
-            q.put(None)
-
-    threading.Thread(target=worker, daemon=True).start()
-
-    def generate():
-        while True:
-            try:
-                item = q.get(timeout=3)
-            except queue.Empty:
-                yield ": keepalive\n\n"
-                continue
-            if item is None:
-                break
-            yield item
-
-    return Response(
-        generate(),
-        mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
 
 
 @app.get("/health")

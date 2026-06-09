@@ -162,51 +162,46 @@ export default function UpdatePage({ toast }) {
     setShowDialog(true);
 
     try {
-      const resp = await fetch("/api/update/stream", { method: "POST" });
-      if (!resp.ok) {
-        setLogEntries([{ step: "error", msg: `HTTP ${resp.status}`, detail: await resp.text() }]);
+      const r = await fetch("/api/update/run", { method: "POST" });
+      if (!r.ok) {
+        setLogEntries([{ step: "error", msg: `HTTP ${r.status}`, detail: await r.text() }]);
         return;
       }
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      let gotEvent = false;
-      const timeout = setTimeout(() => {
-        if (!gotEvent) {
-          setLogEntries(prev => [...prev, { step: "error", msg: "Keine Antwort vom Updater — bitte manuell updaten: docker compose pull && docker compose up -d" }]);
-        }
-      }, 15000);
+    } catch (e) {
+      setLogEntries([{ step: "error", msg: String(e) }]);
+      return;
+    }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        gotEvent = true;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6));
-            setLogEntries(prev => [...prev, evt]);
-            if (evt.step === "done") {
-              setRestarting(true);
-              const poll = setInterval(async () => {
-                try {
-                  const r = await fetch("/health");
-                  if (r.ok) { clearInterval(poll); window.location.reload(); }
-                } catch {}
-              }, 3000);
-            }
-            if (evt.step === "error") toast("err", evt.msg);
-          } catch {}
+    let errStreak = 0;
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch("/api/update/status");
+        if (!r.ok) { errStreak++; return; }
+        errStreak = 0;
+        const s = await r.json();
+        if (s.step) setLogEntries([s]);
+        if (s.done) {
+          clearInterval(poll);
+          setRestarting(true);
+          const healthPoll = setInterval(async () => {
+            try {
+              const h = await fetch("/health");
+              if (h.ok) { clearInterval(healthPoll); window.location.reload(); }
+            } catch {}
+          }, 3000);
+        }
+        if (s.error) {
+          clearInterval(poll);
+          toast("err", s.msg);
+        }
+      } catch {
+        errStreak++;
+        if (errStreak > 15) {
+          clearInterval(poll);
+          setLogEntries(prev => [...prev, { step: "error", msg: "Verbindung zum Updater verloren" }]);
         }
       }
-      clearTimeout(timeout);
-    } catch (e) {
-      setLogEntries(prev => [...prev, { step: "error", msg: String(e) }]);
-      toast("err", "Update-Verbindung unterbrochen");
-    }
+    }, 2000);
   }
 
   return (
