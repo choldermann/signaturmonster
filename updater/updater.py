@@ -211,28 +211,27 @@ def _run_update():
             return
 
         s("pull", "Lade neue Images von GitHub…")
-        try:
-            proc = subprocess.Popen(
-                _dc("pull"),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, errors="replace",
-            )
-            pull_lines = []
-            for raw in proc.stdout:
-                line = _strip_ansi(raw).strip()
-                if not line:
-                    continue
-                pull_lines.append(line)
-                _update_status.update(step="pull", msg=line[:120])
-                _write_status()
-            proc.wait()
-            if proc.returncode != 0:
-                _update_status.update(step="error", msg="Pull fehlgeschlagen",
-                                      detail="\n".join(pull_lines[-30:]), error=True)
-                _write_status()
-                return
-        except Exception as exc:
-            _update_status.update(step="error", msg=str(exc), error=True)
+        pull_rc   = [None]
+        pull_out  = [""]
+
+        def _do_pull():
+            pull_rc[0], pull_out[0] = _safe_run(_dc("pull"))
+
+        pull_thread = threading.Thread(target=_do_pull, daemon=True)
+        pull_thread.start()
+        t0 = time.time()
+
+        while pull_thread.is_alive():
+            elapsed = int(time.time() - t0)
+            mins, secs = divmod(elapsed, 60)
+            zeit = f"{mins}:{secs:02d} min" if mins else f"{secs}s"
+            _update_status.update(step="pull", msg=f"Lade Images… {zeit} vergangen")
+            _write_status()
+            pull_thread.join(timeout=2)
+
+        if pull_rc[0] != 0:
+            _update_status.update(step="error", msg="Pull fehlgeschlagen",
+                                  detail=pull_out[0][-2000:], error=True)
             _write_status()
             return
         s("pull_ok", "Images geladen")
