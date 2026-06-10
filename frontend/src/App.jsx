@@ -319,12 +319,14 @@ function SignaturesPage({ toast }) {
 function RulesPage({ toast }) {
   const [rules, setRules] = useState([]);
   const [sigs, setSigs] = useState([]);
-  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true };
+  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true, recipient_scope: "all" };
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [poweredBy, setPoweredBy] = useState(true);
   const [isFree, setIsFree] = useState(true);
+  const [internalDomains, setInternalDomains] = useState("");
+  const [internalDomainsSaved, setInternalDomainsSaved] = useState("");
 
   const [cis, setCIs] = useState([]);
   const [smtpAccounts, setSmtpAccounts]   = useState([]);
@@ -340,6 +342,9 @@ function RulesPage({ toast }) {
     setDisclaimers(Array.isArray(dis) ? dis : []);
     setPoweredBy(settings?.powered_by_enabled !== "false");
     setIsFree((lic?.status ?? "free") === "free");
+    const dom = settings?.internal_domains || "";
+    setInternalDomains(dom);
+    setInternalDomainsSaved(dom);
     setLoading(false);
   }, []);
 
@@ -348,14 +353,14 @@ function RulesPage({ toast }) {
   function openNew() { setForm(EMPTY); setEditingId("new"); }
 
   function openEdit(rule) {
-    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active });
+    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active, recipient_scope: rule.recipient_scope || "all" });
     setEditingId(rule.id);
   }
 
   function closeForm() { setEditingId(null); setForm(EMPTY); }
 
   async function save() {
-    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null };
+    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null, recipient_scope: form.recipient_scope || "all" };
     try {
       if (editingId === "new") { await api("POST", "/api/rules/", payload); toast("ok", "Regel erstellt"); }
       else { await api("PUT", `/api/rules/${editingId}`, payload); toast("ok", "Regel gespeichert"); }
@@ -375,6 +380,12 @@ function RulesPage({ toast }) {
     } else {
       toast("err", r.detail || "Fehler");
     }
+  }
+
+  async function saveInternalDomains() {
+    await api("PUT", "/api/settings/internal_domains", { value: internalDomains });
+    setInternalDomainsSaved(internalDomains);
+    toast("ok", "Interne Domains gespeichert");
   }
 
   if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
@@ -425,6 +436,33 @@ function RulesPage({ toast }) {
         </div>
       </div>
 
+      {/* ── Interne Domains ─────────────────────────────────────── */}
+      <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <Icon name="building" size={14} style={{ color: "#93c5fd" }} />
+          Interne Domains
+        </div>
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 10, lineHeight: "17px" }}>
+          Kommagetrennte Domain-Liste für die Intern/Extern-Unterscheidung in Regeln.<br />
+          Beispiel: <span style={{ fontFamily: "monospace", color: "#666" }}>firma.de, tochter-gmbh.de</span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            style={{ ...inputStyle, flex: 1 }}
+            value={internalDomains}
+            onChange={e => setInternalDomains(e.target.value)}
+            placeholder="firma.de, zweigstelle.de"
+          />
+          <button
+            style={{ ...btnPrimary, opacity: internalDomains === internalDomainsSaved ? 0.5 : 1 }}
+            disabled={internalDomains === internalDomainsSaved}
+            onClick={saveInternalDomains}
+          >
+            <Icon name="device-floppy" size={14} />Speichern
+          </button>
+        </div>
+      </div>
+
       <InfoBanner icon="info-circle" color="#93c5fd" title="Signatur-Regeln"
         text="Diese Regeln steuern welche Signatur an reguläre Mails angehängt wird. Für Angebote mit Produktlisten bitte Template-Regeln verwenden." />
       {editingId !== null && (
@@ -456,6 +494,13 @@ function RulesPage({ toast }) {
               <select style={inputStyle} value={form.disclaimer_id} onChange={e => setForm(f => ({ ...f, disclaimer_id: e.target.value }))}>
                 <option value="">— Kein Disclaimer —</option>
                 {disclaimers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Empfänger-Scope" hint="Nur anwenden bei internen / externen Empfängern">
+              <select style={inputStyle} value={form.recipient_scope} onChange={e => setForm(f => ({ ...f, recipient_scope: e.target.value }))}>
+                <option value="all">Alle Empfänger</option>
+                <option value="external_only">Nur externe Empfänger</option>
+                <option value="internal_only">Nur interne Empfänger</option>
               </select>
             </Field>
           </div>
@@ -492,6 +537,8 @@ function RulesPage({ toast }) {
                 <span style={{ color: "#444" }}>{[rule.apply_on_new && "Neu", rule.apply_on_reply && "Antwort"].filter(Boolean).join(" + ")}</span>
                 {rule.ci_config_id && <span style={{ background: "#1a2a1a", color: "#6ee7b7", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>CI</span>}
                 {smtpAcc && <span style={{ background: "#0a1a2a", color: "#93c5fd", fontSize: 10, padding: "1px 6px", borderRadius: 4, fontFamily: "monospace" }}>{smtpAcc.name}</span>}
+                {rule.recipient_scope === "external_only" && <span style={{ background: "#1a1a2a", color: "#a78bfa", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>Extern</span>}
+                {rule.recipient_scope === "internal_only" && <span style={{ background: "#1a2a2a", color: "#34d399", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>Intern</span>}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>

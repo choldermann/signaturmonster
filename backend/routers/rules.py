@@ -12,6 +12,7 @@ class RuleMatchRequest(BaseModel):
     sender: str
     domain: str
     is_reply: bool
+    recipients: list[str] = []
 
 class RuleCreate(BaseModel):
     name: str
@@ -27,9 +28,28 @@ class RuleCreate(BaseModel):
     enrichment_source: Optional[str] = None
     priority: int = 100
     is_active: bool = True
+    recipient_scope: str = "all"
+
+def _recipient_domains(recipients: list[str]) -> set[str]:
+    domains = set()
+    for r in recipients:
+        addr = r.strip().lower()
+        if "<" in addr and ">" in addr:
+            addr = addr.split("<")[1].split(">")[0].strip()
+        if "@" in addr:
+            domains.add(addr.split("@")[-1])
+    return domains
 
 @router.post("/match")
 async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
+    # Load internal domains from settings (comma-separated)
+    int_setting = await db.get(Setting, "internal_domains")
+    internal_domains = set()
+    if int_setting and int_setting.value:
+        internal_domains = {d.strip().lower() for d in int_setting.value.split(",") if d.strip()}
+
+    recipient_domains = _recipient_domains(req.recipients)
+
     result = await db.execute(
         select(Rule).where(Rule.is_active == True).order_by(Rule.priority)
     )
@@ -45,6 +65,16 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
         )
         if not match:
             continue
+
+        # Recipient scope filtering (only when internal_domains are configured)
+        scope = getattr(rule, "recipient_scope", "all") or "all"
+        if scope != "all" and internal_domains and recipient_domains:
+            all_internal = recipient_domains.issubset(internal_domains)
+            any_external = not recipient_domains.issubset(internal_domains)
+            if scope == "external_only" and not any_external:
+                continue
+            if scope == "internal_only" and not all_internal:
+                continue
 
         sig = await db.get(Signature, rule.signature_id) if rule.signature_id else None
         if not sig:

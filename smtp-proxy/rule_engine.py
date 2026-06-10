@@ -17,18 +17,27 @@ class RuleEngine:
             return header.split("<")[1].split(">")[0].strip().lower()
         return header.strip().lower()
 
+    def _extract_addresses(self, header: str) -> list[str]:
+        """Split a comma-separated address header into individual address strings."""
+        if not header:
+            return []
+        return [a.strip() for a in header.split(",") if a.strip()]
+
     def _is_reply(self, message: Message) -> bool:
         return "In-Reply-To" in message or "References" in message
 
     async def get_rule(self, sender_header: str, message: Message) -> dict | None:
         sender = self._extract_address(sender_header)
         domain = sender.split("@")[-1] if "@" in sender else ""
+        to_raw  = message.get("To",  "") or ""
+        cc_raw  = message.get("Cc",  "") or ""
+        recipients = self._extract_addresses(to_raw) + self._extract_addresses(cc_raw)
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.backend_url}/api/rules/match",
                     headers=_INTERNAL_HDR,
-                    json={"sender": sender, "domain": domain, "is_reply": self._is_reply(message)},
+                    json={"sender": sender, "domain": domain, "is_reply": self._is_reply(message), "recipients": recipients},
                     timeout=aiohttp.ClientTimeout(total=3),
                 ) as resp:
                     if resp.status == 200:

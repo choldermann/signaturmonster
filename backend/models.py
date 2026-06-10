@@ -96,6 +96,7 @@ class Rule(Base):
     enrichment_source = Column(String, nullable=True)
     priority          = Column(Integer, default=100)
     is_active         = Column(Boolean, default=True)
+    recipient_scope   = Column(String, default="all")  # all | external_only | internal_only
 
 class SenderProfile(Base):
     __tablename__ = "sender_profiles"
