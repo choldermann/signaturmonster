@@ -1,4 +1,4 @@
-import subprocess, os, logging, json, threading, re
+import subprocess, os, logging, json, threading, re, time
 import requests
 
 def _strip_ansi(text: str) -> str:
@@ -251,13 +251,20 @@ def _run_update():
                 return
         s("up_ok", "Backend · Frontend · Nginx gestartet")
 
-        s("self", "Starte Updater neu...")
-        subprocess.Popen(["docker", "rm", "-f", "sm-updater"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.Popen(_dc("up", "-d", "--no-deps", "updater"),
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # "done" VOR dem Self-Restart schreiben — damit der Browser es noch lesen kann,
+        # bevor dieser Prozess durch den Container-Neustart gekillt wird.
         _update_status.update(step="done", msg="Update abgeschlossen", done=True, error=False)
         _write_status()
+        logger.info("done: Update abgeschlossen — starte Updater neu")
+
+        time.sleep(3)  # Kurze Pause damit der Poller "done" lesen kann
+
+        # Updater neu starten — docker compose up handled stop+recreate atomar im Daemon.
+        # Kein separates "docker rm -f": das würde uns per SIGKILL killen, bevor compose up läuft.
+        subprocess.Popen(
+            _dc("up", "-d", "--no-deps", "updater"),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
 
     except Exception as exc:
         _update_status.update(step="error", msg=str(exc), error=True)
