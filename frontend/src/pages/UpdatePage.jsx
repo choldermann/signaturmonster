@@ -57,7 +57,7 @@ function VersionBlock({ label, hash, message, date }) {
 }
 
 const STEPS = [
-  { key: "pull",  ok: "pull_ok",  label: "Images laden"            },
+  { key: "pull",  ok: "pull_ok",  label: "Images laden",            hint: "Kann je nach Internetgeschwindigkeit 2–5 Min. dauern" },
   { key: "rm",    ok: "rm_ok",    label: "Alte Container entfernen" },
   { key: "up",    ok: "up_ok",    label: "Neue Container starten"   },
   { key: "self",  ok: "done",     label: "Updater neu starten"      },
@@ -96,21 +96,32 @@ function UpdateDialog({ entries, restarting, waiting }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          {STEPS.map(({ key, ok, label }) => {
-            const status = stepStatus(key, ok);
+          {STEPS.map(({ key, ok, label, hint }) => {
+            const status   = stepStatus(key, ok);
+            const entryMsg = (entries.find(e => e.step === key) || {}).msg || "";
             return (
-              <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div key={key} style={{ display: "flex", gap: 12 }}>
+                <div style={{ width: 22, paddingTop: 2, display: "flex", alignItems: "flex-start", justifyContent: "center", flexShrink: 0 }}>
                   {status === "ok"      && <Icon name="circle-check" size={16} style={{ color: "#4ade80" }} />}
                   {status === "running" && <Icon name="loader-2"     size={16} style={{ color: "#fce499", animation: "spin 1s linear infinite" }} />}
                   {status === "error"   && <Icon name="circle-x"     size={16} style={{ color: "#f87171" }} />}
-                  {status === "pending" && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2a2a2a", margin: "0 auto" }} />}
+                  {status === "pending" && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2a2a2a", marginTop: 4 }} />}
                 </div>
-                <span style={{ fontSize: 13, color: status === "ok" ? "#aaa" : status === "running" ? "#fff" : status === "error" ? "#f87171" : "#444", fontWeight: status === "running" ? 600 : 400 }}>
-                  {label}
-                  {status === "running" && <span style={{ color: "#555" }}> …</span>}
-                  {status === "ok"      && <span style={{ color: "#4ade80", fontSize: 11, marginLeft: 6 }}>✓</span>}
-                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, color: status === "ok" ? "#aaa" : status === "running" ? "#fff" : status === "error" ? "#f87171" : "#444", fontWeight: status === "running" ? 600 : 400 }}>
+                    {label}
+                    {status === "running" && <span style={{ color: "#555" }}> …</span>}
+                    {status === "ok"      && <span style={{ color: "#4ade80", fontSize: 11, marginLeft: 6 }}>✓</span>}
+                  </span>
+                  {status === "running" && hint && (
+                    <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>{hint}</div>
+                  )}
+                  {status === "running" && entryMsg && (
+                    <div style={{ fontSize: 11, color: "#666", fontFamily: "monospace", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entryMsg}>
+                      {entryMsg}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

@@ -1,5 +1,8 @@
-import subprocess, os, logging, json, threading
+import subprocess, os, logging, json, threading, re
 import requests
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|\r', '', text)
 from flask import Flask, jsonify
 
 app = Flask(__name__)
@@ -207,10 +210,29 @@ def _run_update():
             _write_status()
             return
 
-        s("pull", "Lade neue Images von GitHub...")
-        rc, out = _safe_run(_dc("pull"))
-        if rc != 0:
-            _update_status.update(step="error", msg="Pull fehlgeschlagen", detail=out, error=True)
+        s("pull", "Lade neue Images von GitHub…")
+        try:
+            proc = subprocess.Popen(
+                _dc("pull"),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, errors="replace",
+            )
+            pull_lines = []
+            for raw in proc.stdout:
+                line = _strip_ansi(raw).strip()
+                if not line:
+                    continue
+                pull_lines.append(line)
+                _update_status.update(step="pull", msg=line[:120])
+                _write_status()
+            proc.wait()
+            if proc.returncode != 0:
+                _update_status.update(step="error", msg="Pull fehlgeschlagen",
+                                      detail="\n".join(pull_lines[-30:]), error=True)
+                _write_status()
+                return
+        except Exception as exc:
+            _update_status.update(step="error", msg=str(exc), error=True)
             _write_status()
             return
         s("pull_ok", "Images geladen")
