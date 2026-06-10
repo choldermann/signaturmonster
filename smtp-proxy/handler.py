@@ -33,9 +33,10 @@ class SignaturmonsterHandler(AsyncMessage):
             rule = await self.rule_engine.get_rule(sender_header, message)
             if rule:
                 smtp_account = rule.get("smtp_account") or None
-                sender_profile, enrichment = await asyncio.gather(
+                sender_profile, enrichment, campaign = await asyncio.gather(
                     self.rule_engine.get_sender_profile(sender_email),
                     self.rule_engine.get_enrichment(rule, message),
+                    self.rule_engine.get_campaign_banner(),
                 )
                 ci         = rule.get("ci_config")   or None
                 disclaimer = rule.get("disclaimer")   or None
@@ -48,6 +49,7 @@ class SignaturmonsterHandler(AsyncMessage):
                     sender=sender_profile,
                     disclaimer=disclaimer,
                     powered_by=powered_by,
+                    campaign=campaign,
                 )
                 mode = "branded" if ci else "signature"
                 logger.info(f"[{mode}] Signature '{rule['signature']['name']}' injected for {sender_email}")

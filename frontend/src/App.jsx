@@ -70,8 +70,9 @@ function Nav({ page, setPage, user, onLogout }) {
     {
       label: "Branding",
       items: [
-        { id: "ci",     icon: "palette", label: "CI-Profile" },
-        { id: "images", icon: "photo",   label: "Bildbibliothek" },
+        { id: "ci",        icon: "palette",    label: "CI-Profile" },
+        { id: "images",    icon: "photo",      label: "Bildbibliothek" },
+        { id: "campaigns", icon: "speakerphone", label: "Kampagnen" },
       ]
     },
   ];
@@ -812,6 +813,12 @@ const BannersPageLoader = ({ toast }) => {
 };
 
 // ─── Images Page Loader ───────────────────────────────────────────────────────
+const CampaignsPageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/CampaignsPage.jsx").then(m => setComp(() => m.default)); }, []);
+  return Comp ? <Comp toast={toast} /> : null;
+};
+
 const ImagesPageLoader = ({ toast }) => {
   const [Comp, setComp] = useState(null);
   useEffect(() => { import("./pages/ImagesPage.jsx").then(m => setComp(() => m.default)); }, []);
@@ -847,7 +854,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images";
+  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images" || page === "campaigns";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0d0d0d", color: "#ccc" }}>
@@ -876,6 +883,7 @@ export default function App() {
         {page === "banners"     && <BannersPageLoader toast={toast} />}
         {page === "logs"        && <LogsPageLoader toast={toast} />}
         {page === "images"      && <ImagesPageLoader toast={toast} />}
+        {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>

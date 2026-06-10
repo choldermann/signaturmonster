@@ -141,6 +141,23 @@ class ImageAsset(Base):
     file_size         = Column(Integer, default=0)
     created_at        = Column(DateTime, server_default=func.now())
 
+class Campaign(Base):
+    __tablename__ = "campaigns"
+    id               = Column(Integer, primary_key=True)
+    name             = Column(String, nullable=False)
+    is_active        = Column(Boolean, default=True)
+    start_date       = Column(DateTime, nullable=True)   # null = sofort aktiv
+    end_date         = Column(DateTime, nullable=True)   # null = kein Ende
+    image_asset_id   = Column(Integer, ForeignKey("image_assets.id"), nullable=True)
+    link_url         = Column(String, default="")
+    utm_source       = Column(String, default="email")
+    utm_medium       = Column(String, default="email")
+    utm_campaign     = Column(String, default="")
+    utm_content      = Column(String, default="")
+    click_count      = Column(Integer, default=0)
+    impression_count = Column(Integer, default=0)
+    created_at       = Column(DateTime, server_default=func.now())
+
 class LogEntry(Base):
     __tablename__ = "logs"
     id        = Column(Integer, primary_key=True, autoincrement=True)

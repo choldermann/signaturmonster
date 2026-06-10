@@ -17,6 +17,7 @@ from routers import smtp_users as smtp_users_router
 from routers import update as update_router
 from routers import logs as logs_router
 from routers import images as images_router
+from routers import campaigns as campaigns_router
 
 app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -25,6 +26,7 @@ import os as _os, re as _re
 AUTH_EXCLUDED   = {"/api/auth/login", "/health", "/api/smtp-users/verify"}
 _PUBLIC_PATTERNS = [
     _re.compile(r"^/api/images/\d+/(serve|thumb)$"),
+    _re.compile(r"^/api/campaigns/\d+/track$"),
 ]
 _PROXY_SECRET   = _os.getenv("PROXY_SECRET", "signaturmonster-internal-secret")
 
@@ -84,6 +86,7 @@ app.include_router(smtp_users_router.router,    prefix="/api/smtp-users",    tag
 app.include_router(update_router.router,        prefix="/api/update",        tags=["update"])
 app.include_router(logs_router.router,          prefix="/api/logs",          tags=["logs"])
 app.include_router(images_router.router,        prefix="/api/images",        tags=["images"])
+app.include_router(campaigns_router.router,     prefix="/api/campaigns",     tags=["campaigns"])
 
 @app.get("/health")
 async def health():

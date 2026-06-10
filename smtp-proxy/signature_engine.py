@@ -39,14 +39,16 @@ class SignatureEngine:
     def __init__(self):
         self.beautifier = MailBeautifier()
 
-    async def inject(self, message: Message, signature: dict, enrichment: dict | None = None, ci: dict | None = None, sender: dict | None = None, disclaimer: dict | None = None, powered_by: bool = True) -> Message:
+    async def inject(self, message: Message, signature: dict, enrichment: dict | None = None, ci: dict | None = None, sender: dict | None = None, disclaimer: dict | None = None, powered_by: bool = True, campaign: dict | None = None) -> Message:
         context = {}
         if sender:
             context.update(self._sender_context(sender))
         if enrichment:
             context.update(enrichment)
-        context["disclaimer_html"] = disclaimer.get("html_content", "") if disclaimer else ""
-        context["disclaimer_text"] = disclaimer.get("text_content", "") if disclaimer else ""
+        context["disclaimer_html"]      = disclaimer.get("html_content", "") if disclaimer else ""
+        context["disclaimer_text"]      = disclaimer.get("text_content", "") if disclaimer else ""
+        context["campaign_banner"]      = campaign.get("html", "") if campaign else ""
+        context["campaign_banner_text"] = campaign.get("text", "") if campaign else ""
         html_sig  = self._render(signature.get("html_content", ""), context)
         text_sig  = self._render(signature.get("text_content", ""), context)
         use_branding = bool(ci)  # CI-Dict vorhanden → Branding-Modus

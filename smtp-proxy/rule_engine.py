@@ -51,6 +51,20 @@ class RuleEngine:
             logger.warning(f"Sender profile lookup failed: {e}")
         return None
 
+    async def get_campaign_banner(self) -> dict | None:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.backend_url}/api/campaigns/pick",
+                    headers=_INTERNAL_HDR,
+                    timeout=aiohttp.ClientTimeout(total=3),
+                ) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.warning(f"Campaign banner fetch failed: {e}")
+        return None
+
     async def get_enrichment(self, rule: dict, message: Message) -> dict | None:
         if rule.get("enrichment_source") != "lexware":
             return None

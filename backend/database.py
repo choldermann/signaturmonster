@@ -14,7 +14,7 @@ class Base(DeclarativeBase):
     pass
 
 async def init_db():
-    from models import Signature, Rule, User, Setting, SenderProfile, SMTPAccount, Disclaimer, Banner, SMTPUser, LogEntry, ImageAsset
+    from models import Signature, Rule, User, Setting, SenderProfile, SMTPAccount, Disclaimer, Banner, SMTPUser, LogEntry, ImageAsset, Campaign
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for migration in [
