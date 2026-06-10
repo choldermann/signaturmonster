@@ -32,7 +32,8 @@ async def _retry_one(entry: dict, relay: SMTPRelay, rule_engine: RuleEngine):
         raw      = base64.b64decode(entry["message_b64"])
         message  = message_from_bytes(raw)
         smtp_acc = json.loads(entry["smtp_account_json"]) if entry.get("smtp_account_json") else None
-        await relay.send(message, sender_email=sender, smtp_account=smtp_acc)
+        rcpt_tos = json.loads(entry["rcpt_tos_json"]) if entry.get("rcpt_tos_json") else None
+        await relay.send(message, sender_email=sender, smtp_account=smtp_acc, rcpt_tos=rcpt_tos)
         await rule_engine.mark_sent(queue_id)
         logger.info(f"Retry succeeded for queue entry {queue_id} (sender={sender})")
     except Exception as e:

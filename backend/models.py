@@ -188,6 +188,7 @@ class MailQueueEntry(Base):
     subject           = Column(String, default="")
     message_b64       = Column(Text, nullable=False)
     smtp_account_json = Column(Text, default="")
+    rcpt_tos_json     = Column(Text, default="")   # JSON list of envelope RCPT TO addresses
     last_error        = Column(Text, default="")
 
 class MailLog(Base):

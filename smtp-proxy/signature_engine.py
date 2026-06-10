@@ -107,7 +107,8 @@ class SignatureEngine:
         Outlook's Word engine requires multipart/related to directly wrap
         text/html — having multipart/alternative in between breaks it.
         """
-        collected: list = []  # [(cid, subtype_str, bytes)]
+        collected:   list = []  # [(cid, subtype_str, bytes)]
+        attachments: list = []  # original non-text leaf parts (PDFs, CID images, …)
 
         def _replace(m):
             subtype = m.group(2).split("/")[1].split("+")[0].lower()
@@ -132,18 +133,22 @@ class SignatureEngine:
         def _extract(msg):
             nonlocal html_content, html_cs, plain_content, plain_cs
             ct = msg.get_content_type()
-            if ct == "text/html" and html_content is None:
+            cd = msg.get("Content-Disposition", "").lower()
+            if ct == "text/html" and html_content is None and "attachment" not in cd:
                 cs       = msg.get_content_charset() or "utf-8"
                 raw_html = msg.get_payload(decode=True).decode(cs, errors="replace")
                 html_content = _DATA_URI_RE.sub(_replace, raw_html)
                 html_cs  = cs
-            elif ct == "text/plain" and plain_content is None:
+            elif ct == "text/plain" and plain_content is None and "attachment" not in cd:
                 cs            = msg.get_content_charset() or "utf-8"
                 plain_content = msg.get_payload(decode=True).decode(cs, errors="replace")
                 plain_cs      = cs
             elif msg.is_multipart():
                 for part in msg.get_payload():
                     _extract(part)
+            else:
+                # Preserve all other leaf parts: attachments, existing CID inline images
+                attachments.append(msg)
 
         _extract(message)
 
@@ -232,11 +237,14 @@ class SignatureEngine:
         while "Content-Type"             in message: del message["Content-Type"]
         while "Content-Transfer-Encoding" in message: del message["Content-Transfer-Encoding"]
 
-        if plain_content is not None:
-            plain_sub = MIMEText(plain_content, "plain", plain_cs)
-            _strip_mv(plain_sub)
+        if plain_content is not None or attachments:
+            plain_parts = []
+            if plain_content is not None:
+                plain_sub = MIMEText(plain_content, "plain", plain_cs)
+                _strip_mv(plain_sub)
+                plain_parts = [plain_sub]
             message["Content-Type"] = f'multipart/mixed; boundary="{new_boundary}"'
-            message._payload = [plain_sub, related]
+            message._payload = plain_parts + [related] + attachments
         else:
             message["Content-Type"] = f'multipart/related; type="text/html"; boundary="{new_boundary}"'
             message._payload = [html_sub] + img_parts

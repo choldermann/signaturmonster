@@ -38,6 +38,7 @@ class EnqueueBody(BaseModel):
     subject: str = ""
     message_b64: str
     smtp_account_json: str = ""
+    rcpt_tos_json: str = ""
 
 class FailBody(BaseModel):
     error: str = ""
@@ -50,6 +51,7 @@ async def enqueue(body: EnqueueBody, db: AsyncSession = Depends(get_db)):
         subject           = body.subject,
         message_b64       = body.message_b64,
         smtp_account_json = body.smtp_account_json,
+        rcpt_tos_json     = body.rcpt_tos_json,
         next_attempt_at   = datetime.utcnow(),
         status            = "pending",
     )
@@ -73,7 +75,7 @@ async def get_pending(db: AsyncSession = Depends(get_db)):
     )
     entries = result.scalars().all()
     return [
-        {**_row(e), "message_b64": e.message_b64, "smtp_account_json": e.smtp_account_json}
+        {**_row(e), "message_b64": e.message_b64, "smtp_account_json": e.smtp_account_json, "rcpt_tos_json": e.rcpt_tos_json or ""}
         for e in entries
     ]
 

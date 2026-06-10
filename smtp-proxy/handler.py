@@ -24,9 +24,12 @@ class SignaturmonsterHandler(AsyncMessage):
             ip = session.peer[0] if session.peer else "unknown"
             if not self.rate_limiter.check(ip):
                 return "451 4.7.1 Rate limit exceeded, please try again later"
-        return await super().handle_DATA(server, session, envelope)
+        from email import message_from_bytes
+        message = message_from_bytes(envelope.content)
+        await self.handle_message(message, rcpt_tos=list(envelope.rcpt_tos))
+        return "250 Message accepted for delivery"
 
-    async def handle_message(self, message: Message):
+    async def handle_message(self, message: Message, rcpt_tos: list | None = None):
         t0            = time.time()
         sender_header = message.get("From", "")
         sender_email  = self.rule_engine._extract_address(sender_header)
@@ -85,6 +88,7 @@ class SignaturmonsterHandler(AsyncMessage):
                 "subject":           subject[:200],
                 "message_b64":       msg_b64,
                 "smtp_account_json": smtp_json,
+                "rcpt_tos_json":     json.dumps(rcpt_tos) if rcpt_tos else "",
             })
         except Exception as e:
             logger.warning(f"Queue enqueue failed (proceeding without queue): {e}")
@@ -92,7 +96,7 @@ class SignaturmonsterHandler(AsyncMessage):
         relay_ok    = True
         relay_error = ""
         try:
-            await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account)
+            await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=rcpt_tos)
             if queue_id:
                 asyncio.ensure_future(self.rule_engine.mark_sent(queue_id))
         except Exception as e:
