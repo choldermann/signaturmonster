@@ -2,6 +2,7 @@ import os, sqlite3, asyncio
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Optional
+import psutil
 
 router = APIRouter()
 
@@ -51,6 +52,27 @@ async def ingest(body: IngestBody):
     from log_service import write_log
     await asyncio.to_thread(write_log, body.level, body.service, body.message, body.details)
     return {"ok": True}
+
+
+@router.get("/system-stats")
+async def system_stats():
+    def _stats():
+        cpu  = psutil.cpu_percent(interval=0.2)
+        mem  = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        freq = psutil.cpu_freq()
+        return {
+            "cpu_percent":   round(cpu, 1),
+            "cpu_count":     psutil.cpu_count(logical=True),
+            "cpu_freq_mhz":  round(freq.current) if freq else None,
+            "mem_percent":   round(mem.percent, 1),
+            "mem_used_gb":   round(mem.used   / 1024**3, 1),
+            "mem_total_gb":  round(mem.total  / 1024**3, 1),
+            "disk_percent":  round(disk.percent, 1),
+            "disk_used_gb":  round(disk.used  / 1024**3, 1),
+            "disk_total_gb": round(disk.total / 1024**3, 1),
+        }
+    return await asyncio.to_thread(_stats)
 
 
 @router.delete("")

@@ -10,6 +10,137 @@ async function api(method, path) {
   return r.json();
 }
 
+// ─── Sparkline SVG Chart ──────────────────────────────────────────────────────
+function Sparkline({ points, color, height = 56, width = "100%" }) {
+  const W = 300, H = height;
+  const n = points.length;
+  if (n < 2) return <svg width={width} height={H} />;
+
+  const xs = points.map((_, i) => (i / (n - 1)) * W);
+  const ys = points.map(v => H - 4 - ((v / 100) * (H - 8)));
+
+  // Catmull-Rom → cubic bezier path
+  const d = xs.reduce((acc, x, i) => {
+    if (i === 0) return `M${x},${ys[i]}`;
+    const x0 = xs[i - 1], y0 = ys[i - 1];
+    const cp1x = x0 + (x - (i > 1 ? xs[i - 2] : x0)) / 6;
+    const cp1y = y0 + (ys[i] - (i > 1 ? ys[i - 2] : y0)) / 6;
+    const cp2x = x - (xs[i + 1] !== undefined ? xs[i + 1] - x0 : x - x0) / 6;
+    const cp2y = ys[i] - (ys[i + 1] !== undefined ? ys[i + 1] - y0 : ys[i] - y0) / 6;
+    return `${acc} C${cp1x},${cp1y} ${cp2x},${cp2y} ${x},${ys[i]}`;
+  }, "");
+
+  const area = `${d} L${W},${H} L0,${H} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width={width} height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+      <defs>
+        <linearGradient id={`sg-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.03" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#sg-${color.replace("#", "")})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── Single Metric Card ───────────────────────────────────────────────────────
+function MetricCard({ title, icon, value, history, color, detail, unit = "%" }) {
+  const pct  = value ?? 0;
+  const warn = pct > 85;
+  const c    = warn ? "#f87171" : color;
+
+  return (
+    <div style={{ flex: 1, background: "#161616", border: `1px solid ${warn ? "#3a1a1a" : "#222"}`, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ padding: "12px 16px 6px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ fontSize: 11, color: "#444", textTransform: "uppercase", letterSpacing: "0.6px", display: "flex", alignItems: "center", gap: 5 }}>
+            <i className={`ti ti-${icon}`} style={{ fontSize: 11, color: c }} />
+            {title}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: c, fontFamily: "monospace" }}>
+            {value !== null ? `${pct}${unit}` : "—"}
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div style={{ marginTop: 6, height: 3, background: "#222", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: c, borderRadius: 2, transition: "width 0.5s ease" }} />
+        </div>
+        <div style={{ fontSize: 11, color: "#444", marginTop: 5 }}>{detail || " "}</div>
+      </div>
+      <Sparkline points={history} color={c} height={52} width="100%" />
+    </div>
+  );
+}
+
+// ─── System Stats Block ───────────────────────────────────────────────────────
+const MAX_HIST = 60;
+
+function SystemStats() {
+  const [stats, setStats]     = useState(null);
+  const [cpuH, setCpuH]       = useState([]);
+  const [memH, setMemH]       = useState([]);
+  const [diskH, setDiskH]     = useState([]);
+  const [visible, setVisible] = useState(true);
+
+  const push = (setter, val) =>
+    setter(prev => [...prev.slice(-(MAX_HIST - 1)), val]);
+
+  useEffect(() => {
+    let alive = true;
+    async function poll() {
+      try {
+        const s = await api("GET", "/api/logs/system-stats");
+        if (!alive) return;
+        setStats(s);
+        push(setCpuH,  s.cpu_percent);
+        push(setMemH,  s.mem_percent);
+        push(setDiskH, s.disk_percent);
+      } catch { /* ignore */ }
+    }
+    poll();
+    const id = setInterval(poll, 4000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>System-Auslastung</span>
+        <button onClick={() => setVisible(v => !v)}
+          style={{ fontSize: 11, color: "#333", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <i className={`ti ti-chevron-${visible ? "up" : "down"}`} style={{ fontSize: 11 }} />
+          {visible ? "Ausblenden" : "Einblenden"}
+        </button>
+      </div>
+      {visible && (
+        <div style={{ display: "flex", gap: 10 }}>
+          <MetricCard
+            title="CPU" icon="cpu"
+            value={stats?.cpu_percent ?? null}
+            history={cpuH} color="#93c5fd"
+            detail={stats ? `${stats.cpu_count} Kerne${stats.cpu_freq_mhz ? ` · ${stats.cpu_freq_mhz} MHz` : ""}` : ""}
+          />
+          <MetricCard
+            title="Arbeitsspeicher" icon="device-desktop"
+            value={stats?.mem_percent ?? null}
+            history={memH} color="#c4b5fd"
+            detail={stats ? `${stats.mem_used_gb} / ${stats.mem_total_gb} GB` : ""}
+          />
+          <MetricCard
+            title="Festplatte" icon="database"
+            value={stats?.disk_percent ?? null}
+            history={diskH} color="#6ee7b7"
+            detail={stats ? `${stats.disk_used_gb} / ${stats.disk_total_gb} GB` : ""}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const Icon = ({ name, size = 18, style = {} }) => (
   <i className={`ti ti-${name}`} style={{ fontSize: size, ...style }} aria-hidden />
 );
@@ -266,6 +397,8 @@ export default function LogsPage({ toast }) {
           </button>
         </div>
       </div>
+
+      <SystemStats />
 
       {/* Filter bar */}
       <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
