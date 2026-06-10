@@ -219,19 +219,13 @@ def _run_update():
         def _do_pull():
             try:
                 pull_proc[0] = subprocess.Popen(
-                    _dc("pull", "--progress", "plain"),
+                    _dc("pull"),
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, bufsize=1,
                 )
-                lines = []
-                for line in pull_proc[0].stdout:
-                    line = line.strip()
-                    if line:
-                        lines.append(line)
-                        pull_current[0] = line
+                stdout, _ = pull_proc[0].communicate()
                 pull_proc[0].wait()
                 pull_rc[0]  = pull_proc[0].returncode
-                pull_out[0] = "\n".join(lines[-50:])
+                pull_out[0] = stdout.decode("utf-8", errors="replace").strip()
             except Exception as exc:
                 pull_rc[0]  = -1
                 pull_out[0] = str(exc)
@@ -251,8 +245,7 @@ def _run_update():
                 break
             mins, secs = divmod(elapsed, 60)
             zeit = f"{mins}:{secs:02d} min" if mins else f"{secs}s"
-            activity = _strip_ansi(pull_current[0])[-70:] if pull_current[0] else ""
-            msg = f"Lade Images… {zeit} | {activity}" if activity else f"Lade Images… {zeit} vergangen"
+            msg = f"Lade Images… {zeit} vergangen"
             _update_status.update(step="pull", msg=msg)
             _write_status()
             pull_thread.join(timeout=2)
