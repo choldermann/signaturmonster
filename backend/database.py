@@ -31,6 +31,7 @@ async def init_db():
             "ALTER TABLE rules ADD COLUMN time_from TEXT",
             "ALTER TABLE rules ADD COLUMN time_until TEXT",
             "ALTER TABLE rules ADD COLUMN days_of_week TEXT",
+            "ALTER TABLE sender_profiles ADD COLUMN claimed_by_user_id INTEGER REFERENCES users(id)",
         ]:
             try:
                 await conn.execute(text(migration))

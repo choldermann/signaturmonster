@@ -39,6 +39,12 @@ function Toast({ toasts }) {
 function Nav({ page, setPage, user, onLogout }) {
   const groups = [
     {
+      label: "Mein Konto",
+      items: [
+        { id: "self-service", icon: "user-circle", label: "Mein Profil" },
+      ]
+    },
+    {
       label: "Konfiguration",
       items: [
         { id: "smtp",        icon: "server",     label: "SMTP-Konten" },
@@ -939,6 +945,13 @@ const ImagesPageLoader = ({ toast }) => {
   return <Comp toast={toast} />;
 };
 
+const SelfServicePageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/SelfServicePage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
+  return <Comp toast={toast} />;
+};
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("smtp");
@@ -998,7 +1011,8 @@ export default function App() {
         {page === "images"      && <ImagesPageLoader toast={toast} />}
         {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
         {page === "maillog"     && <MailLogPageLoader toast={toast} />}
-        {page === "mailqueue"   && <MailQueuePageLoader toast={toast} />}
+        {page === "mailqueue"    && <MailQueuePageLoader toast={toast} />}
+        {page === "self-service" && <SelfServicePageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>

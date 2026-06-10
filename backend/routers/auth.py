@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import os
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -42,11 +42,31 @@ def decode_token(token: str) -> Optional[int]:
     except (JWTError, KeyError, ValueError):
         return None
 
+async def get_current_user_id(
+    authorization: str = Header(default=""),
+) -> int:
+    token = authorization.removeprefix("Bearer ").strip()
+    uid = decode_token(token)
+    if uid is None:
+        raise HTTPException(401, "Nicht angemeldet")
+    return uid
+
 def _user_out(user: User, token: str) -> dict:
     return {
         "token": token,
         "user": {"id": user.id, "name": user.name, "is_admin": user.is_admin},
     }
+
+@router.get("/me")
+async def get_me(
+    user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "Benutzer nicht gefunden")
+    return {"id": user.id, "name": user.name, "is_admin": user.is_admin}
 
 @router.post("/login")
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):

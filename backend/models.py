@@ -105,21 +105,22 @@ class Rule(Base):
 
 class SenderProfile(Base):
     __tablename__ = "sender_profiles"
-    id          = Column(Integer, primary_key=True)
-    email       = Column(String, unique=True, nullable=False)
-    first_name  = Column(String, default="")
-    last_name   = Column(String, default="")
-    job_title   = Column(String, default="")
-    photo_url   = Column(String, default="")
-    phone       = Column(String, default="")
-    mobile      = Column(String, default="")
-    street      = Column(String, default="")
-    postal_code = Column(String, default="")
-    city        = Column(String, default="")
-    country     = Column(String, default="")
-    company     = Column(String, default="")
-    created_at  = Column(DateTime, server_default=func.now())
-    updated_at  = Column(DateTime, onupdate=func.now())
+    id                 = Column(Integer, primary_key=True)
+    email              = Column(String, unique=True, nullable=False)
+    first_name         = Column(String, default="")
+    last_name          = Column(String, default="")
+    job_title          = Column(String, default="")
+    photo_url          = Column(String, default="")
+    phone              = Column(String, default="")
+    mobile             = Column(String, default="")
+    street             = Column(String, default="")
+    postal_code        = Column(String, default="")
+    city               = Column(String, default="")
+    country            = Column(String, default="")
+    company            = Column(String, default="")
+    claimed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at         = Column(DateTime, server_default=func.now())
+    updated_at         = Column(DateTime, onupdate=func.now())
 
 class Setting(Base):
     __tablename__ = "settings"

@@ -7,13 +7,14 @@
 
 ## Architektur-Überblick
 
-Signaturmonster besteht aus drei Komponenten, die via Docker Compose zusammenspielen:
+Signaturmonster besteht aus vier Komponenten, die via Docker Compose zusammenspielen:
 
 | Komponente | Technologie | Aufgabe |
 |---|---|---|
 | **Frontend** | React + Vite (nginx) | Web-UI zur Verwaltung |
 | **Backend** | Python FastAPI + SQLite | REST-API, Datenhaltung |
 | **SMTP-Proxy** | Python aiosmtpd | Mailverarbeitung in Echtzeit |
+| **Updater** | Python HTTP-Server | Self-Update-Service |
 
 Der SMTP-Proxy sitzt zwischen Mailprogramm und Relay-Mailserver. Jede ausgehende Mail wird abgefangen, verarbeitet (Signatur, Branding, Template) und dann an den passenden Relay-Server weitergeleitet. Dabei können beliebig viele SMTP-Konten konfiguriert werden — der Proxy wählt automatisch den richtigen anhand der Absender-Domain.
 
@@ -25,13 +26,14 @@ Der Proxy läuft auf Port 2587 und nimmt ausgehende Mails entgegen.
 
 **Verarbeitungsablauf pro Mail:**
 1. Absender-Adresse aus dem `From:`-Header extrahieren
-2. Regel-Engine befragt das Backend (`/api/rules/match`)
-3. Sender-Profil des Absenders laden (falls vorhanden)
-4. Angebots-Daten aus Lexware/JTL anreichern (bei Template-Regeln)
-5. Signatur inkl. Disclaimer-Platzhalter befüllen und in die Mail injizieren
-6. CI-Branding anwenden (falls in der Regel aktiviert)
-7. Passenden SMTP-Relay anhand der Priorität bestimmen (siehe Abschnitt 12)
-8. Mail an den gewählten Relay-Server weiterleiten
+2. Empfänger-Adressen aus `To:`/`Cc:` extrahieren (für Intern/Extern-Prüfung)
+3. Regel-Engine befragt das Backend (`/api/rules/match`)
+4. Sender-Profil des Absenders laden (falls vorhanden)
+5. Angebots-Daten aus Lexware/JTL anreichern (bei Template-Regeln)
+6. Signatur inkl. Disclaimer-Platzhalter befüllen und in die Mail injizieren
+7. CI-Branding anwenden (falls in der Regel aktiviert)
+8. Mail in Queue einreihen; Proxy-Worker sendet via passenden SMTP-Relay (siehe Abschnitt 12)
+9. Mail-Audit-Log schreiben (Abschnitt 15)
 
 **Unterstützte Mail-Typen:**
 - Neue Mails (`apply_on_new`)
@@ -88,10 +90,20 @@ Vollständige Variablenliste:
 
 Regeln steuern, welche Signatur (und welches CI-Profil) an eine Mail angehängt wird.
 
-**Matching-Parameter:**
+**Matching-Parameter (Absender):**
 - **Absender** (exakte E-Mail-Adresse)
 - **Domain** (alle Absender einer Domain)
 - Kombinationen sind möglich; leer = trifft alle
+
+**Matching-Parameter (Empfänger):**
+- **Empfänger-Scope:** `Alle` | `Nur Extern` | `Nur Intern` — der Proxy extrahiert alle `To:`/`Cc:`-Adressen und prüft sie gegen die konfigurierten internen Domains (Setting `internal_domains`)
+- **Empfänger-Adresse:** Exakte E-Mail-Adresse des Empfängers
+- **Empfänger-Domain:** Domain aller Empfänger (z.B. `kunde.de`)
+
+**Zeitbasierte Bedingungen:**
+- **Zeitraum:** `Von` (HH:MM) bis `Bis` (HH:MM) — Regel greift nur innerhalb dieses Zeitfensters
+- **Wochentage:** Auswahl einzelner Wochentage (Mo–So) — Regel greift nur an den gewählten Tagen
+- Zeitzone wird systemweit über das Setting `timezone` konfiguriert
 
 **Weitere Einstellungen je Regel:**
 - **Priorität** (niedrigere Zahl = wird zuerst geprüft)
@@ -179,7 +191,55 @@ Banner können zentral angelegt, bearbeitet und aus dem Signatur-Designer heraus
 
 ---
 
-## 7. Angebots-Templates
+## 7. Kampagnen-System
+
+Kampagnen ermöglichen das zeitgesteuerte Ausspielen von Bild-Werbemitteln (z.B. Aktionsbanner, Messehinweise) in ausgehenden Mails — inkl. automatischem Tracking.
+
+**Kampagnen-Felder:**
+
+| Feld | Beschreibung |
+|---|---|
+| `name` | Interner Kampagnenname |
+| `is_active` | Manuell aktivieren/deaktivieren |
+| `start_date` | Startdatum (optional, ISO-Datum) — null = sofort aktiv |
+| `end_date` | Enddatum (optional) — null = kein Ende |
+| `image_asset_id` | Bild aus der Bilddatenbank (Abschnitt 8) |
+| `link_url` | Ziel-URL beim Klick |
+| `utm_*` | UTM-Parameter (source, medium, campaign, content) |
+
+**Tracking:**
+- `impression_count` — wird bei jedem Mailversand mit dieser Kampagne erhöht
+- `click_count` — wird erhöht, wenn der Empfänger auf das Bild klickt (Redirect-Endpoint `GET /api/campaigns/{id}/click`)
+- Statistiken sind in der CampaignsPage einsehbar
+
+**Zeitsteuerung:**  
+Beim Versand prüft der Proxy: `is_active == true` UND aktuelles Datum liegt zwischen `start_date` und `end_date` (falls gesetzt). Abgelaufene oder zukünftige Kampagnen werden übersprungen.
+
+---
+
+## 8. Bilddatenbank
+
+Zentrale Verwaltung aller Bild-Assets (Logos, Fotos, Kampagnenbilder). Bilder werden direkt in der Datenbank gespeichert und können in Signaturen, CI-Profilen und Kampagnen verwendet werden.
+
+**Upload & Verarbeitung:**
+- Unterstützte Formate: JPEG, PNG, GIF, WebP
+- Automatische Thumbnail-Generierung (200 × 200 px, eingebettet in DB)
+- Breite/Höhe und Dateigröße werden beim Upload gespeichert
+- Serve-Endpoint `GET /api/images/{id}` liefert das Originalbild als HTTP-Response
+
+**CID-Einbettung (Outlook-Kompatibilität):**
+- CI-Logo und Signatur-Logo werden bei Bedarf per Canvas auf Zielgröße resiziert und als `data:`-URI gespeichert
+- Banner-GIFs: Outlook bekommt einen statischen PNG-Fallback (Frame 0 extrahiert via PIL); alle anderen Mail-Clients bekommen das animierte GIF
+- Multi-Szenen-GIFs: Szene 1 = Outlook-Fallback (statisch), Loop läuft ab Szene 2
+
+**ImagesPage:**
+- Alle Assets mit Thumbnail, Name, Größe und Datum anzeigen
+- Einzelbild hochladen, umbenennen, löschen
+- URL-Kopierfunktion für direkten Einsatz in Signatur-Blöcken
+
+---
+
+## 9. Angebots-Templates
 
 Templates ermöglichen es, Mails von Drittsystemen (Lexware Office, JTL-Wawi) durch professionelle HTML-Angebotsmails zu ersetzen.
 
@@ -210,7 +270,7 @@ Analog zu Signatur-Regeln, aber für Templates:
 
 ---
 
-## 8. Mailadressen (Absenderprofile)
+## 10. Mailadressen (Absenderprofile)
 
 Jede Absender-Mailadresse kann ein eigenes Profil erhalten, dessen Felder als Variablen in die Signatur eingefügt werden. Zu finden unter **Signaturen → Mailadressen**.
 
@@ -226,7 +286,7 @@ Der SMTP-Proxy lädt das Profil automatisch anhand der Absender-E-Mail und befü
 
 ---
 
-## 9. Authentifizierung & Benutzerverwaltung
+## 11. Authentifizierung & Benutzerverwaltung
 
 ### Login
 
@@ -240,7 +300,7 @@ Der Zugriff auf die Plattform ist passwortgeschützt. Alle API-Routen (außer `/
 
 ### Benutzerverwaltung (Konfiguration → Benutzer)
 
-Nur Administratoren haben Zugriff auf die Plattform und können neue Benutzer anlegen. Zu finden unter **Konfiguration → Benutzer**.
+Nur Administratoren haben Zugriff auf die Plattform und können neue Benutzer anlegen.
 
 **Funktionen:**
 - Alle Benutzer auflisten mit Name und Admin-Status
@@ -255,9 +315,16 @@ Nur Administratoren haben Zugriff auf die Plattform und können neue Benutzer an
 - Neue Benutzer werden standardmäßig ohne Admin-Rechte angelegt (opt-in beim Erstellen)
 - Registrierung über die Login-Seite ist deaktiviert — Benutzer werden ausschließlich von Admins angelegt
 
+### SMTP-Proxy-Benutzer (Konfiguration → SMTP-Benutzer)
+
+Separate Zugangsdaten für die Authentifizierung am SMTP-Proxy selbst (Port 2587). Unabhängig von den Web-UI-Benutzern.
+
+- Benutzername + Passwort anlegen, aktivieren/deaktivieren, löschen
+- Wird benötigt, wenn der Proxy mit `auth_required=True` betrieben wird
+
 ---
 
-## 10. Lizenzsystem (Konfiguration → Lizenz)
+## 12. Lizenzsystem (Konfiguration → Lizenz)
 
 Signaturmonster validiert Lizenzen **online gegen monstersuite.de** — das zentrale Kunden- und Lizenzportal. Kunden registrieren sich dort, aktivieren Free-Versionen oder kaufen Pro-Versionen und sehen ihre Schlüssel. Signaturmonster selbst ist nur der Lizenzclient.
 
@@ -319,6 +386,8 @@ Zeigt:
 | Mailadressen-Profile | — | ✓ |
 | Disclaimer-Verwaltung | — | ✓ |
 | Banner-Bibliothek | — | ✓ |
+| Kampagnen-System | — | ✓ |
+| Bilddatenbank | — | ✓ |
 | Angebots-Templates | — | ✓ |
 | Benutzerverwaltung | — | ✓ |
 
@@ -332,8 +401,6 @@ Zeigt:
 - **Offline-Fallback (Dev):** Wenn `LICENSE_SECRET` gesetzt ist, werden HMAC-signierte Keys ohne Serververbindung akzeptiert — **nicht für Produktion**
 
 ### API-Vertrag (monstersuite.de)
-
-Vollständige Dokumentation der Lizenz-API v1 → **monstersuite `docs/features.md`, Abschnitt 6 & 7**
 
 Kurzreferenz — Request an `POST /api/v1/licenses/activate` und `/validate`:
 ```json
@@ -350,18 +417,14 @@ Response (Erfolg):
 
 ### Offline-Key-Generator (Entwicklung / Übergang)
 
-Für Entwicklung und den Übergang bis monstersuite.de deployed ist, können lokal signierte HMAC-Keys generiert werden:
-
 ```bash
 # LICENSE_SECRET muss in .env gesetzt sein
 python backend/scripts/gen_license.py
 ```
 
-monstersuite.de ist als separates Projekt unter `../monstersuite` angelegt und stellt im Produktivbetrieb die Lizenzschlüssel aus.
-
 ---
 
-## 11. Datenanreicherung (Lexware Office)
+## 13. Datenanreicherung (Lexware Office)
 
 Bei Template-Regeln mit Datenquelle `lexware` ruft der Proxy zur Laufzeit die Lexware-API ab:
 
@@ -374,7 +437,7 @@ Bei Template-Regeln mit Datenquelle `lexware` ruft der Proxy zur Laufzeit die Le
 
 ---
 
-## 12. SMTP-Konten (Multi-Relay)
+## 14. SMTP-Konten (Multi-Relay)
 
 Signaturmonster unterstützt beliebig viele SMTP-Relay-Konten. Jedes Konto gehört zu einer Domain — Absender mit `@abc.de` und `@xyz.zz` verwenden automatisch verschiedene Mailserver.
 
@@ -406,7 +469,63 @@ Signaturmonster unterstützt beliebig viele SMTP-Relay-Konten. Jedes Konto gehö
 
 ---
 
-## 13. Test-Werkzeuge
+## 15. Mail-Queue (Retry-System)
+
+Ausgehende Mails werden zunächst in eine SQLite-Queue geschrieben. Ein Worker-Loop im SMTP-Proxy sendet die Mails asynchron und wiederholt fehlgeschlagene Zustellversuche automatisch.
+
+**Retry-Strategie (exponentielles Backoff):**
+
+| Versuch | Wartezeit |
+|---|---|
+| 1. Fehler | 1 Minute |
+| 2. Fehler | 5 Minuten |
+| 3. Fehler | 30 Minuten |
+| 4. Fehler | 2 Stunden |
+| 5. Fehler (max) | → Status `failed` |
+
+**Queue-Status je Eintrag:** `pending` | `sent` | `failed`
+
+**Mail-Queue-Seite (System → Mail-Queue):**
+- Übersichts-Statistik: Ausstehend / Gesendet / Fehlgeschlagen / Gesamt
+- Filterbares Log nach Status, paginiert
+- **Manueller Retry:** Fehlgeschlagene Einträge sofort neu einreihen
+- **Einzeln löschen** oder **alle gesendeten bereinigen**
+- Fehlermeldung pro Eintrag einsehbar (`last_error`)
+
+---
+
+## 16. Mail-Audit-Log (Compliance)
+
+Jede durch den SMTP-Proxy verarbeitete Mail wird mit vollständigen Metadaten protokolliert. Zu finden unter **System → Mail-Log**.
+
+**Protokollierte Felder pro Mail:**
+
+| Feld | Beschreibung |
+|---|---|
+| Zeitstempel | Zeitpunkt der Verarbeitung |
+| Absender | E-Mail-Adresse |
+| Empfänger | Kommagetrennte Liste |
+| Betreff | Betreffzeile |
+| Regel | Name der greifenden Regel |
+| Signatur | Name der eingesetzten Signatur |
+| Aktion | `signed` / `no_rule` / `error` |
+| Relay | OK oder Fehler |
+| Dauer | Verarbeitungszeit in ms |
+| Größe | Nachrichtengröße in Bytes |
+
+**Filter- und Export-Funktionen:**
+- Filter nach Absender, Aktion (`signed`/`no_rule`/`error`), Datumsbereich
+- **CSV-Export** der gefilterten Ansicht (`mail-audit.csv`) für Compliance-Nachweise
+- Tages-Statistik-Banner (oben): Heute gesamt / Signiert / Ohne Regel / Fehler
+
+**Datenaufbewahrung:**
+- Automatische Bereinigung älterer Einträge bei jedem Log-Schreiben
+- Aufbewahrungsdauer konfigurierbar via Setting `log_retention_days` (Standard: 90 Tage)
+- Manuelle Bereinigung über „Alle Logs löschen"-Button
+
+---
+
+## 17. Test-Werkzeuge
 
 - **Testmail senden:** Beliebige Empfängeradresse angeben — sendet eine echte Mail über den Standard-SMTP-Relay (oder per Konto-Test direkt in den SMTP-Konten)
 - **Regel-Matching simulieren:** Absender-Adresse eingeben und "Als Antwort behandeln" togglen — zeigt, welche Regel greifen würde und welche Signatur zugewiesen wird
@@ -414,7 +533,37 @@ Signaturmonster unterstützt beliebig viele SMTP-Relay-Konten. Jedes Konto gehö
 
 ---
 
-## 14. Deployment
+## 18. System-Log & Monitoring
+
+**System-Log-Seite (System → System-Log):**
+- Echtzeit-Log aller internen Events (Backend + SMTP-Proxy), filterbar nach Level und Service
+- **Live-Monitoring-Grafiken** (4-Sekunden-Polling, 60-Punkte-Verlauf):
+  - CPU-Auslastung (%)
+  - RAM-Belegung (%)
+  - Disk-Belegung (%)
+- Technologie: `psutil` im Backend, Sparkline-Charts im Frontend
+
+---
+
+## 19. Update-System (System → Update)
+
+Signaturmonster hat einen integrierten Self-Update-Mechanismus über einen separaten **Updater-Container**.
+
+**Funktionen:**
+- **Versionscheck:** Aktuelle Version anzeigen, neue Version verfügbar?
+- **Changelog:** Release-Notes der neuen Version direkt in der UI
+- **Update starten:** Trigger per Klick — der Updater pullt neue Images und startet betroffene Container neu
+- **Update-Status:** Live-Statusanzeige während des Update-Vorgangs
+
+**Architektur:**
+- Der Updater läuft als separater Container mit Zugriff auf den Docker-Socket
+- nginx ist bewusst aus dem Update-Zyklus ausgenommen (bleibt während des Updates erreichbar)
+- Nur eigene Images werden gepullt — keine ungewollten Abhängigkeits-Updates
+- Der Backend-Container startet sich via Restarter-Container neu (kein direkter Docker-in-Docker)
+
+---
+
+## 20. Deployment
 
 - Vollständig containerisiert via **Docker Compose**
 - nginx als Reverse Proxy vor Frontend und Backend
@@ -429,6 +578,8 @@ docker compose up -d --build
 
 Neue Datenbanktabellen werden beim Start automatisch angelegt (`create_all`). Neue Spalten in bestehenden Tabellen werden über die eingebettete Migrations-Liste in `database.py` ergänzt.
 
+**nginx-Konfiguration:** `resolver 127.0.0.11 valid=10s` verhindert 502-Fehler nach Container-Neustarts.
+
 ---
 
 ## Bekannte Einschränkungen (v0.7.0)
@@ -437,3 +588,4 @@ Neue Datenbanktabellen werden beim Start automatisch angelegt (`create_all`). Ne
 - Keine Authentifizierung am SMTP-Proxy selbst (`auth_required=False`) — der Proxy sollte nur im internen Netz erreichbar sein
 - Lizenzprüfung zeigt Features als aktiv/gesperrt an, sperrt aber den UI-Zugriff noch nicht technisch — Feature-Gating folgt in einem späteren Release
 - monstersuite.de (Lizenzserver) ist als separates Projekt angelegt (`../monstersuite`), aber noch nicht deployed — Übergang via Offline-HMAC-Keys (`LICENSE_SECRET` in `.env`)
+- Wenn ein Banner-GIF regeneriert wird, muss er im Signatur-Designer erneut ausgewählt werden, damit die neue `gif_data` übernommen wird (GIF ist inline in der Signatur gespeichert, kein ID-Verweis)
