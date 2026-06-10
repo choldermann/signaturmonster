@@ -172,3 +172,19 @@ class LogEntry(Base):
     service   = Column(String, index=True)
     message   = Column(Text)
     details   = Column(Text)
+
+class MailLog(Base):
+    __tablename__ = "mail_logs"
+    id             = Column(Integer, primary_key=True)
+    timestamp      = Column(DateTime, server_default=func.now(), index=True)
+    sender         = Column(String, default="", index=True)
+    recipients     = Column(Text, default="")    # comma-separated
+    subject        = Column(String, default="")
+    rule_id        = Column(Integer, nullable=True)
+    rule_name      = Column(String, default="")
+    signature_name = Column(String, default="")
+    action         = Column(String, default="signed", index=True)  # signed|no_rule|error
+    relay_ok       = Column(Boolean, default=True)
+    relay_error    = Column(String, default="")
+    duration_ms    = Column(Integer, default=0)
+    message_size   = Column(Integer, default=0)

@@ -74,6 +74,18 @@ class RuleEngine:
             logger.warning(f"Campaign banner fetch failed: {e}")
         return None
 
+    async def log_mail(self, entry: dict) -> None:
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.post(
+                    f"{self.backend_url}/api/maillog/",
+                    headers=_INTERNAL_HDR,
+                    json=entry,
+                    timeout=aiohttp.ClientTimeout(total=3),
+                )
+        except Exception as e:
+            logger.warning(f"Mail log failed: {e}")
+
     async def get_enrichment(self, rule: dict, message: Message) -> dict | None:
         if rule.get("enrichment_source") != "lexware":
             return None

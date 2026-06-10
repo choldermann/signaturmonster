@@ -48,6 +48,7 @@ function Nav({ page, setPage, user, onLogout }) {
         { id: "license",     icon: "key",        label: "Lizenz" },
         { id: "update",      icon: "refresh",    label: "Update" },
         { id: "logs",        icon: "terminal-2", label: "System-Log" },
+        { id: "maillog",     icon: "mail-search", label: "Audit-Log" },
       ]
     },
     {
@@ -910,6 +911,13 @@ const BannersPageLoader = ({ toast }) => {
 };
 
 // ─── Images Page Loader ───────────────────────────────────────────────────────
+const MailLogPageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/MailLogPage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "#555", padding: 40 }}>Lade…</div>;
+  return <Comp toast={toast} />;
+};
+
 const CampaignsPageLoader = ({ toast }) => {
   const [Comp, setComp] = useState(null);
   useEffect(() => { import("./pages/CampaignsPage.jsx").then(m => setComp(() => m.default)); }, []);
@@ -951,7 +959,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images" || page === "campaigns";
+  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images" || page === "campaigns" || page === "maillog";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0d0d0d", color: "#ccc" }}>
@@ -981,6 +989,7 @@ export default function App() {
         {page === "logs"        && <LogsPageLoader toast={toast} />}
         {page === "images"      && <ImagesPageLoader toast={toast} />}
         {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
+        {page === "maillog"     && <MailLogPageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>

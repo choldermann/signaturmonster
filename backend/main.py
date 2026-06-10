@@ -18,6 +18,7 @@ from routers import update as update_router
 from routers import logs as logs_router
 from routers import images as images_router
 from routers import campaigns as campaigns_router
+from routers import maillog as maillog_router
 
 app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -87,6 +88,7 @@ app.include_router(update_router.router,        prefix="/api/update",        tag
 app.include_router(logs_router.router,          prefix="/api/logs",          tags=["logs"])
 app.include_router(images_router.router,        prefix="/api/images",        tags=["images"])
 app.include_router(campaigns_router.router,     prefix="/api/campaigns",     tags=["campaigns"])
+app.include_router(maillog_router.router,       prefix="/api/maillog",       tags=["maillog"])
 
 @app.get("/health")
 async def health():
