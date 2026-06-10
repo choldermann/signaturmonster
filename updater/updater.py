@@ -301,21 +301,30 @@ def _run_update():
                 return
         s("up_ok", "Backend · Frontend · Nginx gestartet")
 
-        # "done" VOR dem Self-Restart schreiben — damit der Browser es noch lesen kann,
-        # bevor dieser Prozess durch den Container-Neustart gekillt wird.
+        s("self", "Starte Updater-Neustart…")
+        _log("Starte Restarter-Container…")
+
+        # Restarter läuft in eigenem Container/Cgroup → überlebt sm-updater-Exit.
+        # start_new_session=True damit der docker-run-Aufruf nicht im PID-1-Cgroup stirbt
+        # bevor der Daemon die Anfrage empfangen hat.
+        restarter_cmd = (
+            f"sleep 6 && docker compose"
+            f" -p {COMPOSE_PROJECT}"
+            f" -f {COMPOSE_FILE}"
+            f" up -d --no-deps --force-recreate updater"
+        )
+        rc_r, out_r = _safe_run(["docker", "run", "--rm", "-d",
+            "-v", "/var/run/docker.sock:/var/run/docker.sock",
+            "-v", "/project:/project",
+            "--entrypoint", "sh",
+            f"ghcr.io/{OWNER}/signaturmonster-updater:latest",
+            "-c", restarter_cmd])
+        _log(f"Restarter gestartet — RC={rc_r} {out_r[:120]}")
+
+        # "done" NACH dem Restarter-Start schreiben
         _update_status.update(step="done", msg="Update abgeschlossen", done=True, error=False)
         _write_status()
-        logger.info("done: Update abgeschlossen — starte Updater neu")
-
-        time.sleep(3)  # Kurze Pause damit der Poller "done" lesen kann
-
-        # start_new_session=True: neue Process-Group → Subprocess überlebt PID-1-Exit.
-        # Docker-Daemon empfängt den "up -d"-Request bevor er unsere Cgroup killt.
-        subprocess.Popen(
-            _dc("up", "-d", "--no-deps", "updater"),
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        _log("done geschrieben — Update abgeschlossen")
 
     except Exception as exc:
         _update_status.update(step="error", msg=str(exc), error=True)
