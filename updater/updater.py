@@ -219,7 +219,7 @@ def _run_update():
         def _do_pull():
             try:
                 pull_proc[0] = subprocess.Popen(
-                    _dc("pull"),
+                    _dc("pull", "backend", "frontend", "smtp-proxy", "updater"),
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 )
                 stdout, _ = pull_proc[0].communicate()
