@@ -63,7 +63,7 @@ const STEPS = [
   { key: "self",  ok: "done",     label: "Updater neu starten"      },
 ];
 
-function UpdateDialog({ entries, restarting, waiting }) {
+function UpdateDialog({ entries, restarting, waiting, debugLog }) {
   const logRef = React.useRef(null);
   React.useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -138,6 +138,13 @@ function UpdateDialog({ entries, restarting, waiting }) {
           </div>
         )}
 
+        {debugLog && debugLog.length > 0 && (
+          <div style={{ borderTop: "1px solid #1e1e1e", paddingTop: 12, marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "#444", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.6px" }}>Diagnose-Log</div>
+            <pre style={{ fontSize: 10, color: "#555", background: "#0d0d0d", borderRadius: 6, padding: "8px 10px", margin: 0, overflowY: "auto", maxHeight: 120, whiteSpace: "pre-wrap" }}>{debugLog.join("\n")}</pre>
+          </div>
+        )}
+
         {isError && (
           <div style={{ borderTop: "1px solid #3a1a1a", paddingTop: 14, marginTop: 4 }}>
             <div style={{ fontSize: 11, color: "#f87171", marginBottom: 6, fontWeight: 600 }}>Fehlerdetails</div>
@@ -155,8 +162,9 @@ export default function UpdatePage({ toast }) {
   const [loading, setLoading]       = useState(true);
   const [logEntries, setLogEntries] = useState([]);
   const [restarting, setRestarting] = useState(false);
-  const [waiting, setWaiting] = useState(false);
+  const [waiting, setWaiting]       = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [debugLog, setDebugLog]     = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -176,6 +184,7 @@ export default function UpdatePage({ toast }) {
     setLogEntries([]);
     setRestarting(false);
     setWaiting(false);
+    setDebugLog([]);
     setShowDialog(true);
 
     try {
@@ -213,6 +222,7 @@ export default function UpdatePage({ toast }) {
         errStreak = 0;
         setWaiting(false);
         const s = await r.json();
+        if (Array.isArray(s.log) && s.log.length > 0) setDebugLog(s.log);
         if (s.step) {
           lastStep = s.step;
           setLogEntries(prev => {
@@ -262,7 +272,7 @@ export default function UpdatePage({ toast }) {
 
   return (
     <div>
-      {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} waiting={waiting} />}
+      {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} waiting={waiting} debugLog={debugLog} />}
 
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Software-Update</h1>

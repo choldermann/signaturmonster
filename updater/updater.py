@@ -19,7 +19,17 @@ REF_IMAGE       = f"{REGISTRY}/{OWNER}/signaturmonster-backend"
 REF_CONTAINER   = "sm-backend"
 
 STATUS_FILE = os.getenv("UPDATE_STATUS_FILE", "/project/data/update-status.json")
-_update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
+_update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False, "log": []}
+
+
+def _log(msg: str):
+    logger.info(msg)
+    entry = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    if "log" not in _update_status:
+        _update_status["log"] = []
+    _update_status["log"].append(entry)
+    _update_status["log"] = _update_status["log"][-60:]
+    _write_status()
 
 
 def _write_status():
@@ -211,54 +221,67 @@ def _run_update():
             return
 
         s("pull", "Lade neue Images von GitHub…")
-        pull_rc      = [None]
-        pull_out     = [""]
-        pull_current = [""]
-        pull_proc    = [None]
+        pull_rc   = [None]
+        pull_out  = [""]
+        pull_proc = [None]
+
+        _log("Pull gestartet")
 
         def _do_pull():
             try:
+                cmd = _dc("pull", "backend", "frontend", "smtp-proxy", "updater")
+                _log(f"Popen: {' '.join(cmd)}")
                 pull_proc[0] = subprocess.Popen(
-                    _dc("pull", "backend", "frontend", "smtp-proxy", "updater"),
+                    cmd,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 )
+                _log(f"Subprocess PID={pull_proc[0].pid} — warte auf communicate()…")
                 stdout, _ = pull_proc[0].communicate()
                 pull_proc[0].wait()
                 pull_rc[0]  = pull_proc[0].returncode
                 pull_out[0] = stdout.decode("utf-8", errors="replace").strip()
+                _log(f"communicate() fertig — RC={pull_rc[0]}, Output {len(pull_out[0])} Zeichen")
             except Exception as exc:
                 pull_rc[0]  = -1
                 pull_out[0] = str(exc)
+                _log(f"Exception in _do_pull: {exc}")
 
         pull_thread = threading.Thread(target=_do_pull, daemon=True)
         pull_thread.start()
         t0 = time.time()
         MAX_PULL_SECS = 600  # 10 min Timeout
+        last_log_secs = 0
 
         while pull_thread.is_alive():
             elapsed = int(time.time() - t0)
             if elapsed > MAX_PULL_SECS:
+                _log(f"Pull-Timeout nach {MAX_PULL_SECS}s — killt Subprocess")
                 if pull_proc[0]:
                     pull_proc[0].kill()
                 pull_rc[0]  = -1
                 pull_out[0] = f"Pull-Timeout nach {MAX_PULL_SECS}s"
                 break
+            # Alle 15s einen Heartbeat ins Log
+            if elapsed - last_log_secs >= 15:
+                _log(f"Pull läuft noch… {elapsed}s (PID={pull_proc[0].pid if pull_proc[0] else '?'})")
+                last_log_secs = elapsed
             mins, secs = divmod(elapsed, 60)
             zeit = f"{mins}:{secs:02d} min" if mins else f"{secs}s"
-            msg = f"Lade Images… {zeit} vergangen"
-            _update_status.update(step="pull", msg=msg)
+            _update_status.update(step="pull", msg=f"Lade Images… {zeit} vergangen")
             _write_status()
             pull_thread.join(timeout=2)
 
         if pull_rc[0] is None:
             pull_rc[0] = -1
             pull_out[0] = "Thread endete ohne Ergebnis"
+            _log("Thread endete ohne Ergebnis")
 
         if pull_rc[0] != 0:
             _update_status.update(step="error", msg="Pull fehlgeschlagen",
                                   detail=pull_out[0][-2000:], error=True)
             _write_status()
             return
+        _log("Pull erfolgreich")
         s("pull_ok", "Images geladen")
 
         s("rm", "Stoppe und entferne alte Container...")
@@ -302,7 +325,7 @@ def update_start():
     cur = _read_status()
     if cur.get("step") and not cur.get("done") and not cur.get("error"):
         return jsonify({"ok": False, "error": "Update läuft bereits"})
-    _update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False}
+    _update_status = {"step": None, "msg": "", "detail": "", "done": False, "error": False, "log": []}
     _write_status()
     threading.Thread(target=_run_update, daemon=True).start()
     return jsonify({"ok": True})
