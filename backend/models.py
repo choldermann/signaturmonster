@@ -93,10 +93,15 @@ class Rule(Base):
     ci_config_id      = Column(Integer, ForeignKey("ci_configs.id"), nullable=True)
     smtp_account_id   = Column(Integer, ForeignKey("smtp_accounts.id"), nullable=True)
     disclaimer_id     = Column(Integer, ForeignKey("disclaimers.id"), nullable=True)
-    enrichment_source = Column(String, nullable=True)
-    priority          = Column(Integer, default=100)
-    is_active         = Column(Boolean, default=True)
-    recipient_scope   = Column(String, default="all")  # all | external_only | internal_only
+    enrichment_source      = Column(String, nullable=True)
+    priority               = Column(Integer, default=100)
+    is_active              = Column(Boolean, default=True)
+    recipient_scope        = Column(String, default="all")   # all | external_only | internal_only
+    match_recipient        = Column(String, nullable=True)   # specific recipient email
+    match_recipient_domain = Column(String, nullable=True)   # recipient domain
+    time_from              = Column(String, nullable=True)   # "HH:MM"
+    time_until             = Column(String, nullable=True)   # "HH:MM"
+    days_of_week           = Column(String, nullable=True)   # "0,1,2,3,4" (0=Mon, 6=Sun)
 
 class SenderProfile(Base):
     __tablename__ = "sender_profiles"

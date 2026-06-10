@@ -26,6 +26,11 @@ async def init_db():
             "ALTER TABLE rules ADD COLUMN smtp_account_id INTEGER REFERENCES smtp_accounts(id)",
             "ALTER TABLE rules ADD COLUMN disclaimer_id INTEGER REFERENCES disclaimers(id)",
             "ALTER TABLE rules ADD COLUMN recipient_scope TEXT DEFAULT 'all'",
+            "ALTER TABLE rules ADD COLUMN match_recipient TEXT",
+            "ALTER TABLE rules ADD COLUMN match_recipient_domain TEXT",
+            "ALTER TABLE rules ADD COLUMN time_from TEXT",
+            "ALTER TABLE rules ADD COLUMN time_until TEXT",
+            "ALTER TABLE rules ADD COLUMN days_of_week TEXT",
         ]:
             try:
                 await conn.execute(text(migration))

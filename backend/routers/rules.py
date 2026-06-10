@@ -5,6 +5,8 @@ from database import get_db
 from models import Rule, Signature, CIConfig, SMTPAccount, Disclaimer, Setting
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 router = APIRouter()
 
@@ -29,6 +31,11 @@ class RuleCreate(BaseModel):
     priority: int = 100
     is_active: bool = True
     recipient_scope: str = "all"
+    match_recipient: Optional[str] = None
+    match_recipient_domain: Optional[str] = None
+    time_from: Optional[str] = None
+    time_until: Optional[str] = None
+    days_of_week: Optional[str] = None
 
 def _recipient_domains(recipients: list[str]) -> set[str]:
     domains = set()
@@ -42,13 +49,28 @@ def _recipient_domains(recipients: list[str]) -> set[str]:
 
 @router.post("/match")
 async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
-    # Load internal domains from settings (comma-separated)
+    # Load settings once
     int_setting = await db.get(Setting, "internal_domains")
     internal_domains = set()
     if int_setting and int_setting.value:
         internal_domains = {d.strip().lower() for d in int_setting.value.split(",") if d.strip()}
 
+    tz_setting = await db.get(Setting, "timezone")
+    try:
+        tz = ZoneInfo(tz_setting.value) if tz_setting and tz_setting.value else ZoneInfo("UTC")
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("UTC")
+    now = datetime.now(tz)
+
     recipient_domains = _recipient_domains(req.recipients)
+
+    # Normalise recipient addresses for exact matching
+    norm_recipients = set()
+    for r in req.recipients:
+        addr = r.strip().lower()
+        if "<" in addr and ">" in addr:
+            addr = addr.split("<")[1].split(">")[0].strip()
+        norm_recipients.add(addr)
 
     result = await db.execute(
         select(Rule).where(Rule.is_active == True).order_by(Rule.priority)
@@ -58,6 +80,8 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
             continue
         if not req.is_reply and not rule.apply_on_new:
             continue
+
+        # Sender matching
         match = (
             (rule.match_sender and rule.match_sender.lower() == req.sender) or
             (rule.match_domain and rule.match_domain.lower() == req.domain) or
@@ -65,6 +89,18 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
         )
         if not match:
             continue
+
+        # Recipient matching (if configured, at least one recipient must match)
+        mr  = getattr(rule, "match_recipient", None)
+        mrd = getattr(rule, "match_recipient_domain", None)
+        if mr or mrd:
+            r_match = False
+            if mr and mr.lower() in norm_recipients:
+                r_match = True
+            if mrd and mrd.lower() in recipient_domains:
+                r_match = True
+            if not r_match:
+                continue
 
         # Recipient scope filtering (only when internal_domains are configured)
         scope = getattr(rule, "recipient_scope", "all") or "all"
@@ -74,6 +110,23 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
             if scope == "external_only" and not any_external:
                 continue
             if scope == "internal_only" and not all_internal:
+                continue
+
+        # Day-of-week filter (0=Mon … 6=Sun)
+        dow = getattr(rule, "days_of_week", None)
+        if dow:
+            allowed = {int(d.strip()) for d in dow.split(",") if d.strip().isdigit()}
+            if now.weekday() not in allowed:
+                continue
+
+        # Time-range filter ("HH:MM" strings, lexicographic comparison works)
+        tf = getattr(rule, "time_from", None)
+        tu = getattr(rule, "time_until", None)
+        if tf or tu:
+            current = now.strftime("%H:%M")
+            if tf and current < tf:
+                continue
+            if tu and current >= tu:
                 continue
 
         sig = await db.get(Signature, rule.signature_id) if rule.signature_id else None

@@ -319,7 +319,7 @@ function SignaturesPage({ toast }) {
 function RulesPage({ toast }) {
   const [rules, setRules] = useState([]);
   const [sigs, setSigs] = useState([]);
-  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true, recipient_scope: "all" };
+  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true, recipient_scope: "all", match_recipient: "", match_recipient_domain: "", time_from: "", time_until: "", days_of_week: "" };
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -327,6 +327,8 @@ function RulesPage({ toast }) {
   const [isFree, setIsFree] = useState(true);
   const [internalDomains, setInternalDomains] = useState("");
   const [internalDomainsSaved, setInternalDomainsSaved] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [timezoneSaved, setTimezoneSaved] = useState("");
 
   const [cis, setCIs] = useState([]);
   const [smtpAccounts, setSmtpAccounts]   = useState([]);
@@ -345,6 +347,9 @@ function RulesPage({ toast }) {
     const dom = settings?.internal_domains || "";
     setInternalDomains(dom);
     setInternalDomainsSaved(dom);
+    const tz = settings?.timezone || "";
+    setTimezone(tz);
+    setTimezoneSaved(tz);
     setLoading(false);
   }, []);
 
@@ -353,14 +358,14 @@ function RulesPage({ toast }) {
   function openNew() { setForm(EMPTY); setEditingId("new"); }
 
   function openEdit(rule) {
-    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active, recipient_scope: rule.recipient_scope || "all" });
+    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active, recipient_scope: rule.recipient_scope || "all", match_recipient: rule.match_recipient || "", match_recipient_domain: rule.match_recipient_domain || "", time_from: rule.time_from || "", time_until: rule.time_until || "", days_of_week: rule.days_of_week || "" });
     setEditingId(rule.id);
   }
 
   function closeForm() { setEditingId(null); setForm(EMPTY); }
 
   async function save() {
-    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null, recipient_scope: form.recipient_scope || "all" };
+    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null, recipient_scope: form.recipient_scope || "all", match_recipient: form.match_recipient || null, match_recipient_domain: form.match_recipient_domain || null, time_from: form.time_from || null, time_until: form.time_until || null, days_of_week: form.days_of_week || null };
     try {
       if (editingId === "new") { await api("POST", "/api/rules/", payload); toast("ok", "Regel erstellt"); }
       else { await api("PUT", `/api/rules/${editingId}`, payload); toast("ok", "Regel gespeichert"); }
@@ -386,6 +391,12 @@ function RulesPage({ toast }) {
     await api("PUT", "/api/settings/internal_domains", { value: internalDomains });
     setInternalDomainsSaved(internalDomains);
     toast("ok", "Interne Domains gespeichert");
+  }
+
+  async function saveTimezone() {
+    await api("PUT", "/api/settings/timezone", { value: timezone });
+    setTimezoneSaved(timezone);
+    toast("ok", "Zeitzone gespeichert");
   }
 
   if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
@@ -436,30 +447,31 @@ function RulesPage({ toast }) {
         </div>
       </div>
 
-      {/* ── Interne Domains ─────────────────────────────────────── */}
+      {/* ── Regelengine-Einstellungen ────────────────────────────── */}
       <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <Icon name="building" size={14} style={{ color: "#93c5fd" }} />
-          Interne Domains
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#ccc", display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <Icon name="settings" size={14} style={{ color: "#93c5fd" }} />
+          Regelengine-Einstellungen
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 10, lineHeight: "17px" }}>
-          Kommagetrennte Domain-Liste für die Intern/Extern-Unterscheidung in Regeln.<br />
-          Beispiel: <span style={{ fontFamily: "monospace", color: "#666" }}>firma.de, tochter-gmbh.de</span>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            style={{ ...inputStyle, flex: 1 }}
-            value={internalDomains}
-            onChange={e => setInternalDomains(e.target.value)}
-            placeholder="firma.de, zweigstelle.de"
-          />
-          <button
-            style={{ ...btnPrimary, opacity: internalDomains === internalDomainsSaved ? 0.5 : 1 }}
-            disabled={internalDomains === internalDomainsSaved}
-            onClick={saveInternalDomains}
-          >
-            <Icon name="device-floppy" size={14} />Speichern
-          </button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#555", marginBottom: 5 }}>Interne Domains <span style={{ color: "#333" }}>(kommagetrennt)</span></div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...inputStyle, flex: 1, fontSize: 12 }} value={internalDomains} onChange={e => setInternalDomains(e.target.value)} placeholder="firma.de, tochter-gmbh.de" />
+              <button style={{ ...btnPrimary, padding: "6px 10px", opacity: internalDomains === internalDomainsSaved ? 0.5 : 1 }} disabled={internalDomains === internalDomainsSaved} onClick={saveInternalDomains}>
+                <Icon name="device-floppy" size={13} />
+              </button>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "#555", marginBottom: 5 }}>Zeitzone <span style={{ color: "#333" }}>(z.B. Europe/Berlin)</span></div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...inputStyle, flex: 1, fontSize: 12 }} value={timezone} onChange={e => setTimezone(e.target.value)} placeholder="Europe/Berlin" />
+              <button style={{ ...btnPrimary, padding: "6px 10px", opacity: timezone === timezoneSaved ? 0.5 : 1 }} disabled={timezone === timezoneSaved} onClick={saveTimezone}>
+                <Icon name="device-floppy" size={13} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -503,6 +515,40 @@ function RulesPage({ toast }) {
                 <option value="internal_only">Nur interne Empfänger</option>
               </select>
             </Field>
+            <Field label="Empfänger (exakt)" hint="leer = alle"><input style={inputStyle} value={form.match_recipient} onChange={e => setForm(f => ({ ...f, match_recipient: e.target.value }))} placeholder="z.B. kunde@example.com" /></Field>
+            <Field label="Empfänger-Domain" hint="leer = alle"><input style={inputStyle} value={form.match_recipient_domain} onChange={e => setForm(f => ({ ...f, match_recipient_domain: e.target.value }))} placeholder="z.B. kunde.de" /></Field>
+          </div>
+          {/* Zeitbasierte Einschränkungen */}
+          <div style={{ marginTop: 12, padding: "12px 14px", background: "#111", borderRadius: 8, border: "1px solid #1e1e1e" }}>
+            <div style={{ fontSize: 11, color: "#444", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>Zeitbasierte Einschränkungen</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Gültig ab (HH:MM)" hint="leer = ganztags">
+                <input style={inputStyle} type="time" value={form.time_from} onChange={e => setForm(f => ({ ...f, time_from: e.target.value }))} />
+              </Field>
+              <Field label="Gültig bis (HH:MM)" hint="leer = ganztags">
+                <input style={inputStyle} type="time" value={form.time_until} onChange={e => setForm(f => ({ ...f, time_until: e.target.value }))} />
+              </Field>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>Wochentage <span style={{ color: "#333" }}>(leer = alle)</span></div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[["0","Mo"],["1","Di"],["2","Mi"],["3","Do"],["4","Fr"],["5","Sa"],["6","So"]].map(([val, label]) => {
+                  const active = (form.days_of_week || "").split(",").map(s => s.trim()).includes(val);
+                  return (
+                    <button key={val} type="button"
+                      style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid", fontSize: 12, cursor: "pointer", transition: "all .15s",
+                        background: active ? "#1a2a3a" : "#1a1a1a", color: active ? "#93c5fd" : "#444", borderColor: active ? "#2563eb44" : "#222" }}
+                      onClick={() => {
+                        const cur = (form.days_of_week || "").split(",").map(s => s.trim()).filter(Boolean);
+                        const next = active ? cur.filter(d => d !== val) : [...cur, val].sort();
+                        setForm(f => ({ ...f, days_of_week: next.join(",") }));
+                      }}
+                    >{label}</button>
+                  );
+                })}
+                {form.days_of_week && <button type="button" style={{ fontSize: 11, color: "#444", background: "none", border: "none", cursor: "pointer" }} onClick={() => setForm(f => ({ ...f, days_of_week: "" }))}>Alle</button>}
+              </div>
+            </div>
           </div>
           <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
             {[["apply_on_new", "Neue Mails"], ["apply_on_reply", "Antworten"], ["is_active", "Aktiv"]].map(([k, l]) => (
@@ -539,6 +585,10 @@ function RulesPage({ toast }) {
                 {smtpAcc && <span style={{ background: "#0a1a2a", color: "#93c5fd", fontSize: 10, padding: "1px 6px", borderRadius: 4, fontFamily: "monospace" }}>{smtpAcc.name}</span>}
                 {rule.recipient_scope === "external_only" && <span style={{ background: "#1a1a2a", color: "#a78bfa", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>Extern</span>}
                 {rule.recipient_scope === "internal_only" && <span style={{ background: "#1a2a2a", color: "#34d399", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>Intern</span>}
+                {rule.match_recipient && <span style={{ background: "#1a1a1a", color: "#f9a8d4", fontSize: 10, padding: "1px 6px", borderRadius: 4, fontFamily: "monospace" }}>→{rule.match_recipient}</span>}
+                {rule.match_recipient_domain && !rule.match_recipient && <span style={{ background: "#1a1a1a", color: "#f9a8d4", fontSize: 10, padding: "1px 6px", borderRadius: 4, fontFamily: "monospace" }}>→@{rule.match_recipient_domain}</span>}
+                {(rule.time_from || rule.time_until) && <span style={{ background: "#1a1a1a", color: "#fbbf24", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>{rule.time_from || "00:00"}–{rule.time_until || "24:00"}</span>}
+                {rule.days_of_week && <span style={{ background: "#1a1a1a", color: "#fbbf24", fontSize: 10, padding: "1px 6px", borderRadius: 4 }}>{rule.days_of_week.split(",").map(d=>["Mo","Di","Mi","Do","Fr","Sa","So"][parseInt(d)]||d).join(" ")}</span>}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
