@@ -191,12 +191,23 @@ export default function UpdatePage({ toast }) {
 
     let errStreak = 0;
     let lastStep = "";
+    let wasDisconnected = false;
+
+    function startHealthPoll() {
+      const healthPoll = setInterval(async () => {
+        try {
+          const h = await fetch("/health");
+          if (h.ok) { clearInterval(healthPoll); window.location.reload(); }
+        } catch {}
+      }, 3000);
+    }
+
     const poll = setInterval(async () => {
       try {
         const r = await fetch("/api/update/status");
         if (!r.ok) {
           errStreak++;
-          if (lastStep && lastStep !== "pull") setWaiting(true);
+          if (lastStep && lastStep !== "pull") { setWaiting(true); wasDisconnected = true; }
           return;
         }
         errStreak = 0;
@@ -214,22 +225,27 @@ export default function UpdatePage({ toast }) {
           clearInterval(poll);
           setRestarting(true);
           setWaiting(false);
-          const healthPoll = setInterval(async () => {
-            try {
-              const h = await fetch("/health");
-              if (h.ok) { clearInterval(healthPoll); window.location.reload(); }
-            } catch {}
-          }, 3000);
+          startHealthPoll();
+          return;
         }
         if (s.error) {
           clearInterval(poll);
           setWaiting(false);
           toast("err", s.msg);
           setLogEntries(prev => [...prev.filter(e => e.step !== "error"), { step: "error", msg: s.msg, detail: s.detail || "" }]);
+          return;
+        }
+        // Updater wurde neu gestartet (Status null) nachdem wir Fortschritt hatten
+        // → Update abgeschlossen, auf Server warten
+        if (!s.step && !s.done && !s.error && wasDisconnected && lastStep) {
+          clearInterval(poll);
+          setRestarting(true);
+          setWaiting(false);
+          startHealthPoll();
         }
       } catch {
         errStreak++;
-        if (lastStep && lastStep !== "pull") setWaiting(true);
+        if (lastStep && lastStep !== "pull") { setWaiting(true); wasDisconnected = true; }
         // 5 Min. Toleranz (Pull + Container-Neustart können lange dauern)
         if (errStreak > 150) {
           clearInterval(poll);
