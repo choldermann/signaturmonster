@@ -200,8 +200,11 @@ def changelog():
 
 def _run_update():
     global _update_status
-    services        = ["backend", "frontend", "smtp-proxy", "nginx"]
-    container_names = ["sm-backend", "sm-frontend", "sm-smtp", "sm-nginx"]
+    # nginx absichtlich nicht im Update — nginx:alpine kommt von Docker Hub
+    # (langsam/unzuverlässig) und nginx bleibt laufen damit Status-Polling
+    # die ganze Zeit funktioniert.
+    services        = ["backend", "frontend", "smtp-proxy"]
+    container_names = ["sm-backend", "sm-frontend", "sm-smtp"]
 
     def s(step, msg, detail=""):
         _update_status.update(step=step, msg=msg, detail=detail, done=False, error=False)
