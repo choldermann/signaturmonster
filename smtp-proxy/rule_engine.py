@@ -74,6 +74,59 @@ class RuleEngine:
             logger.warning(f"Campaign banner fetch failed: {e}")
         return None
 
+    async def enqueue_mail(self, body: dict) -> int | None:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.backend_url}/api/mailqueue/",
+                    headers=_INTERNAL_HDR,
+                    json=body,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("id")
+        except Exception as e:
+            logger.warning(f"Mail enqueue failed: {e}")
+        return None
+
+    async def mark_sent(self, queue_id: int) -> None:
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.put(
+                    f"{self.backend_url}/api/mailqueue/{queue_id}/sent",
+                    headers=_INTERNAL_HDR,
+                    timeout=aiohttp.ClientTimeout(total=3),
+                )
+        except Exception as e:
+            logger.warning(f"mark_sent failed for {queue_id}: {e}")
+
+    async def mark_failed(self, queue_id: int, error: str) -> None:
+        try:
+            async with aiohttp.ClientSession() as session:
+                await session.put(
+                    f"{self.backend_url}/api/mailqueue/{queue_id}/failed",
+                    headers=_INTERNAL_HDR,
+                    json={"error": error},
+                    timeout=aiohttp.ClientTimeout(total=3),
+                )
+        except Exception as e:
+            logger.warning(f"mark_failed failed for {queue_id}: {e}")
+
+    async def get_pending_queue(self) -> list:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.backend_url}/api/mailqueue/pending",
+                    headers=_INTERNAL_HDR,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.warning(f"get_pending_queue failed: {e}")
+        return []
+
     async def log_mail(self, entry: dict) -> None:
         try:
             async with aiohttp.ClientSession() as session:

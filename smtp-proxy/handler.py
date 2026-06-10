@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import json
 import logging
 import time
 from aiosmtpd.handlers import AsyncMessage
@@ -35,7 +37,6 @@ class SignaturmonsterHandler(AsyncMessage):
             self.rule_engine._extract_addresses(to_raw) +
             self.rule_engine._extract_addresses(cc_raw)
         )
-        msg_size      = len(message.as_bytes())
 
         logger.info(f"Processing mail from: {sender_email}")
 
@@ -48,11 +49,11 @@ class SignaturmonsterHandler(AsyncMessage):
         try:
             rule = await self.rule_engine.get_rule(sender_header, message)
             if rule:
-                action       = "signed"
-                rule_id      = rule.get("rule_id")
-                rule_name    = rule.get("signature", {}).get("name", "") or ""
+                action         = "signed"
+                rule_id        = rule.get("rule_id")
+                rule_name      = rule.get("signature", {}).get("name", "") or ""
                 signature_name = rule_name
-                smtp_account = rule.get("smtp_account") or None
+                smtp_account   = rule.get("smtp_account") or None
 
                 sender_profile, enrichment, campaign = await asyncio.gather(
                     self.rule_engine.get_sender_profile(sender_email),
@@ -63,14 +64,9 @@ class SignaturmonsterHandler(AsyncMessage):
                 disclaimer = rule.get("disclaimer") or None
                 powered_by = rule.get("powered_by", True)
                 message = await self.signature_engine.inject(
-                    message,
-                    rule["signature"],
-                    enrichment,
-                    ci=ci,
-                    sender=sender_profile,
-                    disclaimer=disclaimer,
-                    powered_by=powered_by,
-                    campaign=campaign,
+                    message, rule["signature"], enrichment,
+                    ci=ci, sender=sender_profile, disclaimer=disclaimer,
+                    powered_by=powered_by, campaign=campaign,
                 )
                 mode = "branded" if ci else "signature"
                 logger.info(f"[{mode}] Signature '{rule['signature']['name']}' injected for {sender_email}")
@@ -78,16 +74,36 @@ class SignaturmonsterHandler(AsyncMessage):
             logger.error(f"Error processing mail: {e}")
             action = "error"
 
+        # Enqueue for retry safety (best-effort, non-blocking)
+        queue_id = None
+        try:
+            msg_b64    = base64.b64encode(message.as_bytes()).decode()
+            smtp_json  = json.dumps(smtp_account) if smtp_account else ""
+            queue_id   = await self.rule_engine.enqueue_mail({
+                "sender":            sender_email,
+                "recipients":        recipients,
+                "subject":           subject[:200],
+                "message_b64":       msg_b64,
+                "smtp_account_json": smtp_json,
+            })
+        except Exception as e:
+            logger.warning(f"Queue enqueue failed (proceeding without queue): {e}")
+
         relay_ok    = True
         relay_error = ""
         try:
             await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account)
+            if queue_id:
+                asyncio.ensure_future(self.rule_engine.mark_sent(queue_id))
         except Exception as e:
             relay_ok    = False
             relay_error = str(e)[:300]
             logger.error(f"Relay failed for {sender_email}: {e}")
+            if queue_id:
+                asyncio.ensure_future(self.rule_engine.mark_failed(queue_id, relay_error))
 
         duration_ms = int((time.time() - t0) * 1000)
+        msg_size    = len(message.as_bytes())
 
         asyncio.ensure_future(self.rule_engine.log_mail({
             "sender":         sender_email,

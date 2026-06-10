@@ -5,6 +5,8 @@ from handler import SignaturmonsterHandler
 from auth import SMTPAuthenticator
 from rate_limiter import RateLimiter
 from tls_utils import ensure_tls_context
+from rule_engine import RuleEngine
+import retry_worker
 
 load_dotenv()
 
@@ -18,15 +20,14 @@ async def main():
 
     from backend_log_handler import BackendLogHandler
     _bh = BackendLogHandler(backend_url, proxy_secret)
-    for _name in ["__main__", "auth", "handler", "relay", "rule_engine", "rate_limiter", "beautifier", "tls_utils"]:
+    for _name in ["__main__", "auth", "handler", "relay", "rule_engine", "rate_limiter", "beautifier", "tls_utils", "retry_worker"]:
         logging.getLogger(_name).addHandler(_bh)
     rate_per_min = int(os.getenv("RATE_LIMIT_PER_MINUTE", "30"))
 
-    ssl_ctx      = ensure_tls_context()
-    rate_limiter = RateLimiter(max_per_minute=rate_per_min)
+    ssl_ctx       = ensure_tls_context()
+    rate_limiter  = RateLimiter(max_per_minute=rate_per_min)
     authenticator = SMTPAuthenticator(backend_url=backend_url)
-
-    handler = SignaturmonsterHandler(backend_url=backend_url, rate_limiter=rate_limiter)
+    handler       = SignaturmonsterHandler(backend_url=backend_url, rate_limiter=rate_limiter)
 
     controller = Controller(
         handler,
@@ -40,6 +41,11 @@ async def main():
     )
     controller.start()
     logger.info(f"Signaturmonster SMTP Proxy on port {smtp_port} (STARTTLS required, AUTH required)")
+
+    # Background retry worker: re-attempts failed relays every 30s
+    rule_engine = RuleEngine(backend_url)
+    asyncio.ensure_future(retry_worker.run(rule_engine))
+
     try:
         await asyncio.Event().wait()
     finally:

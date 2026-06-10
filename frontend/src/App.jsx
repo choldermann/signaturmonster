@@ -49,6 +49,7 @@ function Nav({ page, setPage, user, onLogout }) {
         { id: "update",      icon: "refresh",    label: "Update" },
         { id: "logs",        icon: "terminal-2", label: "System-Log" },
         { id: "maillog",     icon: "mail-search", label: "Audit-Log" },
+        { id: "mailqueue",   icon: "mail-forward", label: "Mail-Queue" },
       ]
     },
     {
@@ -911,6 +912,13 @@ const BannersPageLoader = ({ toast }) => {
 };
 
 // ─── Images Page Loader ───────────────────────────────────────────────────────
+const MailQueuePageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/MailQueuePage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "#555", padding: 40 }}>Lade…</div>;
+  return <Comp toast={toast} />;
+};
+
 const MailLogPageLoader = ({ toast }) => {
   const [Comp, setComp] = useState(null);
   useEffect(() => { import("./pages/MailLogPage.jsx").then(m => setComp(() => m.default)); }, []);
@@ -959,7 +967,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images" || page === "campaigns" || page === "maillog";
+  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images" || page === "campaigns" || page === "maillog" || page === "mailqueue";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0d0d0d", color: "#ccc" }}>
@@ -990,6 +998,7 @@ export default function App() {
         {page === "images"      && <ImagesPageLoader toast={toast} />}
         {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
         {page === "maillog"     && <MailLogPageLoader toast={toast} />}
+        {page === "mailqueue"   && <MailQueuePageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>

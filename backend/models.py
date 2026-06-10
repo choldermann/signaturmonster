@@ -173,6 +173,22 @@ class LogEntry(Base):
     message   = Column(Text)
     details   = Column(Text)
 
+class MailQueueEntry(Base):
+    __tablename__ = "mail_queue"
+    id                = Column(Integer, primary_key=True)
+    created_at        = Column(DateTime, server_default=func.now(), index=True)
+    last_attempt_at   = Column(DateTime, nullable=True)
+    next_attempt_at   = Column(DateTime, nullable=True)
+    attempts          = Column(Integer, default=0)
+    max_attempts      = Column(Integer, default=5)
+    status            = Column(String, default="pending", index=True)  # pending|sent|failed
+    sender            = Column(String, default="")
+    recipients        = Column(Text, default="")
+    subject           = Column(String, default="")
+    message_b64       = Column(Text, nullable=False)
+    smtp_account_json = Column(Text, default="")
+    last_error        = Column(Text, default="")
+
 class MailLog(Base):
     __tablename__ = "mail_logs"
     id             = Column(Integer, primary_key=True)
