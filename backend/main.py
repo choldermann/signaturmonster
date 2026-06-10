@@ -16,18 +16,23 @@ from routers import license as license_router
 from routers import smtp_users as smtp_users_router
 from routers import update as update_router
 from routers import logs as logs_router
+from routers import images as images_router
 
 app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-import os as _os
+import os as _os, re as _re
 AUTH_EXCLUDED   = {"/api/auth/login", "/health", "/api/smtp-users/verify"}
+_PUBLIC_PATTERNS = [
+    _re.compile(r"^/api/images/\d+/(serve|thumb)$"),
+]
 _PROXY_SECRET   = _os.getenv("PROXY_SECRET", "signaturmonster-internal-secret")
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/api/") and path not in AUTH_EXCLUDED:
+    if path.startswith("/api/") and path not in AUTH_EXCLUDED \
+            and not any(p.match(path) for p in _PUBLIC_PATTERNS):
         # Interner Proxy-Aufruf (kein JWT nötig, aber Secret muss stimmen)
         if request.headers.get("X-Proxy-Token") == _PROXY_SECRET:
             return await call_next(request)
@@ -78,6 +83,7 @@ app.include_router(banners_router.router,       prefix="/api/banners",       tag
 app.include_router(smtp_users_router.router,    prefix="/api/smtp-users",    tags=["smtp-users"])
 app.include_router(update_router.router,        prefix="/api/update",        tags=["update"])
 app.include_router(logs_router.router,          prefix="/api/logs",          tags=["logs"])
+app.include_router(images_router.router,        prefix="/api/images",        tags=["images"])
 
 @app.get("/health")
 async def health():

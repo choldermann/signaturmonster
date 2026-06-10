@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, LargeBinary
 from sqlalchemy.sql import func
 from database import Base
 
@@ -127,6 +127,19 @@ class SMTPUser(Base):
     password   = Column(String, nullable=False)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+
+class ImageAsset(Base):
+    __tablename__ = "image_assets"
+    id                = Column(Integer, primary_key=True)
+    name              = Column(String, nullable=False)
+    original_filename = Column(String, default="")
+    mime_type         = Column(String, default="image/jpeg")
+    data              = Column(LargeBinary, nullable=False)
+    thumb_data        = Column(LargeBinary, nullable=True)
+    width             = Column(Integer, default=0)
+    height            = Column(Integer, default=0)
+    file_size         = Column(Integer, default=0)
+    created_at        = Column(DateTime, server_default=func.now())
 
 class LogEntry(Base):
     __tablename__ = "logs"

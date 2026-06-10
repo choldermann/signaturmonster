@@ -70,7 +70,8 @@ function Nav({ page, setPage, user, onLogout }) {
     {
       label: "Branding",
       items: [
-        { id: "ci", icon: "palette", label: "CI-Profile" },
+        { id: "ci",     icon: "palette", label: "CI-Profile" },
+        { id: "images", icon: "photo",   label: "Bildbibliothek" },
       ]
     },
   ];
@@ -810,6 +811,14 @@ const BannersPageLoader = ({ toast }) => {
   return <Comp toast={toast} />;
 };
 
+// ─── Images Page Loader ───────────────────────────────────────────────────────
+const ImagesPageLoader = ({ toast }) => {
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/ImagesPage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{color:"#555",padding:40}}>Lade...</div>;
+  return <Comp toast={toast} />;
+};
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("smtp");
@@ -838,7 +847,7 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs";
+  const isFullWidth = page === "templates" || page === "signatures" || page === "senders" || page === "banners" || page === "disclaimers" || page === "logs" || page === "images";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0d0d0d", color: "#ccc" }}>
@@ -866,6 +875,7 @@ export default function App() {
         {page === "disclaimers" && <DisclaimersPageLoader toast={toast} />}
         {page === "banners"     && <BannersPageLoader toast={toast} />}
         {page === "logs"        && <LogsPageLoader toast={toast} />}
+        {page === "images"      && <ImagesPageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
     </div>
