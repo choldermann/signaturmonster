@@ -211,23 +211,55 @@ def _run_update():
             return
 
         s("pull", "Lade neue Images von GitHub…")
-        pull_rc   = [None]
-        pull_out  = [""]
+        pull_rc      = [None]
+        pull_out     = [""]
+        pull_current = [""]
+        pull_proc    = [None]
 
         def _do_pull():
-            pull_rc[0], pull_out[0] = _safe_run(_dc("pull"))
+            try:
+                pull_proc[0] = subprocess.Popen(
+                    _dc("pull", "--progress", "plain"),
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1,
+                )
+                lines = []
+                for line in pull_proc[0].stdout:
+                    line = line.strip()
+                    if line:
+                        lines.append(line)
+                        pull_current[0] = line
+                pull_proc[0].wait()
+                pull_rc[0]  = pull_proc[0].returncode
+                pull_out[0] = "\n".join(lines[-50:])
+            except Exception as exc:
+                pull_rc[0]  = -1
+                pull_out[0] = str(exc)
 
         pull_thread = threading.Thread(target=_do_pull, daemon=True)
         pull_thread.start()
         t0 = time.time()
+        MAX_PULL_SECS = 600  # 10 min Timeout
 
         while pull_thread.is_alive():
             elapsed = int(time.time() - t0)
+            if elapsed > MAX_PULL_SECS:
+                if pull_proc[0]:
+                    pull_proc[0].kill()
+                pull_rc[0]  = -1
+                pull_out[0] = f"Pull-Timeout nach {MAX_PULL_SECS}s"
+                break
             mins, secs = divmod(elapsed, 60)
             zeit = f"{mins}:{secs:02d} min" if mins else f"{secs}s"
-            _update_status.update(step="pull", msg=f"Lade Images… {zeit} vergangen")
+            activity = _strip_ansi(pull_current[0])[-70:] if pull_current[0] else ""
+            msg = f"Lade Images… {zeit} | {activity}" if activity else f"Lade Images… {zeit} vergangen"
+            _update_status.update(step="pull", msg=msg)
             _write_status()
             pull_thread.join(timeout=2)
+
+        if pull_rc[0] is None:
+            pull_rc[0] = -1
+            pull_out[0] = "Thread endete ohne Ergebnis"
 
         if pull_rc[0] != 0:
             _update_status.update(step="error", msg="Pull fehlgeschlagen",
@@ -258,11 +290,12 @@ def _run_update():
 
         time.sleep(3)  # Kurze Pause damit der Poller "done" lesen kann
 
-        # Updater neu starten — docker compose up handled stop+recreate atomar im Daemon.
-        # Kein separates "docker rm -f": das würde uns per SIGKILL killen, bevor compose up läuft.
+        # start_new_session=True: neue Process-Group → Subprocess überlebt PID-1-Exit.
+        # Docker-Daemon empfängt den "up -d"-Request bevor er unsere Cgroup killt.
         subprocess.Popen(
             _dc("up", "-d", "--no-deps", "updater"),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
 
     except Exception as exc:
