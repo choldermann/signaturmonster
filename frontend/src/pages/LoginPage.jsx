@@ -1,13 +1,8 @@
 import React, { useState } from "react";
-
-const inputStyle = {
-  width: "100%", padding: "11px 14px",
-  background: "#1a1a1a", border: "1px solid #2a2a2a",
-  borderRadius: 9, color: "#e0e0e0", fontSize: 14,
-  outline: "none", boxSizing: "border-box", fontFamily: "inherit",
-};
+import { useI18n } from "../AppContext.jsx";
 
 export default function LoginPage({ onLogin }) {
+  const { t } = useI18n();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -16,7 +11,7 @@ export default function LoginPage({ onLogin }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!username.trim() || !password) { setError("Bitte alle Felder ausfüllen"); return; }
+    if (!username.trim() || !password) { setError(t("login.error.required")); return; }
     setLoading(true);
     setError("");
     try {
@@ -27,44 +22,42 @@ export default function LoginPage({ onLogin }) {
       });
       const data = await r.json();
       if (!r.ok) {
-        setError(data.detail || "Fehler beim Anmelden");
+        setError(data.detail || t("login.error.loginFailed"));
       } else {
         localStorage.setItem("sm_token", data.token);
         localStorage.setItem("sm_user", JSON.stringify(data.user));
         onLogin(data.user);
       }
     } catch {
-      setError("Verbindung zum Server fehlgeschlagen");
+      setError(t("login.error.connection"));
     }
     setLoading(false);
   }
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#0d0d0d",
+      minHeight: "100vh", background: "var(--bg-page)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "Arial, Helvetica, sans-serif",
+      fontFamily: "inherit",
     }}>
       <div style={{ width: "100%", maxWidth: 380, padding: "0 20px" }}>
 
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ fontSize: 11, letterSpacing: "2.5px", textTransform: "uppercase", color: "#fce499", fontWeight: 700 }}>Signatur</div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-1px", lineHeight: 1.1 }}>Monster</div>
-          <div style={{ fontSize: 11, color: "#333", marginTop: 4 }}>self-hosted · v0.4.0</div>
+          <div style={{ fontSize: 11, letterSpacing: "2.5px", textTransform: "uppercase", color: "var(--accent)", fontWeight: 700 }}>Signatur</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: "var(--text-1)", letterSpacing: "-1px", lineHeight: 1.1 }}>Monster</div>
+          <div style={{ fontSize: 11, color: "var(--text-7)", marginTop: 4 }}>{t("login.version")}</div>
         </div>
 
-        {/* Card */}
-        <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 14, padding: "28px 28px 24px" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 20 }}>Anmelden</div>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 14, padding: "28px 28px 24px" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-1)", marginBottom: 20 }}>{t("login.title")}</div>
 
           <form onSubmit={submit}>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 6 }}>
-                Benutzername
+              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 6 }}>
+                {t("login.username")}
               </label>
               <input
-                style={inputStyle}
+                style={{ width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border-3)", borderRadius: 9, color: "var(--text-2)", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="monster"
@@ -74,12 +67,12 @@ export default function LoginPage({ onLogin }) {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 6 }}>
-                Passwort
+              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 6 }}>
+                {t("login.password")}
               </label>
               <div style={{ position: "relative" }}>
                 <input
-                  style={{ ...inputStyle, paddingRight: 42 }}
+                  style={{ width: "100%", padding: "11px 14px", paddingRight: 42, background: "var(--bg-input)", border: "1px solid var(--border-3)", borderRadius: 9, color: "var(--text-2)", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
                   type={showPass ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -89,7 +82,7 @@ export default function LoginPage({ onLogin }) {
                 <button
                   type="button"
                   onClick={() => setShowPass(s => !s)}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#555", cursor: "pointer", padding: 0 }}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-5)", cursor: "pointer", padding: 0 }}
                 >
                   <i className={`ti ti-${showPass ? "eye-off" : "eye"}`} style={{ fontSize: 16 }} />
                 </button>
@@ -97,7 +90,7 @@ export default function LoginPage({ onLogin }) {
             </div>
 
             {error && (
-              <div style={{ marginBottom: 14, padding: "9px 12px", background: "#1f0a0a", border: "1px solid #7f1d1d", borderRadius: 8, fontSize: 13, color: "#fca5a5", display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ marginBottom: 14, padding: "9px 12px", background: "var(--red-bg)", border: "1px solid var(--red-bd)", borderRadius: 8, fontSize: 13, color: "var(--red)", display: "flex", alignItems: "center", gap: 7 }}>
                 <i className="ti ti-circle-x" style={{ fontSize: 15, flexShrink: 0 }} />
                 {error}
               </div>
@@ -107,14 +100,15 @@ export default function LoginPage({ onLogin }) {
               type="submit"
               disabled={loading}
               style={{
-                width: "100%", padding: "11px", background: loading ? "#b8a84a" : "#fce499",
-                color: "#1a1a0a", border: "none", borderRadius: 9,
+                width: "100%", padding: "11px", background: "var(--accent)",
+                color: "var(--accent-fg)", border: "none", borderRadius: 9,
                 fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                opacity: loading ? 0.7 : 1,
               }}
             >
               <i className={`ti ti-${loading ? "loader" : "login"}`} style={{ fontSize: 16 }} />
-              {loading ? "Bitte warten…" : "Anmelden"}
+              {loading ? t("login.btnLoading") : t("login.btnLogin")}
             </button>
           </form>
         </div>

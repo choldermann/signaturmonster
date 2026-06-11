@@ -2,6 +2,7 @@ import React from "react"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import App from "./App.jsx"
+import { AppProvider } from "./AppContext.jsx"
 
 // Globaler Fetch-Interceptor: Token anhängen + 401 → Logout
 const _fetch = window.fetch.bind(window);
@@ -27,4 +28,4 @@ window.fetch = async function(resource, config = {}) {
   return response;
 };
 
-createRoot(document.getElementById("root")).render(<StrictMode><App /></StrictMode>)
+createRoot(document.getElementById("root")).render(<StrictMode><AppProvider><App /></AppProvider></StrictMode>)

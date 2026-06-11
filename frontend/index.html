@@ -9,23 +9,98 @@
             href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css"
         />
         <style>
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+            :root {
+                --bg-page:    #0d0d0d;
+                --bg-nav:     #111111;
+                --bg-card:    #161616;
+                --bg-input:   #1a1a1a;
+                --bg-hover:   #1e1e1e;
+                --border-1:   #1e1e1e;
+                --border-2:   #222222;
+                --border-3:   #2a2a2a;
+                --text-1:     #ffffff;
+                --text-2:     #cccccc;
+                --text-3:     #888888;
+                --text-4:     #666666;
+                --text-5:     #555555;
+                --text-6:     #444444;
+                --text-7:     #333333;
+                --accent:     #fce499;
+                --accent-fg:  #1a1a0a;
+                --accent-bg:  #2a2a00;
+                --accent-bg2: #1a1400;
+                --accent-bd:  #78600a;
+                --green:      #6ee7b7;
+                --green-bg:   #1a3a2a;
+                --green-bd:   #064e3b;
+                --red:        #fca5a5;
+                --red-s:      #f87171;
+                --red-bg:     #3a1a1a;
+                --red-bd:     #7f1d1d;
+                --blue:       #93c5fd;
+                --blue-bg:    #0a1a2a;
+                --blue-bd:    #1e3a5f;
+                --purple:     #a78bfa;
+                --purple-bg:  #1a1a2a;
+                --teal:       #34d399;
+                --teal-bg:    #1a2a2a;
+                --yellow:     #fbbf24;
+                --pink:       #f9a8d4;
             }
-            body {
-                background: #0d0d0d;
-                font-family: "DM Sans", system-ui, sans-serif;
+            [data-theme="light"] {
+                --bg-page:    #f1f5f9;
+                --bg-nav:     #ffffff;
+                --bg-card:    #ffffff;
+                --bg-input:   #f8fafc;
+                --bg-hover:   #f1f5f9;
+                --border-1:   #e9ecef;
+                --border-2:   #e2e8f0;
+                --border-3:   #cbd5e1;
+                --text-1:     #0f172a;
+                --text-2:     #334155;
+                --text-3:     #64748b;
+                --text-4:     #64748b;
+                --text-5:     #94a3b8;
+                --text-6:     #94a3b8;
+                --text-7:     #adb5be;
+                --accent:     #d97706;
+                --accent-fg:  #ffffff;
+                --accent-bg:  #fef3c7;
+                --accent-bg2: #fef9c3;
+                --accent-bd:  #d97706;
+                --green:      #059669;
+                --green-bg:   #ecfdf5;
+                --green-bd:   #a7f3d0;
+                --red:        #dc2626;
+                --red-s:      #b91c1c;
+                --red-bg:     #fef2f2;
+                --red-bd:     #fecaca;
+                --blue:       #2563eb;
+                --blue-bg:    #eff6ff;
+                --blue-bd:    #bfdbfe;
+                --purple:     #7c3aed;
+                --purple-bg:  #f5f3ff;
+                --teal:       #059669;
+                --teal-bg:    #ecfdf5;
+                --yellow:     #d97706;
+                --pink:       #db2777;
             }
+
+            body { background: var(--bg-page); font-family: "DM Sans", system-ui, sans-serif; }
         </style>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
             href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap"
             rel="stylesheet"
         />
+        <script>
+            (function() {
+                var t = localStorage.getItem("sm_theme") || "dark";
+                document.documentElement.setAttribute("data-theme", t);
+            })();
+        </script>
     </head>
     <body>
         <div id="root"></div>
