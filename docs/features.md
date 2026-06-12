@@ -133,7 +133,9 @@ CI-Profile definieren das visuelle Erscheinungsbild von ausgehenden Mails. Wird 
 
 **Was der Beautifier nicht anfasst:** `<table>`, `<img>` und alle anderen HTML-Tags bleiben mit ihren Attributen vollständig erhalten. Eingebettete Bilder (base64/CID), Tabellen, Fettdruck, Farben und andere Inline-Formatierungen werden nicht herausgefiltert.
 
-**Bekannte Einschränkung:** CSS aus dem `<head>` (klassenbasierte Styles) geht verloren — die Tags und Klassen bleiben erhalten, aber die Style-Definitionen nicht. Mails die stark auf `<head>`-CSS setzen (z.B. bestimmte Outlook-Exporte) können dadurch unformatiert wirken. Eine vollständige Lösung würde einen CSS-Inliner erfordern.
+**Bekannte Einschränkung:** CSS aus dem `<head>` (klassenbasierte Styles) geht verloren — die Tags und Klassen bleiben erhalten, aber die Style-Definitionen nicht. Mails die stark auf `<head>`-CSS setzen (z.B. bestimmte Outlook-Exporte) können dadurch unformatiert wirken. Für den normalen Business-Mail-Anwendungsfall (Outlook/Thunderbird → Proxy → Relay) tritt das kaum auf, da diese Clients bereits Inline-Styles generieren.
+
+**Geplant:** CSS-Inliner als optionaler Vorverarbeitungsschritt (z.B. `css-inline`) — wandelt `<head>`-CSS-Regeln in Inline-Styles um, bevor der Beautifier die `<style>`-Tags entfernt. Relevant für den Fall dass HTML-Mails aus Marketing-Tools oder HTML-Editoren über den Proxy geleitet werden.
 
 **Konfigurierbare CI-Parameter:**
 
