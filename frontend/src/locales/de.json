@@ -926,5 +926,8 @@
   "users.revokeAdmin": "Admin-Rechte entziehen",
   "users.administrator": "Administrator",
   "users.me": "Ich",
-  "users.adminOnlyHint": "Nur Administratoren können andere Benutzer verwalten"
+  "users.adminOnlyHint": "Nur Administratoren können andere Benutzer verwalten",
+  "queue.timeImmediate": "sofort",
+  "queue.timeMinutes": "{n} Min.",
+  "queue.timeHours": "{n} Std."
 }

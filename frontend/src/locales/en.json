@@ -926,5 +926,8 @@
   "users.revokeAdmin": "Revoke admin rights",
   "users.administrator": "Administrator",
   "users.me": "Me",
-  "users.adminOnlyHint": "Only administrators can manage other users"
+  "users.adminOnlyHint": "Only administrators can manage other users",
+  "queue.timeImmediate": "now",
+  "queue.timeMinutes": "{n} min.",
+  "queue.timeHours": "{n} h"
 }

@@ -37,14 +37,14 @@ function fmtTime(ts) {
   return d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }
 
-function nextAttemptLabel(entry) {
+function nextAttemptLabel(entry, t) {
   if (entry.status !== "pending" || !entry.next_attempt_at) return "—";
-  const t = new Date(entry.next_attempt_at.endsWith("Z") ? entry.next_attempt_at : entry.next_attempt_at + "Z");
-  const diff = Math.floor((t - Date.now()) / 1000);
-  if (diff <= 0)   return "sofort";
+  const d = new Date(entry.next_attempt_at.endsWith("Z") ? entry.next_attempt_at : entry.next_attempt_at + "Z");
+  const diff = Math.floor((d - Date.now()) / 1000);
+  if (diff <= 0)   return t("queue.timeImmediate");
   if (diff < 60)   return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)} Min.`;
-  return `${Math.floor(diff / 3600)} Std.`;
+  if (diff < 3600) return t("queue.timeMinutes", { n: Math.floor(diff / 60) });
+  return t("queue.timeHours", { n: Math.floor(diff / 3600) });
 }
 
 export default function MailQueuePage({ toast }) {
@@ -56,7 +56,13 @@ export default function MailQueuePage({ toast }) {
   const [page, setPage]       = useState(1);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const BACKOFF_LABELS = [t("queue.backoffImmediate"), "1 Min.", "5 Min.", "30 Min.", "2 Std."];
+  const BACKOFF_LABELS = [
+    t("queue.timeImmediate"),
+    t("queue.timeMinutes", { n: 1 }),
+    t("queue.timeMinutes", { n: 5 }),
+    t("queue.timeMinutes", { n: 30 }),
+    t("queue.timeHours",   { n: 2 }),
+  ];
 
   const load = useCallback(async (p = 1, sf = statusFilter) => {
     setLoading(true);
@@ -198,7 +204,7 @@ export default function MailQueuePage({ toast }) {
                       <td style={{ padding: "8px 14px", color: "var(--text-5)", textAlign: "center" }}>
                         {row.attempts}/{row.max_attempts}
                       </td>
-                      <td style={{ padding: "8px 14px", color: "var(--text-5)", fontFamily: "monospace" }}>{nextAttemptLabel(row)}</td>
+                      <td style={{ padding: "8px 14px", color: "var(--text-5)", fontFamily: "monospace" }}>{nextAttemptLabel(row, t)}</td>
                       <td style={{ padding: "8px 14px", color: "var(--text-5)", maxWidth: 200 }} title={row.last_error}>
                         {row.last_error ? <span style={{ color: "var(--red-s)" }}>{_trunc(row.last_error, 40)}</span> : <span style={{ color: "var(--text-7)" }}>—</span>}
                       </td>
