@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ACCENT_COLORS } from "../data/colorPresets.js";
+import { useI18n } from "../AppContext.jsx";
 
 async function api(method, path, body) {
   const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -49,22 +50,22 @@ const DEFAULT_PROPS = {
 };
 
 const ANIM_TYPES = [
-  { value: "none",            label: "Kein GIF",          icon: "ban" },
-  { value: "gradient-shift",  label: "Farbverlauf",       icon: "wave-sine" },
-  { value: "text-fade",       label: "Text Einblenden",   icon: "eye" },
-  { value: "text-slide-left", label: "→ Von links",       icon: "arrow-right" },
-  { value: "text-slide-right",label: "← Von rechts",      icon: "arrow-left" },
-  { value: "text-slide-top",  label: "↓ Von oben",        icon: "arrow-down" },
-  { value: "combined",        label: "Kombi-Effekt",      icon: "sparkles" },
+  { value: "none",            label: "banners.animNone",        icon: "ban" },
+  { value: "gradient-shift",  label: "banners.animGradient",    icon: "wave-sine" },
+  { value: "text-fade",       label: "banners.animTextFade",    icon: "eye" },
+  { value: "text-slide-left", label: "banners.animSlideLeft",   icon: "arrow-right" },
+  { value: "text-slide-right",label: "banners.animSlideRight",  icon: "arrow-left" },
+  { value: "text-slide-top",  label: "banners.animSlideTop",    icon: "arrow-down" },
+  { value: "combined",        label: "banners.animCombined",    icon: "sparkles" },
 ];
 
 const TRANS_TYPES = [
-  { v: "none",         label: "Kein",     icon: "minus" },
-  { v: "fade",         label: "Fade",     icon: "eye" },
-  { v: "slide-left",   label: "→",        icon: "arrow-right" },
-  { v: "slide-right",  label: "←",        icon: "arrow-left" },
-  { v: "slide-top",    label: "↓",        icon: "arrow-down" },
-  { v: "slide-bottom", label: "↑",        icon: "arrow-up" },
+  { v: "none",         label: "banners.transNone",        icon: "minus" },
+  { v: "fade",         label: "banners.transFade",        icon: "eye" },
+  { v: "slide-left",   label: "banners.transSlideLeft",   icon: "arrow-right" },
+  { v: "slide-right",  label: "banners.transSlideRight",  icon: "arrow-left" },
+  { v: "slide-top",    label: "banners.transSlideTop",    icon: "arrow-down" },
+  { v: "slide-bottom", label: "banners.transSlideBottom", icon: "arrow-up" },
 ];
 
 const DEFAULT_SCENE = (overrides = {}) => ({
@@ -115,12 +116,12 @@ const DEFAULT_SCENE = (overrides = {}) => ({
 });
 
 const TEXT_ANIMS = [
-  { v: "none",         label: "Sofort",    icon: "minus" },
-  { v: "fade",         label: "Einblenden",icon: "eye" },
-  { v: "slide-left",   label: "← Von rechts", icon: "arrow-left" },
-  { v: "slide-right",  label: "→ Von links",  icon: "arrow-right" },
-  { v: "slide-top",    label: "↓ Von oben",   icon: "arrow-down" },
-  { v: "slide-bottom", label: "↑ Von unten",  icon: "arrow-up" },
+  { v: "none",         label: "banners.textAnimNone",        icon: "minus" },
+  { v: "fade",         label: "banners.textAnimFade",        icon: "eye" },
+  { v: "slide-left",   label: "banners.textAnimSlideLeft",   icon: "arrow-left" },
+  { v: "slide-right",  label: "banners.textAnimSlideRight",  icon: "arrow-right" },
+  { v: "slide-top",    label: "banners.textAnimSlideTop",    icon: "arrow-down" },
+  { v: "slide-bottom", label: "banners.textAnimSlideBottom", icon: "arrow-up" },
 ];
 
 // ─── CSS pattern helper ───────────────────────────────────────────────────────
@@ -205,6 +206,7 @@ function makePatternBg(scene) {
 
 // ─── Image Upload ─────────────────────────────────────────────────────────────
 function ImageUpload({ value, onChange }) {
+  const { t } = useI18n();
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -234,7 +236,7 @@ function ImageUpload({ value, onChange }) {
           <img src={value} alt="" style={{ width: "100%", display: "block", maxHeight: 120, objectFit: "cover" }} />
           <button onClick={() => onChange("")}
             style={{ position: "absolute", top: 5, right: 5, background: "rgba(0,0,0,.7)", color: "#fff", border: "none", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>
-            × entfernen
+            × {t("banners.imgRemove")}
           </button>
         </div>
       ) : (
@@ -245,7 +247,7 @@ function ImageUpload({ value, onChange }) {
           onDrop={e => { e.preventDefault(); setDragging(false); processFile(e.dataTransfer.files[0]); }}
           style={{ border: `2px dashed ${dragging ? "#c4b5fd" : "#2a2a2a"}`, borderRadius: 8, padding: "18px 12px", textAlign: "center", cursor: "pointer", color: dragging ? "#c4b5fd" : "#555", fontSize: 12, transition: "border-color .15s, color .15s" }}>
           <Icon name="upload" size={18} style={{ display: "block", margin: "0 auto 5px" }} />
-          Bild hochladen oder hierher ziehen
+          {t("banners.imgUploadHint")}
         </div>
       )}
       <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -257,6 +259,7 @@ function ImageUpload({ value, onChange }) {
 // ─── Scene Thumbnail (vertical list) ─────────────────────────────────────────
 function SceneThumbnail({ scene, index, selected, onClick, onDelete, canDelete, onCopy,
                           isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }) {
+  const { t } = useI18n();
   const cssDirMap = { horizontal: "to right", vertical: "to bottom", diagonal: "to bottom right" };
   const bgStyle = scene.bgType === "image" && scene.bgImage
     ? bgImageCss(scene)
@@ -287,11 +290,11 @@ function SceneThumbnail({ scene, index, selected, onClick, onDelete, canDelete, 
         <Icon name="grip-vertical" size={10} style={{ color: "#333", cursor: "grab", flexShrink: 0 }} />
         <span style={{ fontSize: 9, color: selected ? "#c4b5fd" : "#777", fontWeight: 600, flex: 1 }}>
           {isOutlookFallback
-            ? <span style={{ color: "#4ade80", fontSize: 8 }}>Outlook-Fallback</span>
-            : `Szene ${index + 1}`}
+            ? <span style={{ color: "#4ade80", fontSize: 8 }}>{t("banners.outlookFallback")}</span>
+            : `${t("banners.scene")} ${index + 1}`}
         </span>
         <button onClick={e => { e.stopPropagation(); onCopy(); }}
-          title="Szene duplizieren"
+          title={t("banners.sceneDuplicate")}
           style={{ background: "none", border: "none", color: "#888", cursor: "pointer", padding: "1px 3px", fontSize: 10, lineHeight: 1 }}>⧉</button>
         {canDelete && (
           <button onClick={e => { e.stopPropagation(); onDelete(); }}
@@ -304,6 +307,7 @@ function SceneThumbnail({ scene, index, selected, onClick, onDelete, canDelete, 
 
 // ─── Transition Connector (vertical, between scene thumbnails) ────────────────
 function TransitionConnector({ scene, onChange, isLast }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -311,29 +315,29 @@ function TransitionConnector({ scene, onChange, isLast }) {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const cur = TRANS_TYPES.find(t => t.v === scene.transitionOutType) || TRANS_TYPES[0];
+  const cur = TRANS_TYPES.find(tt => tt.v === scene.transitionOutType) || TRANS_TYPES[0];
   return (
     <div ref={ref} style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative", padding: "2px 0" }}>
       <div style={{ width: 2, height: 5, background: "#2a2a2a" }} />
       <button onClick={() => setOpen(o => !o)}
         style={{ padding: "3px 10px", fontSize: 10, background: open ? "#150f2a" : "#111", border: `1px solid ${open ? "#c4b5fd" : "#2a2a2a"}`, borderRadius: 5, color: open ? "#c4b5fd" : "#444", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
         <Icon name={cur.icon} size={9} style={{ flexShrink: 0 }} />
-        {cur.label} · {(scene.transitionOutMs/1000).toFixed(1)}s
+        {t(cur.label)} · {(scene.transitionOutMs/1000).toFixed(1)}s
         {isLast && <span style={{ color: "#333", marginLeft: 2 }}>↩</span>}
       </button>
       <div style={{ width: 2, height: 5, background: "#2a2a2a" }} />
       {open && (
         <div style={{ position: "absolute", top: "50%", right: "calc(100% + 8px)", transform: "translateY(-50%)", zIndex: 200, background: "#161616", border: "1px solid #2a2a2a", borderRadius: 8, padding: 10, width: 170 }}>
-          <div style={{ fontSize: 9, color: "#444", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 6 }}>Übergang</div>
+          <div style={{ fontSize: 9, color: "#444", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 6 }}>{t("banners.transition")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, marginBottom: 8 }}>
-            {TRANS_TYPES.map(t => (
-              <button key={t.v} onClick={() => { onChange({ transitionOutType: t.v }); setOpen(false); }}
-                style={{ padding: "4px 2px", background: scene.transitionOutType === t.v ? "#150f2a" : "#111", border: `1px solid ${scene.transitionOutType === t.v ? "#c4b5fd" : "#2a2a2a"}`, borderRadius: 5, color: scene.transitionOutType === t.v ? "#c4b5fd" : "#555", cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
-                <Icon name={t.icon} size={9} />{t.label}
+            {TRANS_TYPES.map(tt => (
+              <button key={tt.v} onClick={() => { onChange({ transitionOutType: tt.v }); setOpen(false); }}
+                style={{ padding: "4px 2px", background: scene.transitionOutType === tt.v ? "#150f2a" : "#111", border: `1px solid ${scene.transitionOutType === tt.v ? "#c4b5fd" : "#2a2a2a"}`, borderRadius: 5, color: scene.transitionOutType === tt.v ? "#c4b5fd" : "#555", cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
+                <Icon name={tt.icon} size={9} />{t(tt.label)}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 9, color: "#444", marginBottom: 3 }}>Dauer: {(scene.transitionOutMs/1000).toFixed(1)}s</div>
+          <div style={{ fontSize: 9, color: "#444", marginBottom: 3 }}>{t("banners.duration")}: {(scene.transitionOutMs/1000).toFixed(1)}s</div>
           <input type="range" min={100} max={1500} step={50} value={scene.transitionOutMs}
             onChange={e => onChange({ transitionOutMs: parseInt(e.target.value) })}
             style={{ width: "100%", accentColor: "#c4b5fd" }} />
@@ -383,16 +387,17 @@ function SceneAnimCol({ inKey, outKey, scene, onChange }) {
 
 // ─── Pattern Editor ───────────────────────────────────────────────────────────
 function PatternEditor({ scene, onChange }) {
+  const { t } = useI18n();
   const u = (k, v) => onChange({ ...scene, [k]: v });
   const type = scene.patternType || "none";
 
   const PATTERN_TYPES = [
-    { v: "none",    label: "Kein" },
-    { v: "dots",    label: "Punkte" },
-    { v: "lines-h", label: "Linien H" },
-    { v: "lines-v", label: "Linien V" },
-    { v: "grid",    label: "Raster" },
-    { v: "noise",   label: "Noise" },
+    { v: "none",    label: "banners.patternNone" },
+    { v: "dots",    label: "banners.patternDots" },
+    { v: "lines-h", label: "banners.patternLinesH" },
+    { v: "lines-v", label: "banners.patternLinesV" },
+    { v: "grid",    label: "banners.patternGrid" },
+    { v: "noise",   label: "banners.patternNoise" },
   ];
 
   const btnStyle = (active) => ({
@@ -404,30 +409,30 @@ function PatternEditor({ scene, onChange }) {
 
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>Muster</div>
+      <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>{t("banners.pattern")}</div>
       <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>
         {PATTERN_TYPES.map(pt => (
-          <button key={pt.v} onClick={() => u("patternType", pt.v)} style={btnStyle(type === pt.v)}>{pt.label}</button>
+          <button key={pt.v} onClick={() => u("patternType", pt.v)} style={btnStyle(type === pt.v)}>{t(pt.label)}</button>
         ))}
       </div>
       {type !== "none" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>Abst. X</span>
+            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>{t("banners.spacingX")}</span>
             <input style={{ ...iStyle, width: 44, padding: "4px 6px" }} type="number" min="4" max="200"
               value={scene.patternSpacingX || "20"} onChange={e => u("patternSpacingX", e.target.value)} />
-            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>Abst. Y</span>
+            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>{t("banners.spacingY")}</span>
             <input style={{ ...iStyle, width: 44, padding: "4px 6px" }} type="number" min="4" max="200"
               value={scene.patternSpacingY || "20"} onChange={e => u("patternSpacingY", e.target.value)} />
-            <span style={{ fontSize: 9, color: "#999", minWidth: 24, flexShrink: 0 }}>Größe</span>
+            <span style={{ fontSize: 9, color: "#999", minWidth: 24, flexShrink: 0 }}>{t("banners.size")}</span>
             <input style={{ ...iStyle, width: 40, padding: "4px 6px" }} type="number" min="1" max="40"
               value={scene.patternSize || "2"} onChange={e => u("patternSize", e.target.value)} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>Farbe</span>
+            <span style={{ fontSize: 9, color: "#999", minWidth: 36, flexShrink: 0 }}>{t("banners.color")}</span>
             <input type="color" value={scene.patternColor || "#ffffff"} onChange={e => u("patternColor", e.target.value)}
               style={{ width: 24, height: 24, padding: 1, border: "1px solid #2a2a2a", borderRadius: 3, cursor: "pointer", background: "#111", flexShrink: 0 }} />
-            <span style={{ fontSize: 9, color: "#999", flexShrink: 0 }}>Deckkraft</span>
+            <span style={{ fontSize: 9, color: "#999", flexShrink: 0 }}>{t("banners.opacity")}</span>
             <input type="range" min={0} max={100} value={parseInt(scene.patternOpacity || 30)}
               onChange={e => u("patternOpacity", e.target.value)}
               style={{ flex: 1, accentColor: "#c4b5fd", minWidth: 50 }} />
@@ -441,6 +446,7 @@ function PatternEditor({ scene, onChange }) {
 
 // ─── Rich Text Editor ─────────────────────────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder, textColor, fontSize, fontWeight, fontStyle, fontFamily }) {
+  const { t } = useI18n();
   const editRef = useRef(null);
   const initialized = useRef(false);
 
@@ -473,11 +479,11 @@ function RichTextEditor({ value, onChange, placeholder, textColor, fontSize, fon
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center", padding: "4px 6px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "4px 4px 0 0" }}>
-        {toolbarBtn("B", "bold", null, "Fett")}
-        {toolbarBtn("I", "italic", null, "Kursiv")}
+        {toolbarBtn("B", "bold", null, t("banners.bold"))}
+        {toolbarBtn("I", "italic", null, t("banners.italic"))}
         <input type="color" defaultValue={textColor || "#333333"}
           onInput={e => { execCmd("foreColor", e.target.value); }}
-          title="Textfarbe"
+          title={t("banners.textColor")}
           style={{ width: 22, height: 22, padding: 1, border: "1px solid #2a2a2a", borderRadius: 3, cursor: "pointer", background: "#111", flexShrink: 0 }} />
         <select defaultValue="16"
           onChange={e => { const s = fontSizeMap[parseInt(e.target.value)] || 4; execCmd("fontSize", s); }}
@@ -492,7 +498,7 @@ function RichTextEditor({ value, onChange, placeholder, textColor, fontSize, fon
           <option value="mono">Mono</option>
         </select>
         <button onMouseDown={e => { e.preventDefault(); execCmd("removeFormat"); }}
-          title="Formatierung entfernen"
+          title={t("banners.removeFormat")}
           style={{ padding: "2px 6px", fontSize: 11, background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 3, color: "#f87171", cursor: "pointer" }}>
           ✕
         </button>
@@ -517,6 +523,7 @@ function RichTextEditor({ value, onChange, placeholder, textColor, fontSize, fon
 
 // ─── Image Fit & Position Controls ───────────────────────────────────────────
 function ImageFitControls({ scene, onChange }) {
+  const { t } = useI18n();
   const u = (k, v) => onChange({ ...scene, [k]: v });
   const fit    = scene.bgImageFit    || "cover";
   const repeat = scene.bgImageRepeat || "no-repeat";
@@ -543,13 +550,13 @@ function ImageFitControls({ scene, onChange }) {
 
       {/* Fit */}
       <div>
-        <div style={{ fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Bildgröße</div>
+        <div style={{ fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("banners.imgSize")}</div>
         <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
           {chip(fit==="cover",       () => u("bgImageFit","cover"),       "Cover")}
-          {chip(fit==="contain",     () => u("bgImageFit","contain"),     "Enthalt.")}
-          {chip(fit==="auto-height", () => u("bgImageFit","auto-height"), "∞ Höhe")}
-          {chip(fit==="fill",        () => u("bgImageFit","fill"),        "Strecken")}
-          {chip(fit==="custom",      () => u("bgImageFit","custom"),      "Eigen")}
+          {chip(fit==="contain",     () => u("bgImageFit","contain"),     t("banners.fitContain"))}
+          {chip(fit==="auto-height", () => u("bgImageFit","auto-height"), t("banners.fitAutoHeight"))}
+          {chip(fit==="fill",        () => u("bgImageFit","fill"),        t("banners.fitFill"))}
+          {chip(fit==="custom",      () => u("bgImageFit","custom"),      t("banners.fitCustom"))}
         </div>
       </div>
 
@@ -579,12 +586,12 @@ function ImageFitControls({ scene, onChange }) {
 
       {/* Repeat */}
       <div>
-        <div style={{ fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Wiederholung</div>
+        <div style={{ fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("banners.repeat")}</div>
         <div style={{ display: "flex", gap: 3 }}>
-          {chip(repeat==="no-repeat", () => u("bgImageRepeat","no-repeat"), "Kein")}
-          {chip(repeat==="repeat",    () => u("bgImageRepeat","repeat"),    "Kachel")}
-          {chip(repeat==="repeat-x",  () => u("bgImageRepeat","repeat-x"),  "↔ Hor.")}
-          {chip(repeat==="repeat-y",  () => u("bgImageRepeat","repeat-y"),  "↕ Vert.")}
+          {chip(repeat==="no-repeat", () => u("bgImageRepeat","no-repeat"), t("banners.repeatNone"))}
+          {chip(repeat==="repeat",    () => u("bgImageRepeat","repeat"),    t("banners.repeatTile"))}
+          {chip(repeat==="repeat-x",  () => u("bgImageRepeat","repeat-x"),  t("banners.repeatHor"))}
+          {chip(repeat==="repeat-y",  () => u("bgImageRepeat","repeat-y"),  t("banners.repeatVert"))}
         </div>
       </div>
 
@@ -630,6 +637,7 @@ function ImageFitControls({ scene, onChange }) {
 
 // ─── Scene Item Editor — accordion blocks layout ──────────────────────────────
 function SceneItemEditor({ scene, onChange }) {
+  const { t } = useI18n();
   const u = (k, v) => onChange({ ...scene, [k]: v });
   const [openText1, setOpenText1] = useState(true);
   const [openText2, setOpenText2] = useState(false);
@@ -707,13 +715,13 @@ function SceneItemEditor({ scene, onChange }) {
       {/* ── Haupttext block ── */}
       <div style={{ display: "flex", gap: 6 }}>
         <div style={{ ...blockBox, flex: 1, minWidth: 0 }}>
-          {blockHdr("text-size", "Haupttext", openText1, () => setOpenText1(o => !o),
+          {blockHdr("text-size", t("banners.mainText"), openText1, () => setOpenText1(o => !o),
             scene.textIsHtml
               ? <div style={{ fontSize: 11, color: "#888", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontStyle: "italic" }}>
-                  {(scene.text || "").replace(/<[^>]+>/g, "").slice(0, 40) || "Formatierter Text…"}
+                  {(scene.text || "").replace(/<[^>]+>/g, "").slice(0, 40) || t("banners.formattedText")}
                 </div>
               : <input style={{ ...iStyle, fontSize: 12 }} value={scene.text}
-                  onChange={e => u("text", e.target.value)} placeholder="Haupttext…" />,
+                  onChange={e => u("text", e.target.value)} placeholder={t("banners.mainTextPlaceholder")} />,
             modeToggle(scene.textIsHtml || false, (v) => u("textIsHtml", v))
           )}
           {openText1 && (
@@ -722,7 +730,7 @@ function SceneItemEditor({ scene, onChange }) {
                 <RichTextEditor
                   value={scene.text || ""}
                   onChange={v => u("text", v)}
-                  placeholder="Haupttext…"
+                  placeholder={t("banners.mainTextPlaceholder")}
                   textColor={scene.textColor}
                   fontSize={parseInt(scene.fontSize || 16)}
                   fontWeight={scene.fontWeight}
@@ -752,7 +760,7 @@ function SceneItemEditor({ scene, onChange }) {
                   </div>
                 </>
               )}
-              <F label="Textfarbe"><ColorInput value={scene.textColor} onChange={v => u("textColor", v)} /></F>
+              <F label={t("banners.textColor")}><ColorInput value={scene.textColor} onChange={v => u("textColor", v)} /></F>
               <TextEffectsEditor
                 strokeWidth={scene.textStrokeWidth} strokeColor={scene.textStrokeColor}
                 shadowOpacity={scene.textShadowOpacity} shadowColor={scene.textShadowColor}
@@ -770,13 +778,13 @@ function SceneItemEditor({ scene, onChange }) {
       {/* ── Subtext block ── */}
       <div style={{ display: "flex", gap: 6 }}>
         <div style={{ ...blockBox, flex: 1, minWidth: 0 }}>
-          {blockHdr("text", "Subtext", openText2, () => setOpenText2(o => !o),
+          {blockHdr("text", t("banners.subtext"), openText2, () => setOpenText2(o => !o),
             scene.subtextIsHtml
               ? <div style={{ fontSize: 11, color: "#888", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontStyle: "italic" }}>
-                  {(scene.subtext || "").replace(/<[^>]+>/g, "").slice(0, 40) || "Subtext…"}
+                  {(scene.subtext || "").replace(/<[^>]+>/g, "").slice(0, 40) || t("banners.subtextPlaceholder")}
                 </div>
               : <input style={{ ...iStyle, fontSize: 12 }} value={scene.subtext||""}
-                  onChange={e => u("subtext", e.target.value)} placeholder="Subtext (optional)…" />,
+                  onChange={e => u("subtext", e.target.value)} placeholder={t("banners.subtextOptional")} />,
             modeToggle(scene.subtextIsHtml || false, (v) => u("subtextIsHtml", v))
           )}
           {openText2 && (
@@ -785,7 +793,7 @@ function SceneItemEditor({ scene, onChange }) {
                 <RichTextEditor
                   value={scene.subtext || ""}
                   onChange={v => u("subtext", v)}
-                  placeholder="Subtext…"
+                  placeholder={t("banners.subtextPlaceholder")}
                   textColor={scene.subtextColor}
                   fontSize={parseInt(scene.subtextSize || 12)}
                   fontStyle={scene.subtextFontStyle}
@@ -804,8 +812,8 @@ function SceneItemEditor({ scene, onChange }) {
                     ))}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 58px", gap: 8, marginBottom: 2 }}>
-                    <F label="Farbe"><ColorInput value={scene.subtextColor||"#555555"} onChange={v => u("subtextColor", v)} /></F>
-                    <F label="Größe px"><input style={iStyle} type="number" value={scene.subtextSize||"12"} onChange={e => u("subtextSize", e.target.value)} /></F>
+                    <F label={t("banners.color")}><ColorInput value={scene.subtextColor||"#555555"} onChange={v => u("subtextColor", v)} /></F>
+                    <F label={t("banners.sizePx")}><input style={iStyle} type="number" value={scene.subtextSize||"12"} onChange={e => u("subtextSize", e.target.value)} /></F>
                   </div>
                   <TextEffectsEditor
                     strokeWidth={scene.subtextStrokeWidth} strokeColor={scene.subtextStrokeColor}
@@ -815,7 +823,7 @@ function SceneItemEditor({ scene, onChange }) {
                   />
                 </>
               ) : (
-                <div style={{ fontSize: 11, color: "#555", padding: "2px 0 4px" }}>Erst oben Subtext eingeben.</div>
+                <div style={{ fontSize: 11, color: "#555", padding: "2px 0 4px" }}>{t("banners.subtextHint")}</div>
               )}
             </div>
           )}
@@ -830,9 +838,9 @@ function SceneItemEditor({ scene, onChange }) {
 
       {/* ── Hintergrund block ── */}
       <div style={blockBox}>
-        {blockHdr("photo", "Hintergrund", openBg, () => setOpenBg(o => !o))}
+        {blockHdr("photo", t("banners.background"), openBg, () => setOpenBg(o => !o))}
         <div style={{ padding: "6px 10px", borderBottom: openBg ? "1px solid #1a1a1a" : "none", display: "flex", gap: 4 }}>
-          {[["solid","Vollfarbe"],["gradient","Verlauf"],["image","Bild"]].map(([val, lbl]) => (
+          {[["solid", t("banners.bgSolid")],["gradient", t("banners.bgGradient")],["image", t("banners.bgImage")]].map(([val, lbl]) => (
             <button key={val} onClick={() => u("bgType", val)}
               style={{ flex: 1, padding: "4px 5px", background: scene.bgType === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: scene.bgType === val ? "#1a1a0a" : "#aaa", cursor: "pointer", fontSize: 11, fontWeight: scene.bgType === val ? 700 : 400 }}>{lbl}</button>
           ))}
@@ -841,22 +849,22 @@ function SceneItemEditor({ scene, onChange }) {
           <div style={{ padding: "8px 10px 10px" }}>
             {scene.bgType === "image" ? (
               <>
-                <F label="Hintergrundbild"><ImageUpload value={scene.bgImage||""} onChange={v => u("bgImage", v)} /></F>
+                <F label={t("banners.bgImageLabel")}><ImageUpload value={scene.bgImage||""} onChange={v => u("bgImage", v)} /></F>
                 <ImageFitControls scene={scene} onChange={onChange} />
                 <div style={{ padding: "4px 7px", background: "#1a1500", border: "1px solid #3a2800", borderRadius: 5, fontSize: 10, color: "#888", marginTop: 8 }}>
-                  <Icon name="alert-triangle" size={11} style={{ color: "#fce499", marginRight: 4 }} />Outlook: kein Hintergrundbild
+                  <Icon name="alert-triangle" size={11} style={{ color: "#fce499", marginRight: 4 }} />{t("banners.outlookNoBgImage")}
                 </div>
               </>
             ) : (
               <>
-                <F label={scene.bgType === "gradient" ? "Farbe 1" : "Hintergrundfarbe"}>
+                <F label={scene.bgType === "gradient" ? t("banners.color1") : t("banners.bgColor")}>
                   <ColorInput value={scene.color1} onChange={v => u("color1", v)} />
                 </F>
                 {scene.bgType === "gradient" && (
                   <>
-                    <F label="Farbe 2"><ColorInput value={scene.color2||"#f08030"} onChange={v => u("color2", v)} /></F>
+                    <F label={t("banners.color2")}><ColorInput value={scene.color2||"#f08030"} onChange={v => u("color2", v)} /></F>
                     <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                      {[["horizontal","↔ Hor."],["vertical","↕ Ver."],["diagonal","↘ Diag."],["radial","◎ Radial"]].map(([val,lbl]) => (
+                      {[["horizontal", t("banners.gradHor")],["vertical", t("banners.gradVert")],["diagonal", t("banners.gradDiag")],["radial","◎ Radial"]].map(([val,lbl]) => (
                         <button key={val} onClick={() => u("gradientDir", val)}
                           style={{ flex: 1, padding: "4px", background: scene.gradientDir === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: scene.gradientDir === val ? "#1a1a0a" : "#aaa", cursor: "pointer", fontSize: 10 }}>{lbl}</button>
                       ))}
@@ -880,7 +888,7 @@ function SceneItemEditor({ scene, onChange }) {
       {/* ── Anzeigedauer ── */}
       <div style={{ padding: "7px 10px 8px", background: "#111", borderRadius: 8, border: "1px solid #1e1e1e" }}>
         <label style={{ display: "block", fontSize: 9, color: "#999", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>
-          Anzeigedauer: {(scene.holdMs/1000).toFixed(1)}s
+          {t("banners.holdDuration")}: {(scene.holdMs/1000).toFixed(1)}s
         </label>
         <input type="range" min={300} max={8000} step={100} value={scene.holdMs}
           onChange={e => u("holdMs", parseInt(e.target.value))}
@@ -908,6 +916,7 @@ function SceneItemEditor({ scene, onChange }) {
 
 // ─── Scene Editor ─────────────────────────────────────────────────────────────
 function SceneEditor({ scenes, onChange, globalProps, onGlobalChange }) {
+  const { t } = useI18n();
   const [selectedId,  setSelectedId]  = useState(scenes[0]?.id || null);
   const [dragSceneId, setDragSceneId] = useState(null);
   const [dragOverId,  setDragOverId]  = useState(null);
@@ -961,23 +970,23 @@ function SceneEditor({ scenes, onChange, globalProps, onGlobalChange }) {
       <div>
         <div style={{ fontSize: 11, color: "#c4b5fd", fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
           <Icon name="adjustments" size={13} />
-          {selectedScene ? `Szene ${scenes.findIndex(s => s.id === selectedId) + 1} bearbeiten` : "Szene auswählen →"}
+          {selectedScene ? `${t("banners.scene")} ${scenes.findIndex(s => s.id === selectedId) + 1} ${t("banners.sceneEdit")}` : t("banners.sceneSelect")}
         </div>
         {selectedScene && (
           <SceneItemEditor scene={selectedScene} onChange={updated => updateScene(selectedId, updated)} />
         )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: 10, background: "#111", borderRadius: 7, border: "1px solid #1e1e1e", marginTop: 8 }}>
-          <F label="Höhe (px)"><input style={iStyle} type="number" value={globalProps.height} onChange={e => onGlobalChange("height", e.target.value)} /></F>
-          <F label="Eckenradius (px)"><input style={iStyle} type="number" value={globalProps.borderRadius} onChange={e => onGlobalChange("borderRadius", e.target.value)} /></F>
-          <F label="Innenabstand (px)"><input style={iStyle} type="number" value={globalProps.padding} onChange={e => onGlobalChange("padding", e.target.value)} /></F>
-          <F label="Link-URL"><input style={iStyle} value={globalProps.linkUrl||""} onChange={e => onGlobalChange("linkUrl", e.target.value)} placeholder="https://…" /></F>
+          <F label={t("banners.heightPx")}><input style={iStyle} type="number" value={globalProps.height} onChange={e => onGlobalChange("height", e.target.value)} /></F>
+          <F label={t("banners.borderRadiusPx")}><input style={iStyle} type="number" value={globalProps.borderRadius} onChange={e => onGlobalChange("borderRadius", e.target.value)} /></F>
+          <F label={t("banners.paddingPx")}><input style={iStyle} type="number" value={globalProps.padding} onChange={e => onGlobalChange("padding", e.target.value)} /></F>
+          <F label={t("banners.linkUrl")}><input style={iStyle} value={globalProps.linkUrl||""} onChange={e => onGlobalChange("linkUrl", e.target.value)} placeholder="https://…" /></F>
         </div>
       </div>
 
       {/* ── Right: scene list with D&D ── */}
       <div style={{ position: "sticky", top: 0, maxHeight: "calc(100vh - 180px)", display: "flex", flexDirection: "column" }}>
         <div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8, display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-          <span>Szenen</span>
+          <span>{t("banners.scenes")}</span>
           <span style={{ color: "#666" }}>{(totalMs/1000).toFixed(1)}s</span>
         </div>
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
@@ -1005,7 +1014,7 @@ function SceneEditor({ scenes, onChange, globalProps, onGlobalChange }) {
           ))}
           <button onClick={addScene}
             style={{ width: "100%", padding: "7px", borderRadius: 7, border: "1px dashed #2a2a2a", background: "transparent", color: "#777", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 2 }}>
-            <Icon name="plus" size={13} />Szene hinzufügen
+            <Icon name="plus" size={13} />{t("banners.sceneAdd")}
           </button>
         </div>
       </div>
@@ -1129,6 +1138,7 @@ const F = ({ label, children, hint }) => (
 
 // ─── Text Effects (Kontur + Schatten) — compact inline row ───────────────────
 function TextEffectsEditor({ strokeWidth, strokeColor, shadowOpacity, shadowColor, shadowX, shadowY, onChange }) {
+  const { t } = useI18n();
   const sw = parseInt(strokeWidth || 0);
   const sh = parseInt(shadowOpacity || 0);
   const cInput = (v, cb) => (
@@ -1142,10 +1152,10 @@ function TextEffectsEditor({ strokeWidth, strokeColor, shadowOpacity, shadowColo
   return (
     <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 5 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>Kontur px</span>
+        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>{t("banners.strokePx")}</span>
         {nInput(strokeWidth || "0", v => onChange({ strokeWidth: v }), 44)}
         {sw > 0 && cInput(strokeColor || "#000000", v => onChange({ strokeColor: v }))}
-        <span style={{ fontSize: 9, color: "#999", marginLeft: "auto", flexShrink: 0 }}>Schatten</span>
+        <span style={{ fontSize: 9, color: "#999", marginLeft: "auto", flexShrink: 0 }}>{t("banners.shadow")}</span>
         <input type="range" min={0} max={100} value={sh}
           onChange={e => onChange({ shadowOpacity: e.target.value })}
           style={{ flex: 1, accentColor: "#c4b5fd", minWidth: 50 }} />
@@ -1166,12 +1176,13 @@ function TextEffectsEditor({ strokeWidth, strokeColor, shadowOpacity, shadowColo
 
 // ─── BG Effects (Overlay + Rahmen) — compact inline rows ─────────────────────
 function BgEffectsEditor({ overlayColor, overlayOpacity, borderWidth, borderColor, onChange }) {
+  const { t } = useI18n();
   const ov = parseInt(overlayOpacity || 0);
   const bw = parseInt(borderWidth || 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>Overlay</span>
+        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>{t("banners.overlay")}</span>
         <input type="range" min={0} max={80} value={ov}
           onChange={e => onChange({ overlayOpacity: e.target.value })}
           style={{ flex: 1, accentColor: "#c4b5fd", minWidth: 50 }} />
@@ -1182,7 +1193,7 @@ function BgEffectsEditor({ overlayColor, overlayOpacity, borderWidth, borderColo
         )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>Rahmen</span>
+        <span style={{ fontSize: 9, color: "#999", minWidth: 40, flexShrink: 0 }}>{t("banners.border")}</span>
         <input style={{ ...iStyle, width: 48, padding: "4px 6px" }} type="number" min="0" max="20"
           value={borderWidth || "0"} onChange={e => onChange({ borderWidth: e.target.value })} />
         <span style={{ fontSize: 9, color: "#777" }}>px</span>
@@ -1225,17 +1236,18 @@ function UTMEditor({ p, onChange }) {
 
 // ─── Banner Props Editor ──────────────────────────────────────────────────────
 function BannerPropEditor({ p, onChange }) {
+  const { t } = useI18n();
   const u = (k, v) => onChange({ ...p, [k]: v });
   const FONT_FAMILIES = [{ v: "sans", label: "Sans" }, { v: "serif", label: "Serif" }, { v: "mono", label: "Mono" }];
 
   return (
     <div>
-      <F label="Haupttext">
+      <F label={t("banners.mainText")}>
         {p.textIsHtml ? (
           <RichTextEditor
             value={p.text || ""}
             onChange={v => u("text", v)}
-            placeholder="z.B. Jetzt Termin buchen!"
+            placeholder={t("banners.mainTextExPlaceholder")}
             textColor={p.textColor}
             fontSize={parseInt(p.fontSize || 16)}
             fontWeight={p.fontWeight}
@@ -1243,12 +1255,12 @@ function BannerPropEditor({ p, onChange }) {
             fontFamily={p.fontFamily}
           />
         ) : (
-          <input style={iStyle} value={p.text} onChange={e => u("text", e.target.value)} placeholder="z.B. Jetzt Termin buchen!" />
+          <input style={iStyle} value={p.text} onChange={e => u("text", e.target.value)} placeholder={t("banners.mainTextExPlaceholder")} />
         )}
       </F>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <F label="Schriftgröße (px)"><input style={iStyle} type="number" value={p.fontSize} onChange={e => u("fontSize", e.target.value)} /></F>
-        <F label="Ausrichtung">
+        <F label={t("banners.fontSizePx")}><input style={iStyle} type="number" value={p.fontSize} onChange={e => u("fontSize", e.target.value)} /></F>
+        <F label={t("banners.alignment")}>
           <select style={iStyle} value={p.textAlign} onChange={e => u("textAlign", e.target.value)}>
             {["left","center","right"].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
@@ -1272,7 +1284,7 @@ function BannerPropEditor({ p, onChange }) {
             style={{ flex: 1, padding: "3px 4px", fontSize: 10, background: (p.fontFamily||"sans") === ff.v ? "#1a1500" : "#111", border: `1px solid ${(p.fontFamily||"sans") === ff.v ? "#fce499" : "#2a2a2a"}`, borderRadius: 4, color: (p.fontFamily||"sans") === ff.v ? "#fce499" : "#555", cursor: "pointer" }}>{ff.label}</button>
         ))}
       </div>
-      <F label="Textfarbe"><ColorInput value={p.textColor} onChange={v => u("textColor", v)} /></F>
+      <F label={t("banners.textColor")}><ColorInput value={p.textColor} onChange={v => u("textColor", v)} /></F>
       <TextEffectsEditor
         strokeWidth={p.textStrokeWidth} strokeColor={p.textStrokeColor}
         shadowOpacity={p.textShadowOpacity} shadowColor={p.textShadowColor}
@@ -1286,14 +1298,14 @@ function BannerPropEditor({ p, onChange }) {
           ...(d.shadowY      !== undefined && { textShadowY:      d.shadowY }),
         })}
       />
-      <F label="Subtext (optional)" style={{ marginTop: 10 }}>
-        <input style={iStyle} value={p.subtext} onChange={e => u("subtext", e.target.value)} placeholder="Zusatzzeile..." />
+      <F label={t("banners.subtextOptionalLabel")} style={{ marginTop: 10 }}>
+        <input style={iStyle} value={p.subtext} onChange={e => u("subtext", e.target.value)} placeholder={t("banners.subtextLinePlaceholder")} />
       </F>
       {p.subtext && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <F label="Subtext-Farbe"><ColorInput value={p.subtextColor} onChange={v => u("subtextColor", v)} /></F>
-            <F label="Subtext-Größe (px)"><input style={iStyle} type="number" value={p.subtextSize} onChange={e => u("subtextSize", e.target.value)} /></F>
+            <F label={t("banners.subtextColor")}><ColorInput value={p.subtextColor} onChange={v => u("subtextColor", v)} /></F>
+            <F label={t("banners.subtextSizePx")}><input style={iStyle} type="number" value={p.subtextSize} onChange={e => u("subtextSize", e.target.value)} /></F>
           </div>
           <TextEffectsEditor
             strokeWidth={p.subtextStrokeWidth} strokeColor={p.subtextStrokeColor}
@@ -1311,51 +1323,51 @@ function BannerPropEditor({ p, onChange }) {
         </>
       )}
 
-      <F label="Link-URL (optional)">
+      <F label={t("banners.linkUrlOptional")}>
         <input style={iStyle} value={p.linkUrl} onChange={e => u("linkUrl", e.target.value)} placeholder="https://..." />
       </F>
       {p.linkUrl && <UTMEditor p={p} onChange={onChange} />}
 
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e1e1e", marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>Hintergrund</div>
+        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>{t("banners.background")}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-          {[["solid","Vollfarbe"],["gradient","Verlauf"],["image","Bild"]].map(([val, lbl]) => (
+          {[["solid", t("banners.bgSolid")],["gradient", t("banners.bgGradient")],["image", t("banners.bgImage")]].map(([val, lbl]) => (
             <button key={val} onClick={() => u("bgType", val)}
               style={{ flex: 1, padding: "5px 8px", background: p.bgType === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.bgType === val ? "#1a1a0a" : "#888", cursor: "pointer", fontSize: 12, fontWeight: p.bgType === val ? 700 : 400 }}>{lbl}</button>
           ))}
         </div>
         {p.bgType === "image" ? (
           <>
-            <F label="Hintergrundbild">
+            <F label={t("banners.bgImageLabel")}>
               <ImageUpload value={p.bgImage||""} onChange={v => u("bgImage", v)} />
             </F>
             <ImageFitControls scene={p} onChange={onChange} />
             <div style={{ padding: "5px 8px", background: "#1a1500", border: "1px solid #3a2800", borderRadius: 5, fontSize: 10, color: "#888", marginBottom: 6, marginTop: 8 }}>
               <Icon name="alert-triangle" size={11} style={{ color: "#fce499", marginRight: 4 }} />
-              Outlook unterstützt keine Hintergrundbilder in Tabellen
+              {t("banners.outlookNoBgImageTable")}
             </div>
           </>
         ) : (
           <>
-            <F label={p.bgType === "gradient" ? "Farbe 1" : "Hintergrundfarbe"}>
+            <F label={p.bgType === "gradient" ? t("banners.color1") : t("banners.bgColor")}>
               <ColorInput value={p.color1} onChange={v => u("color1", v)} />
             </F>
             {p.bgType === "gradient" && (
               <>
-                <F label="Farbe 2"><ColorInput value={p.color2} onChange={v => u("color2", v)} /></F>
+                <F label={t("banners.color2")}><ColorInput value={p.color2} onChange={v => u("color2", v)} /></F>
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>Richtung</div>
+                  <div style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>{t("banners.direction")}</div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    {[["horizontal","↔ Horizontal"],["vertical","↕ Vertikal"],["diagonal","↘ Diagonal"],["radial","◎ Radial"]].map(([val, lbl]) => (
+                    {[["horizontal", t("banners.gradHorizontal")],["vertical", t("banners.gradVertical")],["diagonal", t("banners.gradDiagonal")],["radial","◎ Radial"]].map(([val, lbl]) => (
                       <button key={val} onClick={() => u("gradientDir", val)}
                         style={{ flex: 1, padding: "5px 4px", background: p.gradientDir === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.gradientDir === val ? "#1a1a0a" : "#888", cursor: "pointer", fontSize: 10, fontWeight: p.gradientDir === val ? 700 : 400 }}>{lbl}</button>
                     ))}
                   </div>
                 </div>
-                <F label="Outlook-Fallback Farbe"><ColorInput value={p.outlookColor} onChange={v => u("outlookColor", v)} /></F>
+                <F label={t("banners.outlookFallbackColor")}><ColorInput value={p.outlookColor} onChange={v => u("outlookColor", v)} /></F>
                 <div style={{ padding: "5px 8px", background: "#1a1500", border: "1px solid #3a2800", borderRadius: 5, fontSize: 10, color: "#888", marginBottom: 6 }}>
                   <Icon name="alert-triangle" size={11} style={{ color: "#fce499", marginRight: 4 }} />
-                  Outlook unterstützt CSS-Gradienten nicht
+                  {t("banners.outlookNoGradient")}
                 </div>
               </>
             )}
@@ -1377,27 +1389,27 @@ function BannerPropEditor({ p, onChange }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        <F label="Höhe (px)"><input style={iStyle} type="number" value={p.height} onChange={e => u("height", e.target.value)} /></F>
-        <F label="Innenabstand (px)"><input style={iStyle} type="number" value={p.padding} onChange={e => u("padding", e.target.value)} /></F>
-        <F label="Eckenradius (px)"><input style={iStyle} type="number" value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
+        <F label={t("banners.heightPx")}><input style={iStyle} type="number" value={p.height} onChange={e => u("height", e.target.value)} /></F>
+        <F label={t("banners.paddingPx")}><input style={iStyle} type="number" value={p.padding} onChange={e => u("padding", e.target.value)} /></F>
+        <F label={t("banners.borderRadiusPx")}><input style={iStyle} type="number" value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
       </div>
 
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e1e1e" }}>
         <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>
-          <Icon name="sparkles" size={11} style={{ color: "#c4b5fd" }} /> Animiertes GIF
+          <Icon name="sparkles" size={11} style={{ color: "#c4b5fd" }} /> {t("banners.animatedGif")}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 8 }}>
           {ANIM_TYPES.map(a => (
             <button key={a.value} onClick={() => u("animationType", a.value)}
               style={{ padding: "5px 8px", background: p.animationType === a.value ? "#150f2a" : "#111", border: `1px solid ${p.animationType === a.value ? "#c4b5fd" : "#222"}`, borderRadius: 5, color: p.animationType === a.value ? "#c4b5fd" : "#555", cursor: "pointer", fontSize: 11, textAlign: "left", display: "flex", alignItems: "center", gap: 5 }}>
-              <Icon name={a.icon} size={11} />{a.label}
+              <Icon name={a.icon} size={11} />{t(a.label)}
             </button>
           ))}
         </div>
         {p.animationType !== "none" && (
-          <F label="Geschwindigkeit">
+          <F label={t("banners.speed")}>
             <div style={{ display: "flex", gap: 4 }}>
-              {[["slow","Langsam"],["medium","Mittel"],["fast","Schnell"]].map(([v, l]) => (
+              {[["slow", t("banners.speedSlow")],["medium", t("banners.speedMedium")],["fast", t("banners.speedFast")]].map(([v, l]) => (
                 <button key={v} onClick={() => u("animSpeed", v)}
                   style={{ flex: 1, padding: "4px", background: p.animSpeed === v ? "#150f2a" : "#111", border: `1px solid ${p.animSpeed === v ? "#c4b5fd" : "#222"}`, borderRadius: 5, color: p.animSpeed === v ? "#c4b5fd" : "#555", cursor: "pointer", fontSize: 10 }}>{l}</button>
               ))}
@@ -1406,8 +1418,8 @@ function BannerPropEditor({ p, onChange }) {
         )}
         {p.animationType !== "none" && p.gif_data && (
           <div style={{ fontSize: 10, color: "#6ee7b7", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-            <Icon name="circle-check" size={11} />GIF bereit ({Math.round(p.gif_data.length * 0.75 / 1024)} KB)
-            <button onClick={() => u("gif_data", "")} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 10 }}>× entfernen</button>
+            <Icon name="circle-check" size={11} />{t("banners.gifReady")} ({Math.round(p.gif_data.length * 0.75 / 1024)} KB)
+            <button onClick={() => u("gif_data", "")} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 10 }}>× {t("banners.gifRemove")}</button>
           </div>
         )}
       </div>
@@ -1417,6 +1429,7 @@ function BannerPropEditor({ p, onChange }) {
 
 // ─── Banner Editor ────────────────────────────────────────────────────────────
 function BannerEditor({ initial, onSave, onCancel, toast }) {
+  const { t } = useI18n();
   const [name, setName]       = useState(initial?.name || "");
   const [props, setProps]     = useState(() => {
     if (initial?.props_json) {
@@ -1461,27 +1474,27 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
       const d = await r.json();
       if (d.gif_b64) {
         setProps(p => ({ ...p, gif_data: d.gif_b64 }));
-        toast("ok", "GIF generiert");
+        toast("ok", t("banners.toastGifGenerated"));
       } else {
-        toast("err", d.detail || "GIF-Generierung fehlgeschlagen");
+        toast("err", d.detail || t("banners.toastGifFailed"));
       }
     } catch (e) {
-      toast("err", "Verbindungsfehler: " + e.message);
+      toast("err", t("banners.toastConnectionError") + ": " + e.message);
     }
     setGenning(false);
   }
 
   async function save() {
-    if (!name.trim()) { toast("err", "Bitte einen Namen eingeben"); return; }
+    if (!name.trim()) { toast("err", t("banners.toastNameRequired")); return; }
     setSaving(true);
     try {
       const payload = { name: name.trim(), props_json: JSON.stringify(props) };
       const r = isNew
         ? await api("POST", "/api/banners/", payload)
         : await api("PUT",  `/api/banners/${initial.id}`, payload);
-      if (r.id) { toast("ok", isNew ? "Banner erstellt" : "Banner gespeichert"); onSave(); }
-      else      { toast("err", r.detail || "Fehler"); }
-    } catch { toast("err", "Verbindung fehlgeschlagen"); }
+      if (r.id) { toast("ok", isNew ? t("banners.toastCreated") : t("banners.toastSaved")); onSave(); }
+      else      { toast("err", r.detail || t("banners.toastError")); }
+    } catch { toast("err", t("banners.toastConnectionFailed")); }
     setSaving(false);
   }
 
@@ -1492,17 +1505,17 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#fce499" }}>
-          {isNew ? "Neuer Banner" : `Bearbeiten: ${initial.name}`}
+          {isNew ? t("banners.newBanner") : `${t("banners.editBanner")}: ${initial.name}`}
         </div>
         {/* Mode toggle */}
         <div style={{ display: "flex", gap: 0, border: "1px solid #2a2a2a", borderRadius: 7, overflow: "hidden" }}>
           <button onClick={disableSceneMode}
             style={{ padding: "5px 12px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", background: !isSceneMode ? "#fce499" : "#111", color: !isSceneMode ? "#1a1a0a" : "#555", display: "flex", alignItems: "center", gap: 5 }}>
-            <Icon name="layout-list" size={12} />Einfach
+            <Icon name="layout-list" size={12} />{t("banners.modeSimple")}
           </button>
           <button onClick={isSceneMode ? undefined : enableSceneMode}
             style={{ padding: "5px 12px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", background: isSceneMode ? "#c4b5fd" : "#111", color: isSceneMode ? "#1a1a0a" : "#555", display: "flex", alignItems: "center", gap: 5 }}>
-            <Icon name="timeline" size={12} />Szenen
+            <Icon name="timeline" size={12} />{t("banners.modeScenes")}
           </button>
         </div>
       </div>
@@ -1511,7 +1524,7 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
       <div style={{ marginBottom: 16 }}>
         <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 5 }}>Name</label>
         <input style={{ width: "100%", padding: "8px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 8, color: "#e0e0e0", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
-          value={name} onChange={e => setName(e.target.value)} placeholder="z.B. Sommerkampagne" />
+          value={name} onChange={e => setName(e.target.value)} placeholder={t("banners.namePlaceholder")} />
       </div>
 
       {/* Mode content */}
@@ -1528,11 +1541,11 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
             <BannerPropEditor p={props} onChange={setProps} />
           </div>
           <div>
-            <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 8 }}>Live-Vorschau</div>
+            <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 8 }}>{t("banners.livePreview")}</div>
             <div style={{ background: "#f5f5f5", borderRadius: 8, padding: 16, minHeight: 120 }}>
               <BannerPreview p={props} />
             </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: "#444" }}>Vorschau entspricht dem Aussehen in der E-Mail.</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "#444" }}>{t("banners.previewHint")}</div>
           </div>
         </div>
       )}
@@ -1543,10 +1556,10 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 200px", gap: 14, marginTop: 12 }}>
             <div style={{ padding: "8px 12px", background: "#0a1f14", border: "1px solid #064e3b", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="circle-check" size={14} style={{ color: "#6ee7b7" }} />
-              <span style={{ fontSize: 12, color: "#6ee7b7" }}>GIF bereit — {Math.round(props.gif_data.length * 0.75 / 1024)} KB</span>
-              <button onClick={() => setProps(p => ({ ...p, gif_data: "" }))} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>× entfernen</button>
+              <span style={{ fontSize: 12, color: "#6ee7b7" }}>{t("banners.gifReady")} — {Math.round(props.gif_data.length * 0.75 / 1024)} KB</span>
+              <button onClick={() => setProps(p => ({ ...p, gif_data: "" }))} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>× {t("banners.gifRemove")}</button>
               <div style={{ background: "#111", borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
-                <img src={`data:image/gif;base64,${props.gif_data}`} alt="Vorschau" style={{ display: "block", maxHeight: 80, width: "auto" }} />
+                <img src={`data:image/gif;base64,${props.gif_data}`} alt={t("banners.livePreview")} style={{ display: "block", maxHeight: 80, width: "auto" }} />
               </div>
             </div>
             <div />
@@ -1554,8 +1567,8 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
         ) : (
           <div style={{ marginTop: 12, padding: "8px 12px", background: "#0a1f14", border: "1px solid #064e3b", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="circle-check" size={14} style={{ color: "#6ee7b7" }} />
-            <span style={{ fontSize: 12, color: "#6ee7b7" }}>GIF bereit — {Math.round(props.gif_data.length * 0.75 / 1024)} KB</span>
-            <button onClick={() => setProps(p => ({ ...p, gif_data: "" }))} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>× entfernen</button>
+            <span style={{ fontSize: 12, color: "#6ee7b7" }}>{t("banners.gifReady")} — {Math.round(props.gif_data.length * 0.75 / 1024)} KB</span>
+            <button onClick={() => setProps(p => ({ ...p, gif_data: "" }))} style={{ marginLeft: "auto", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>× {t("banners.gifRemove")}</button>
           </div>
         )
       )}
@@ -1563,16 +1576,16 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
       {/* Actions */}
       <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
         <button style={btnPrimary} onClick={save} disabled={saving}>
-          <Icon name="device-floppy" />{saving ? "Speichern..." : "Speichern"}
+          <Icon name="device-floppy" />{saving ? t("banners.saving") : t("banners.save")}
         </button>
         {(isSceneMode || props.animationType !== "none") && (
           <button onClick={generateGif} disabled={genning}
             style={{ padding: "8px 16px", background: genning ? "#111" : "#150f2a", color: genning ? "#555" : "#c4b5fd", border: "1px solid #c4b5fd44", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <Icon name={genning ? "loader" : "sparkles"} size={14} />
-            {genning ? "Generiere GIF…" : gifReady ? "GIF neu generieren" : "GIF generieren"}
+            {genning ? t("banners.gifGenerating") : gifReady ? t("banners.gifRegenerate") : t("banners.gifGenerate")}
           </button>
         )}
-        <button style={btnSecondary} onClick={onCancel}>Abbrechen</button>
+        <button style={btnSecondary} onClick={onCancel}>{t("banners.cancel")}</button>
       </div>
     </div>
   );
@@ -1580,6 +1593,7 @@ function BannerEditor({ initial, onSave, onCancel, toast }) {
 
 // ─── List Page ────────────────────────────────────────────────────────────────
 export default function BannersPage({ toast }) {
+  const { t } = useI18n();
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -1597,7 +1611,7 @@ export default function BannersPage({ toast }) {
 
   async function del(id) {
     await api("DELETE", `/api/banners/${id}`);
-    toast("ok", "Banner gelöscht");
+    toast("ok", t("banners.toastDeleted"));
     load();
   }
 
@@ -1627,14 +1641,14 @@ export default function BannersPage({ toast }) {
     try {
       const data = JSON.parse(await file.text());
       if (data.type !== "signaturmonster-banners" || !Array.isArray(data.banners)) {
-        toast("err", "Ungültiges Format"); return;
+        toast("err", t("banners.toastInvalidFormat")); return;
       }
       for (const b of data.banners) {
         await api("POST", "/api/banners/", { name: b.name, props_json: b.props_json || "{}" });
       }
-      toast("ok", `${data.banners.length} Banner importiert`);
+      toast("ok", `${data.banners.length} ${t("banners.toastImported")}`);
       load();
-    } catch { toast("err", "Import fehlgeschlagen"); }
+    } catch { toast("err", t("banners.toastImportFailed")); }
   }
 
   function handleDragStart(id) { setDragId(id); }
@@ -1652,24 +1666,24 @@ export default function BannersPage({ toast }) {
     setDragId(null);
   }
 
-  if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
+  if (loading) return <div style={{ color: "#555", padding: 40 }}>{t("common.loading")}</div>;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Banner</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>{t("banners.title")}</h1>
           <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-            Zentral verwaltete Banner — im Signatur-Designer aus der Bibliothek einfügen.
+            {t("banners.subtitle")}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button style={btnPrimary} onClick={() => setEditing("new")}>
-            <Icon name="plus" />Neuer Banner
+            <Icon name="plus" />{t("banners.newBanner")}
           </button>
           <input type="file" accept=".json" ref={importRef} style={{ display: "none" }} onChange={handleImport} />
           <button style={btnSecondary} onClick={() => importRef.current?.click()}>
-            <Icon name="upload" />Import
+            <Icon name="upload" />{t("common.import")}
           </button>
         </div>
       </div>
@@ -1677,7 +1691,7 @@ export default function BannersPage({ toast }) {
       <div style={{ padding: "12px 16px", background: "#1a1a1a", border: "1px solid #93c5fd22", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
         <Icon name="info-circle" size={15} style={{ color: "#93c5fd", marginTop: 1, flexShrink: 0 }} />
         <div style={{ fontSize: 12, color: "#555", lineHeight: "18px" }}>
-          Banner können im <strong style={{ color: "#888" }}>Signatur-Designer</strong> über die Bibliothek eingefügt werden. Reihenfolge in der Liste ist per Drag &amp; Drop änderbar.
+          {t("banners.infoText")}
         </div>
       </div>
 
@@ -1691,7 +1705,7 @@ export default function BannersPage({ toast }) {
       {!editing && banners.length === 0 && (
         <div style={{ textAlign: "center", padding: "50px 20px", color: "#444" }}>
           <Icon name="ad" size={36} style={{ display: "block", margin: "0 auto 10px" }} />
-          <div style={{ fontSize: 14 }}>Noch keine Banner</div>
+          <div style={{ fontSize: 14 }}>{t("banners.empty")}</div>
         </div>
       )}
 
@@ -1723,10 +1737,10 @@ export default function BannersPage({ toast }) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#ddd", flex: 1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{b.name}</span>
                   <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                     <button style={{ ...btnSecondary, padding: "4px 8px", fontSize: 11 }} onClick={() => setEditing(b)}>
-                      <Icon name="edit" size={12} />Bearbeiten
+                      <Icon name="edit" size={12} />{t("common.edit")}
                     </button>
                     <button style={{ ...btnSecondary, padding: "4px 8px", fontSize: 11 }} onClick={() => exportOne(b)}>
-                      <Icon name="download" size={12} />Export
+                      <Icon name="download" size={12} />{t("common.export")}
                     </button>
                     <button style={{ ...btnDanger, padding: "4px 8px" }} onClick={() => del(b.id)}><Icon name="trash" size={12} /></button>
                   </div>

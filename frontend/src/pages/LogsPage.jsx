@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "../AppContext.jsx";
 
 const API = "";
 async function api(method, path) {
@@ -50,13 +51,13 @@ function Sparkline({ points, color, height = 56, width = "100%" }) {
 function MetricCard({ title, icon, value, history, color, detail, unit = "%" }) {
   const pct  = value ?? 0;
   const warn = pct > 85;
-  const c    = warn ? "#f87171" : color;
+  const c    = warn ? "var(--red-s)" : color;
 
   return (
-    <div style={{ flex: 1, background: "#161616", border: `1px solid ${warn ? "#3a1a1a" : "#222"}`, borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ flex: 1, background: "var(--bg-card)", border: `1px solid ${warn ? "var(--red-bg)" : "var(--border-2)"}`, borderRadius: 10, overflow: "hidden" }}>
       <div style={{ padding: "12px 16px 6px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <div style={{ fontSize: 11, color: "#444", textTransform: "uppercase", letterSpacing: "0.6px", display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ fontSize: 11, color: "var(--text-6)", textTransform: "uppercase", letterSpacing: "0.6px", display: "flex", alignItems: "center", gap: 5 }}>
             <i className={`ti ti-${icon}`} style={{ fontSize: 11, color: c }} />
             {title}
           </div>
@@ -65,10 +66,10 @@ function MetricCard({ title, icon, value, history, color, detail, unit = "%" }) 
           </div>
         </div>
         {/* Progress bar */}
-        <div style={{ marginTop: 6, height: 3, background: "#222", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ marginTop: 6, height: 3, background: "var(--border-2)", borderRadius: 2, overflow: "hidden" }}>
           <div style={{ width: `${pct}%`, height: "100%", background: c, borderRadius: 2, transition: "width 0.5s ease" }} />
         </div>
-        <div style={{ fontSize: 11, color: "#444", marginTop: 5 }}>{detail || " "}</div>
+        <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 5 }}>{detail || " "}</div>
       </div>
       <Sparkline points={history} color={c} height={52} width="100%" />
     </div>
@@ -79,6 +80,7 @@ function MetricCard({ title, icon, value, history, color, detail, unit = "%" }) 
 const MAX_HIST = 60;
 
 function SystemStats() {
+  const { t } = useI18n();
   const [stats, setStats]     = useState(null);
   const [cpuH, setCpuH]       = useState([]);
   const [memH, setMemH]       = useState([]);
@@ -108,11 +110,11 @@ function SystemStats() {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: "#333", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>System-Auslastung</span>
+        <span style={{ fontSize: 11, color: "var(--text-7)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>{t("logs.systemLoad")}</span>
         <button onClick={() => setVisible(v => !v)}
-          style={{ fontSize: 11, color: "#333", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          style={{ fontSize: 11, color: "var(--text-7)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
           <i className={`ti ti-chevron-${visible ? "up" : "down"}`} style={{ fontSize: 11 }} />
-          {visible ? "Ausblenden" : "Einblenden"}
+          {visible ? t("logs.hide") : t("logs.show")}
         </button>
       </div>
       {visible && (
@@ -120,19 +122,19 @@ function SystemStats() {
           <MetricCard
             title="CPU" icon="cpu"
             value={stats?.cpu_percent ?? null}
-            history={cpuH} color="#93c5fd"
-            detail={stats ? `${stats.cpu_count} Kerne${stats.cpu_freq_mhz ? ` · ${stats.cpu_freq_mhz} MHz` : ""}` : ""}
+            history={cpuH} color="var(--blue)"
+            detail={stats ? `${stats.cpu_count} ${t("logs.cores")}${stats.cpu_freq_mhz ? ` · ${stats.cpu_freq_mhz} MHz` : ""}` : ""}
           />
           <MetricCard
-            title="Arbeitsspeicher" icon="device-desktop"
+            title={t("logs.ram")} icon="device-desktop"
             value={stats?.mem_percent ?? null}
-            history={memH} color="#c4b5fd"
+            history={memH} color="var(--purple)"
             detail={stats ? `${stats.mem_used_gb} / ${stats.mem_total_gb} GB` : ""}
           />
           <MetricCard
-            title="Festplatte" icon="database"
+            title={t("logs.disk")} icon="database"
             value={stats?.disk_percent ?? null}
-            history={diskH} color="#6ee7b7"
+            history={diskH} color="var(--green)"
             detail={stats ? `${stats.disk_used_gb} / ${stats.disk_total_gb} GB` : ""}
           />
         </div>
@@ -146,29 +148,23 @@ const Icon = ({ name, size = 18, style = {} }) => (
 );
 
 const LEVELS   = ["ALL", "INFO", "WARNING", "ERROR", "DEBUG"];
-const SERVICES = [
-  { value: "all",        label: "Alle Services" },
-  { value: "backend",    label: "Backend" },
-  { value: "smtp-proxy", label: "SMTP-Proxy" },
-  { value: "updater",    label: "Updater" },
-];
 
 const LEVEL_META = {
-  INFO:     { color: "#93c5fd", bg: "#0a1a2a", border: "#1e3a5f", icon: "info-circle" },
-  WARNING:  { color: "#fce499", bg: "#1a1500", border: "#78600a", icon: "alert-triangle" },
-  ERROR:    { color: "#f87171", bg: "#1f0a0a", border: "#7f1d1d", icon: "circle-x" },
-  CRITICAL: { color: "#f43f5e", bg: "#2a0a0a", border: "#9f1239", icon: "skull" },
-  DEBUG:    { color: "#555",    bg: "#161616", border: "#2a2a2a", icon: "bug" },
+  INFO:     { color: "var(--blue)",   bg: "var(--blue-bg)",   border: "var(--blue-bd)",   icon: "info-circle" },
+  WARNING:  { color: "var(--accent)", bg: "var(--accent-bg2)", border: "var(--accent-bd)", icon: "alert-triangle" },
+  ERROR:    { color: "var(--red-s)",  bg: "var(--red-bg)",    border: "var(--red-bd)",    icon: "circle-x" },
+  CRITICAL: { color: "#f43f5e",       bg: "#2a0a0a",           border: "#9f1239",           icon: "skull" },
+  DEBUG:    { color: "var(--text-5)", bg: "var(--bg-card)",   border: "var(--border-3)",  icon: "bug" },
 };
 
 const SERVICE_META = {
-  "backend":    { color: "#c4b5fd", bg: "#150f2a" },
-  "smtp-proxy": { color: "#6ee7b7", bg: "#0a1f14" },
-  "updater":    { color: "#fdba74", bg: "#1f1005" },
+  "backend":    { color: "var(--purple)", bg: "#150f2a" },
+  "smtp-proxy": { color: "var(--green)",  bg: "var(--green-bg)" },
+  "updater":    { color: "#fdba74",       bg: "#1f1005" },
 };
 
 function levelMeta(lvl) { return LEVEL_META[lvl] || LEVEL_META.DEBUG; }
-function serviceMeta(svc) { return SERVICE_META[svc] || { color: "#666", bg: "#1a1a1a" }; }
+function serviceMeta(svc) { return SERVICE_META[svc] || { color: "var(--text-4)", bg: "var(--bg-input)" }; }
 
 function fmtTime(ts) {
   if (!ts) return "—";
@@ -229,7 +225,7 @@ function LogRow({ entry, expanded, onToggle }) {
       <tr
         onClick={onToggle}
         style={{
-          borderBottom: expanded ? "none" : "1px solid #1a1a1a",
+          borderBottom: expanded ? "none" : "1px solid var(--bg-input)",
           cursor: details ? "pointer" : "default",
           background: expanded ? "#141414" : "transparent",
           transition: "background .1s",
@@ -237,7 +233,7 @@ function LogRow({ entry, expanded, onToggle }) {
         onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = "#131313"; }}
         onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}
       >
-        <td style={{ padding: "8px 12px", whiteSpace: "nowrap", color: "#444", fontSize: 11 }} title={fmtAbs(entry.timestamp)}>
+        <td style={{ padding: "8px 12px", whiteSpace: "nowrap", color: "var(--text-6)", fontSize: 11 }} title={fmtAbs(entry.timestamp)}>
           {fmtTime(entry.timestamp)}
         </td>
         <td style={{ padding: "8px 8px" }}>
@@ -246,23 +242,23 @@ function LogRow({ entry, expanded, onToggle }) {
         <td style={{ padding: "8px 8px" }}>
           <ServiceChip service={entry.service} />
         </td>
-        <td style={{ padding: "8px 12px", color: m.level === "ERROR" || m.level === "CRITICAL" ? m.color : "#bbb", fontSize: 12, fontFamily: "monospace", wordBreak: "break-all" }}>
-          <span style={{ color: entry.level === "ERROR" || entry.level === "CRITICAL" ? m.color : entry.level === "WARNING" ? "#ddd" : "#999" }}>
+        <td style={{ padding: "8px 12px", color: m.level === "ERROR" || m.level === "CRITICAL" ? m.color : "var(--text-2)", fontSize: 12, fontFamily: "monospace", wordBreak: "break-all" }}>
+          <span style={{ color: entry.level === "ERROR" || entry.level === "CRITICAL" ? m.color : entry.level === "WARNING" ? "var(--text-2)" : "var(--text-3)" }}>
             {entry.message}
           </span>
         </td>
         {details && (
           <td style={{ padding: "8px 10px", width: 20 }}>
-            <Icon name={expanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "#333" }} />
+            <Icon name={expanded ? "chevron-up" : "chevron-down"} size={12} style={{ color: "var(--text-7)" }} />
           </td>
         )}
         {!details && <td style={{ width: 20 }} />}
       </tr>
       {expanded && details && (
-        <tr style={{ borderBottom: "1px solid #1a1a1a" }}>
+        <tr style={{ borderBottom: "1px solid var(--bg-input)" }}>
           <td colSpan={5} style={{ padding: "0 12px 10px 40px" }}>
             <pre style={{
-              margin: 0, fontSize: 11, color: "#6ee7b7", background: "#0a1a0a",
+              margin: 0, fontSize: 11, color: "var(--green)", background: "#0a1a0a",
               border: "1px solid #0f2a0f", borderRadius: 6, padding: "10px 12px",
               overflow: "auto", maxHeight: 200,
             }}>
@@ -276,6 +272,7 @@ function LogRow({ entry, expanded, onToggle }) {
 }
 
 export default function LogsPage({ toast }) {
+  const { t } = useI18n();
   const [logs, setLogs]           = useState([]);
   const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
@@ -290,10 +287,17 @@ export default function LogsPage({ toast }) {
   const intervalRef = useRef(null);
   const LIMIT = 100;
 
+  const SERVICES = [
+    { value: "all",        label: t("logs.allServices") },
+    { value: "backend",    label: "Backend" },
+    { value: "smtp-proxy", label: "SMTP-Proxy" },
+    { value: "updater",    label: "Updater" },
+  ];
+
   // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput); setOffset(0); }, 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setSearch(searchInput); setOffset(0); }, 350);
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
   const buildUrl = useCallback((off) => {
@@ -334,12 +338,12 @@ export default function LogsPage({ toast }) {
   }, [autoRefresh, load]);
 
   async function clearLogs() {
-    if (!confirm("Alle Log-Einträge löschen?")) return;
+    if (!confirm(t("logs.confirmClear"))) return;
     setClearing(true);
     await api("DELETE", "/api/logs");
     setLogs([]); setTotal(0); setOffset(0);
     setClearing(false);
-    toast("ok", "Logs geleert");
+    toast("ok", t("logs.cleared"));
   }
 
   const levelBtn = (lv) => ({
@@ -348,9 +352,9 @@ export default function LogsPage({ toast }) {
     letterSpacing: "0.5px", textTransform: "uppercase",
     ...(level === lv
       ? lv === "ALL"
-        ? { background: "#1e1e1e", color: "#fff", borderColor: "#444" }
+        ? { background: "var(--bg-hover)", color: "var(--text-1)", borderColor: "var(--text-6)" }
         : { background: levelMeta(lv).bg, color: levelMeta(lv).color, borderColor: levelMeta(lv).border }
-      : { background: "transparent", color: "#444", borderColor: "#222" }
+      : { background: "transparent", color: "var(--text-6)", borderColor: "var(--border-2)" }
     ),
   });
 
@@ -361,9 +365,9 @@ export default function LogsPage({ toast }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>System-Log</h1>
-          <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-            Ereignisse aus Backend, SMTP-Proxy und Updater.
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("logs.title")}</h1>
+          <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>
+            {t("logs.subtitle")}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -371,14 +375,14 @@ export default function LogsPage({ toast }) {
             onClick={() => setAutoRefresh(v => !v)}
             style={{
               padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer",
-              border: `1px solid ${autoRefresh ? "#064e3b" : "#2a2a2a"}`,
-              background: autoRefresh ? "#0a1f14" : "transparent",
-              color: autoRefresh ? "#6ee7b7" : "#555",
+              border: `1px solid ${autoRefresh ? "var(--green-bd)" : "var(--border-3)"}`,
+              background: autoRefresh ? "var(--green-bg)" : "transparent",
+              color: autoRefresh ? "var(--green)" : "var(--text-5)",
               display: "flex", alignItems: "center", gap: 6,
             }}>
             <span style={{
               width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-              background: autoRefresh ? "#6ee7b7" : "#333",
+              background: autoRefresh ? "var(--green)" : "var(--text-7)",
               ...(autoRefresh ? { animation: "pulse 1.5s ease-in-out infinite" } : {}),
             }} />
             Live
@@ -386,14 +390,14 @@ export default function LogsPage({ toast }) {
           <button
             onClick={() => load(true)}
             disabled={loading}
-            style={{ padding: "7px 12px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid #2a2a2a", background: "transparent", color: "#666", display: "flex", alignItems: "center", gap: 5 }}>
+            style={{ padding: "7px 12px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid var(--border-3)", background: "transparent", color: "var(--text-4)", display: "flex", alignItems: "center", gap: 5 }}>
             <Icon name="refresh" size={13} />
           </button>
           <button
             onClick={clearLogs}
             disabled={clearing || logs.length === 0}
-            style={{ padding: "7px 12px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid #3a1a1a", background: "transparent", color: "#f87171", display: "flex", alignItems: "center", gap: 5 }}>
-            <Icon name="trash" size={13} />Leeren
+            style={{ padding: "7px 12px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid var(--red-bg)", background: "transparent", color: "var(--red-s)", display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon name="trash" size={13} />{t("logs.clear")}
           </button>
         </div>
       </div>
@@ -401,7 +405,7 @@ export default function LogsPage({ toast }) {
       <SystemStats />
 
       {/* Filter bar */}
-      <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
           {LEVELS.map(lv => (
             <button key={lv} style={levelBtn(lv)} onClick={() => { setLevel(lv); setOffset(0); }}>
@@ -409,44 +413,44 @@ export default function LogsPage({ toast }) {
             </button>
           ))}
         </div>
-        <div style={{ width: 1, height: 20, background: "#2a2a2a", flexShrink: 0 }} />
+        <div style={{ width: 1, height: 20, background: "var(--border-3)", flexShrink: 0 }} />
         <select
           value={service}
           onChange={e => { setService(e.target.value); setOffset(0); }}
-          style={{ padding: "5px 10px", background: "#111", border: "1px solid #222", borderRadius: 6, color: "#888", fontSize: 12, cursor: "pointer" }}>
+          style={{ padding: "5px 10px", background: "var(--bg-nav)", border: "1px solid var(--border-2)", borderRadius: 6, color: "var(--text-3)", fontSize: 12, cursor: "pointer" }}>
           {SERVICES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <div style={{ flex: 1, minWidth: 160, position: "relative" }}>
-          <Icon name="search" size={13} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#333", pointerEvents: "none" }} />
+          <Icon name="search" size={13} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "var(--text-7)", pointerEvents: "none" }} />
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Suche in Nachrichten…"
-            style={{ width: "100%", padding: "5px 10px 5px 28px", background: "#111", border: "1px solid #222", borderRadius: 6, color: "#ccc", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+            placeholder={t("logs.searchPlaceholder")}
+            style={{ width: "100%", padding: "5px 10px 5px 28px", background: "var(--bg-nav)", border: "1px solid var(--border-2)", borderRadius: 6, color: "var(--text-2)", fontSize: 12, outline: "none", boxSizing: "border-box" }}
           />
         </div>
-        <span style={{ fontSize: 11, color: "#333", marginLeft: "auto", flexShrink: 0 }}>
-          {loading ? "…" : `${total.toLocaleString("de-DE")} Einträge`}
+        <span style={{ fontSize: 11, color: "var(--text-7)", marginLeft: "auto", flexShrink: 0 }}>
+          {loading ? "…" : `${total.toLocaleString("de-DE")} ${t("logs.entries")}`}
         </span>
       </div>
 
       {/* Table */}
-      <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, overflow: "hidden" }}>
         {logs.length === 0 && !loading ? (
-          <div style={{ textAlign: "center", padding: "50px 20px", color: "#333" }}>
+          <div style={{ textAlign: "center", padding: "50px 20px", color: "var(--text-7)" }}>
             <Icon name="clipboard-list" size={36} style={{ display: "block", margin: "0 auto 10px" }} />
-            <div style={{ fontSize: 14 }}>Keine Einträge</div>
-            <div style={{ fontSize: 12, color: "#2a2a2a", marginTop: 5 }}>
-              {search || level !== "ALL" || service !== "all" ? "Filter anpassen oder leeren" : "Logs erscheinen hier sobald Ereignisse auftreten"}
+            <div style={{ fontSize: 14 }}>{t("logs.noEntries")}</div>
+            <div style={{ fontSize: 12, color: "var(--border-3)", marginTop: 5 }}>
+              {search || level !== "ALL" || service !== "all" ? t("logs.adjustFilter") : t("logs.noEntriesHint")}
             </div>
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #1e1e1e" }}>
-                {["Zeit", "Level", "Service", "Nachricht", ""].map(h => (
+              <tr style={{ borderBottom: "1px solid var(--border-1)" }}>
+                {[t("logs.colTime"), t("logs.colLevel"), t("logs.colService"), t("logs.colMessage"), ""].map(h => (
                   <th key={h} style={{
-                    padding: "8px 12px", textAlign: "left", fontSize: 10, color: "#333",
+                    padding: "8px 12px", textAlign: "left", fontSize: 10, color: "var(--text-7)",
                     fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.8px", whiteSpace: "nowrap",
                   }}>{h}</th>
                 ))}
@@ -466,17 +470,17 @@ export default function LogsPage({ toast }) {
         )}
 
         {loading && logs.length === 0 && (
-          <div style={{ padding: "30px", textAlign: "center", color: "#333", fontSize: 13 }}>Lade…</div>
+          <div style={{ padding: "30px", textAlign: "center", color: "var(--text-7)", fontSize: 13 }}>{t("common.loading")}</div>
         )}
 
         {hasMore && (
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #1a1a1a", textAlign: "center" }}>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--bg-input)", textAlign: "center" }}>
             <button
               onClick={() => load(false)}
               disabled={loading}
-              style={{ padding: "7px 20px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid #2a2a2a", background: "transparent", color: "#555", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              style={{ padding: "7px 20px", borderRadius: 7, fontSize: 12, cursor: "pointer", border: "1px solid var(--border-3)", background: "transparent", color: "var(--text-5)", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Icon name="chevrons-down" size={13} />
-              Ältere laden ({(total - logs.length).toLocaleString("de-DE")} weitere)
+              {t("logs.loadOlder")} ({(total - logs.length).toLocaleString("de-DE")} {t("logs.more")})
             </button>
           </div>
         )}

@@ -1,21 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ACCENT_COLORS } from "../data/colorPresets.js";
 import { SIGNATURE_TEMPLATES } from "../data/signatureTemplates.js";
+import { useI18n } from "../AppContext.jsx";
 
 const API = "";
 
 // ─── Block Definitionen ───────────────────────────────────────────────────────
 const BLOCK_TYPES = [
-  { type: "text",       label: "Text",        icon: "ti-align-left" },
-  { type: "image",      label: "Bild",        icon: "ti-photo" },
-  { type: "banner",     label: "Banner",      icon: "ti-ad" },
-  { type: "link",       label: "Link/Button", icon: "ti-link" },
-  { type: "social",     label: "Social",      icon: "ti-share" },
-  { type: "disclaimer", label: "Disclaimer",  icon: "ti-shield" },
-  { type: "divider",    label: "Trennlinie",  icon: "ti-minus" },
-  { type: "spacer",     label: "Abstand",     icon: "ti-space" },
-  { type: "columns",    label: "2 Spalten",   icon: "ti-layout-columns" },
-  { type: "table",      label: "Tabelle",     icon: "ti-table" },
+  { type: "text",       label: "designer.blockText",       icon: "ti-align-left" },
+  { type: "image",      label: "designer.blockImage",      icon: "ti-photo" },
+  { type: "banner",     label: "designer.blockBanner",     icon: "ti-ad" },
+  { type: "link",       label: "designer.blockLink",       icon: "ti-link" },
+  { type: "social",     label: "designer.blockSocial",     icon: "ti-share" },
+  { type: "disclaimer", label: "designer.blockDisclaimer", icon: "ti-shield" },
+  { type: "divider",    label: "designer.blockDivider",    icon: "ti-minus" },
+  { type: "spacer",     label: "designer.blockSpacer",     icon: "ti-space" },
+  { type: "columns",    label: "designer.blockColumns",    icon: "ti-layout-columns" },
+  { type: "table",      label: "designer.blockTable",      icon: "ti-table" },
 ];
 
 // No nesting of layout blocks
@@ -85,15 +86,15 @@ const DEFAULT_PROPS = {
 };
 
 const SOCIAL_ICONS = {
-  web:       { icon: "🌐", label: "Website" },
-  email:     { icon: "✉️", label: "E-Mail" },
-  phone:     { icon: "📞", label: "Telefon" },
-  linkedin:  { icon: "in", label: "LinkedIn" },
-  xing:      { icon: "X", label: "Xing" },
-  twitter:   { icon: "𝕏", label: "Twitter/X" },
-  facebook:  { icon: "f", label: "Facebook" },
-  instagram: { icon: "📷", label: "Instagram" },
-  youtube:   { icon: "▶", label: "YouTube" },
+  web:       { icon: "🌐", label: "Website",   labelKey: "designer.socialPlatformWeb" },
+  email:     { icon: "✉️", label: "E-Mail",    labelKey: "designer.socialPlatformEmail" },
+  phone:     { icon: "📞", label: "Telefon",   labelKey: "designer.socialPlatformPhone" },
+  linkedin:  { icon: "in", label: "LinkedIn",  labelKey: "designer.socialPlatformLinkedIn" },
+  xing:      { icon: "X",  label: "Xing",      labelKey: "designer.socialPlatformXing" },
+  twitter:   { icon: "𝕏",  label: "Twitter/X", labelKey: "designer.socialPlatformTwitter" },
+  facebook:  { icon: "f",  label: "Facebook",  labelKey: "designer.socialPlatformFacebook" },
+  instagram: { icon: "📷", label: "Instagram", labelKey: "designer.socialPlatformInstagram" },
+  youtube:   { icon: "▶",  label: "YouTube",   labelKey: "designer.socialPlatformYouTube" },
 };
 
 const FONTS = [
@@ -301,6 +302,7 @@ function blocksToHTML(blocks, maxWidth = 600, bgColor = "") {
 
 // ─── Block Preview ────────────────────────────────────────────────────────────
 function BlockPreview({ block }) {
+  const { t } = useI18n();
   const p = block.props;
 
   const op = (p) => ({ paddingTop: `${parseInt(p.paddingTop)||0}px`, paddingRight: `${parseInt(p.paddingRight)||0}px`, paddingBottom: `${parseInt(p.paddingBottom)||0}px`, paddingLeft: `${parseInt(p.paddingLeft)||0}px` });
@@ -315,7 +317,7 @@ function BlockPreview({ block }) {
     <div style={{ textAlign: p.align, ...op(p) }}>
       {p.src
         ? <img src={p.src} alt={p.alt} width={p.width} style={{ borderRadius: `${p.borderRadius}px`, display: "inline-block", maxWidth: "100%" }} />
-        : <div style={{ width: p.width, height: 60, background: "#f0f0f0", border: "1px dashed #ccc", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#999", borderRadius: `${p.borderRadius}px` }}>Bild-URL eingeben</div>
+        : <div style={{ width: p.width, height: 60, background: "#f0f0f0", border: "1px dashed #ccc", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#999", borderRadius: `${p.borderRadius}px` }}>{t("designer.imageEnterUrl")}</div>
       }
     </div>
   );
@@ -365,7 +367,7 @@ function BlockPreview({ block }) {
                     )}
                     {showLabel && (
                       <td style={{ paddingBottom: pb, verticalAlign: "middle" }}>
-                        <a href={href} style={labelStyle}>{item.label || icon.label}</a>
+                        <a href={href} style={labelStyle}>{item.label || t(icon.labelKey)}</a>
                       </td>
                     )}
                   </tr>
@@ -386,7 +388,7 @@ function BlockPreview({ block }) {
           return (
             <a key={i} href={href} style={{ ...labelStyle, display: "inline-flex", alignItems: "center", gap: iconGap, fontSize: sz }}>
               {showIcon  && <span style={{ fontSize: sz }}>{icon.icon}</span>}
-              {showLabel && <span style={{ fontSize: lsz, fontFamily: ff, fontWeight: fw, fontStyle: fs }}>{item.label || icon.label}</span>}
+              {showLabel && <span style={{ fontSize: lsz, fontFamily: ff, fontWeight: fw, fontStyle: fs }}>{item.label || t(icon.labelKey)}</span>}
             </a>
           );
         })}
@@ -430,7 +432,7 @@ function BlockPreview({ block }) {
   if (block.type === "disclaimer") return (
     <div style={{ fontSize: p.fontSize, color: p.color, textAlign: p.textAlign, padding: `${parseInt(p.paddingTop)||0}px ${parseInt(p.paddingRight)||0}px ${parseInt(p.paddingBottom)||0}px ${parseInt(p.paddingLeft)||0}px`, fontStyle: "italic", opacity: 0.6, display: "flex", alignItems: "center", gap: 6 }}>
       <i className="ti ti-shield" style={{ fontSize: 12, flexShrink: 0 }} />
-      <span>Disclaimer-Platzhalter — Inhalt wird per Regel gesetzt</span>
+      <span>{t("designer.disclaimerPlaceholder")}</span>
     </div>
   );
 
@@ -518,6 +520,7 @@ function ColorInput({ value, onChange }) {
 }
 
 function UTMEditor({ props, onChange }) {
+  const { t } = useI18n();
   const hasUTM = props.utm_source || props.utm_medium || props.utm_campaign;
   const [open, setOpen] = useState(hasUTM);
   const preview = buildUrl(props.url || props.items?.[0]?.url || "", props);
@@ -526,21 +529,21 @@ function UTMEditor({ props, onChange }) {
     <div style={{ marginTop: 8 }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: "100%", padding: "6px 10px", background: open ? "#1a2a1a" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 6, color: open ? "#6ee7b7" : "#666", fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
         <i className="ti ti-chart-bar" />
-        UTM-Tracking {open ? "▲" : "▼"}
+        {t("designer.utmTracking")} {open ? "▲" : "▼"}
       </button>
       {open && (
         <div style={{ marginTop: 6, padding: "10px", background: "#111", border: "1px solid #1e1e1e", borderRadius: 6 }}>
           <F label="utm_source">
-            <input style={iStyle} value={props.utm_source || ""} onChange={e => onChange({ utm_source: e.target.value })} placeholder="z.B. email, flyer, newsletter" />
+            <input style={iStyle} value={props.utm_source || ""} onChange={e => onChange({ utm_source: e.target.value })} placeholder={t("designer.utmSourcePlaceholder")} />
           </F>
           <F label="utm_medium">
-            <input style={iStyle} value={props.utm_medium || ""} onChange={e => onChange({ utm_medium: e.target.value })} placeholder="z.B. email, print, cpc" />
+            <input style={iStyle} value={props.utm_medium || ""} onChange={e => onChange({ utm_medium: e.target.value })} placeholder={t("designer.utmMediumPlaceholder")} />
           </F>
           <F label="utm_campaign">
-            <input style={iStyle} value={props.utm_campaign || ""} onChange={e => onChange({ utm_campaign: e.target.value })} placeholder="z.B. ortenau, herbst2026" />
+            <input style={iStyle} value={props.utm_campaign || ""} onChange={e => onChange({ utm_campaign: e.target.value })} placeholder={t("designer.utmCampaignPlaceholder")} />
           </F>
-          <F label="utm_content" hint="Optional — für A/B Tests">
-            <input style={iStyle} value={props.utm_content || ""} onChange={e => onChange({ utm_content: e.target.value })} placeholder="z.B. button-oben" />
+          <F label="utm_content" hint={t("designer.utmContentHint")}>
+            <input style={iStyle} value={props.utm_content || ""} onChange={e => onChange({ utm_content: e.target.value })} placeholder={t("designer.utmContentPlaceholder")} />
           </F>
           {(props.utm_source || props.utm_campaign) && (
             <div style={{ marginTop: 6, padding: "6px 8px", background: "#0a1a0a", borderRadius: 4, fontSize: 10, color: "#6ee7b7", wordBreak: "break-all", lineHeight: "16px" }}>
@@ -554,18 +557,19 @@ function UTMEditor({ props, onChange }) {
 }
 
 function SpacingEditor({ p, onUpdate, mode = "all" }) {
+  const { t } = useI18n();
   const s = (k, v) => onUpdate({ ...p, [k]: v });
   const n = (k) => p[k] ?? "0";
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e1e1e" }}>
-      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>Abstände (px)</div>
+      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>{t("designer.spacingPx")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {mode === "all" && <>
-          <F label="Oben"><input style={iStyle} type="number" min="0" value={n("paddingTop")} onChange={e => s("paddingTop", e.target.value)} /></F>
-          <F label="Unten"><input style={iStyle} type="number" min="0" value={n("paddingBottom")} onChange={e => s("paddingBottom", e.target.value)} /></F>
+          <F label={t("designer.spacingTop")}><input style={iStyle} type="number" min="0" value={n("paddingTop")} onChange={e => s("paddingTop", e.target.value)} /></F>
+          <F label={t("designer.spacingBottom")}><input style={iStyle} type="number" min="0" value={n("paddingBottom")} onChange={e => s("paddingBottom", e.target.value)} /></F>
         </>}
-        <F label="Links"><input style={iStyle} type="number" min="0" value={n("paddingLeft")} onChange={e => s("paddingLeft", e.target.value)} /></F>
-        <F label="Rechts"><input style={iStyle} type="number" min="0" value={n("paddingRight")} onChange={e => s("paddingRight", e.target.value)} /></F>
+        <F label={t("designer.spacingLeft")}><input style={iStyle} type="number" min="0" value={n("paddingLeft")} onChange={e => s("paddingLeft", e.target.value)} /></F>
+        <F label={t("designer.spacingRight")}><input style={iStyle} type="number" min="0" value={n("paddingRight")} onChange={e => s("paddingRight", e.target.value)} /></F>
       </div>
     </div>
   );
@@ -594,6 +598,7 @@ function InsertBtn({ label, title, char, taRef, onInsert }) {
 
 // ─── Disclaimer Prop Editor ───────────────────────────────────────────────────
 function DisclaimerPropEditor({ p, onChange }) {
+  const { t } = useI18n();
   const [disclaimers, setDisclaimers] = useState([]);
   const u = (k, v) => onChange({ ...p, [k]: v });
 
@@ -605,9 +610,9 @@ function DisclaimerPropEditor({ p, onChange }) {
 
   return (
     <div>
-      <F label="Disclaimer" hint="Wird beim Versand durch den Inhalt des gewählten Disclaimers ersetzt">
+      <F label={t("designer.disclaimerLabel")} hint={t("designer.disclaimerHint")}>
         <select style={iStyle} value={p.disclaimer_id || ""} onChange={e => u("disclaimer_id", e.target.value)}>
-          <option value="">— Kein Disclaimer gewählt —</option>
+          <option value="">{t("designer.disclaimerNone")}</option>
           {disclaimers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       </F>
@@ -620,14 +625,14 @@ function DisclaimerPropEditor({ p, onChange }) {
       )}
       {disclaimers.length === 0 && (
         <div style={{ fontSize: 10, color: "#555", padding: "6px 8px", background: "#111", borderRadius: 5, marginBottom: 10 }}>
-          Noch keine Disclaimer — zuerst unter <strong style={{ color: "#888" }}>Signaturen → Disclaimer</strong> anlegen.
+          {t("designer.disclaimerEmpty")}
         </div>
       )}
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e1e1e" }}>
-        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>Stil</div>
-        <F label="Schriftgröße"><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} placeholder="11px" /></F>
-        <F label="Farbe"><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
-        <F label="Ausrichtung">
+        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 7 }}>{t("designer.styleLabel")}</div>
+        <F label={t("designer.fontSize")}><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} placeholder="11px" /></F>
+        <F label={t("designer.color")}><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
+        <F label={t("designer.alignment")}>
           <select style={iStyle} value={p.textAlign} onChange={e => u("textAlign", e.target.value)}>
             {["left","center","right"].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
@@ -640,6 +645,7 @@ function DisclaimerPropEditor({ p, onChange }) {
 
 // ─── Banner Library Picker ────────────────────────────────────────────────────
 function BannerLibraryPicker({ onInsert }) {
+  const { t } = useI18n();
   const [open, setOpen]       = useState(false);
   const [banners, setBanners] = useState([]);
 
@@ -691,13 +697,13 @@ function BannerLibraryPicker({ onInsert }) {
       <button onClick={() => setOpen(o => !o)}
         style={{ width: "100%", padding: "6px 10px", background: open ? "#1a1a2a" : "#161616", border: "1px solid #2a2a2a", borderRadius: 7, color: open ? "#93c5fd" : "#555", fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
         <i className="ti ti-library" style={{ fontSize: 12 }} />
-        Banner aus Bibliothek laden {open ? "▲" : "▼"}
+        {t("designer.bannerLibraryLoad")} {open ? "▲" : "▼"}
       </button>
       {open && (
         <div style={{ marginTop: 5, padding: 10, background: "#111", border: "1px solid #1e1e2e", borderRadius: 7 }}>
           {banners.length === 0 ? (
             <div style={{ fontSize: 11, color: "#444", textAlign: "center", padding: "10px 0" }}>
-              Keine Banner — zuerst unter <strong style={{ color: "#888" }}>Signaturen → Banner</strong> anlegen.
+              {t("designer.bannerEmpty")}
             </div>
           ) : banners.map(b => {
             let bProps = DEFAULT_BANNER;
@@ -750,6 +756,7 @@ function resizeToMaxWidth(file, maxW) {
 }
 
 function ImageSrcField({ value, onChange, iStyle }) {
+  const { t } = useI18n();
   const fileRef = useRef(null);
   const isData = value && value.startsWith("data:");
 
@@ -763,13 +770,13 @@ function ImageSrcField({ value, onChange, iStyle }) {
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Bild</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>{t("designer.imageLabel")}</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <button onClick={() => fileRef.current.click()}
           style={{ flex: "0 0 auto", padding: "7px 10px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#fce499", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-          <i className="ti ti-upload" style={{ fontSize: 13 }} /> Hochladen
+          <i className="ti ti-upload" style={{ fontSize: 13 }} /> {t("designer.imageUpload")}
         </button>
-        <input style={{ ...iStyle, flex: 1, fontSize: 11 }} value={isData ? "(eingebettetes Bild)" : (value || "")}
+        <input style={{ ...iStyle, flex: 1, fontSize: 11 }} value={isData ? t("designer.imageEmbedded") : (value || "")}
           readOnly={isData}
           onChange={isData ? undefined : e => onChange(e.target.value)}
           placeholder="https://..." />
@@ -780,14 +787,15 @@ function ImageSrcField({ value, onChange, iStyle }) {
           </button>
         )}
       </div>
-      {isData && <div style={{ fontSize: 10, color: "#4ade80" }}>Bild eingebettet (base64) — wird in allen E-Mail-Clients angezeigt</div>}
-      {value && !isData && <div style={{ fontSize: 10, color: "#f87171" }}>Externe URL — Outlook blockiert externe Bilder standardmäßig</div>}
+      {isData && <div style={{ fontSize: 10, color: "#4ade80" }}>{t("designer.imageBase64Info")}</div>}
+      {value && !isData && <div style={{ fontSize: 10, color: "#f87171" }}>{t("designer.imageExternalWarning")}</div>}
       <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
     </div>
   );
 }
 
 function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget }) {
+  const { t } = useI18n();
   const p = block.props;
   const u = (key, val) => onChange({ ...p, [key]: val });
   const um = (updates) => onChange({ ...p, ...updates });
@@ -799,19 +807,19 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
   if (block.type === "text") return (
     <div>
-      <F label="Inhalt">
+      <F label={t("designer.content")}>
         <textarea ref={taRef} value={p.content} onChange={e => u("content", e.target.value)} rows={4} style={{ ...iStyle, resize: "vertical" }}
           onFocus={e => trackFocus(e.target, v => u("content", v))} />
         <div style={{ display: "flex", gap: 5, marginTop: 5 }}>
-          <InsertBtn label="↵ Zeilenumbruch" title="Zeilenumbruch einfügen" char={"\n"} taRef={taRef} onInsert={v => u("content", v)} />
-          <InsertBtn label="⇥ Tabulator" title="Tabulator einfügen" char={"\t"} taRef={taRef} onInsert={v => u("content", v)} />
-          <InsertBtn label="· Mittelpunkt" title="Mittelpunkt (·) einfügen" char={"·"} taRef={taRef} onInsert={v => u("content", v)} />
-          <InsertBtn label="©" title="Copyright (©) einfügen" char={"©"} taRef={taRef} onInsert={v => u("content", v)} />
-          <InsertBtn label="®" title="Registered (®) einfügen" char={"®"} taRef={taRef} onInsert={v => u("content", v)} />
-          <InsertBtn label="™" title="Trademark (™) einfügen" char={"™"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label={`↵ ${t("designer.insertLinebreak")}`} title={t("designer.insertLinebreakTitle")} char={"\n"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label={`⇥ ${t("designer.insertTab")}`} title={t("designer.insertTabTitle")} char={"\t"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label={`· ${t("designer.insertMiddot")}`} title={t("designer.insertMiddotTitle")} char={"·"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label="©" title={t("designer.insertCopyrightTitle")} char={"©"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label="®" title={t("designer.insertRegisteredTitle")} char={"®"} taRef={taRef} onInsert={v => u("content", v)} />
+          <InsertBtn label="™" title={t("designer.insertTrademarkTitle")} char={"™"} taRef={taRef} onInsert={v => u("content", v)} />
         </div>
       </F>
-      <F label="Schriftart">
+      <F label={t("designer.fontFamily")}>
         <select style={iStyle} value={p.fontFamily || "Arial, Helvetica, sans-serif"} onChange={e => u("fontFamily", e.target.value)}>
           {FONTS.map(f => (
             <option key={f} value={f} style={{ fontFamily: f }}>
@@ -821,14 +829,14 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
         </select>
       </F>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <F label="Schriftgröße"><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} placeholder="13px" /></F>
-        <F label="Ausrichtung">
+        <F label={t("designer.fontSize")}><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} placeholder="13px" /></F>
+        <F label={t("designer.alignment")}>
           <select style={iStyle} value={p.textAlign} onChange={e => u("textAlign", e.target.value)}>
             {["left","center","right"].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </F>
       </div>
-      <F label="Farbe"><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
+      <F label={t("designer.color")}><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         {[["bold","B","fontWeight"],["italic","I","fontStyle"]].map(([val, label, key]) => (
           <button key={key} onClick={() => u(key, p[key] === val ? "normal" : val)}
@@ -844,39 +852,39 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
   if (block.type === "image") return (
     <div>
       <ImageSrcField value={p.src} onChange={v => u("src", v)} iStyle={iStyle} />
-      <F label="Alt-Text"><input style={iStyle} value={p.alt} onChange={e => u("alt", e.target.value)} placeholder="Bildbeschreibung" /></F>
+      <F label={t("designer.altText")}><input style={iStyle} value={p.alt} onChange={e => u("alt", e.target.value)} placeholder={t("designer.altTextPlaceholder")} /></F>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <F label="Breite (px)"><input style={iStyle} value={p.width} onChange={e => u("width", e.target.value)} /></F>
-        <F label="Ausrichtung">
+        <F label={t("designer.widthPx")}><input style={iStyle} value={p.width} onChange={e => u("width", e.target.value)} /></F>
+        <F label={t("designer.alignment")}>
           <select style={iStyle} value={p.align} onChange={e => u("align", e.target.value)}>
             {["left","center","right"].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </F>
       </div>
-      <F label="Ecken-Radius (px)"><input style={iStyle} type="number" value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
-      <F label="Link-URL (optional)"><input style={iStyle} value={p.linkUrl} onChange={e => u("linkUrl", e.target.value)} placeholder="https://..." /></F>
+      <F label={t("designer.borderRadiusPx")}><input style={iStyle} type="number" value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
+      <F label={t("designer.linkUrlOptional")}><input style={iStyle} value={p.linkUrl} onChange={e => u("linkUrl", e.target.value)} placeholder="https://..." /></F>
       <SpacingEditor p={p} onUpdate={onChange} />
     </div>
   );
 
   if (block.type === "link") return (
     <div>
-      <F label="Link-Text"><input style={iStyle} value={p.label} onChange={e => u("label", e.target.value)} /></F>
+      <F label={t("designer.linkText")}><input style={iStyle} value={p.label} onChange={e => u("label", e.target.value)} /></F>
       <F label="URL"><input style={iStyle} value={p.url} onChange={e => u("url", e.target.value)} placeholder="https://..." /></F>
       <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "#888", cursor: "pointer", marginBottom: 10 }}>
         <input type="checkbox" checked={p.asButton} onChange={e => u("asButton", e.target.checked)} />
-        Als Button darstellen
+        {t("designer.asButton")}
       </label>
       {p.asButton ? (
         <>
-          <F label="Button-Farbe"><ColorInput value={p.buttonBg} onChange={v => u("buttonBg", v)} /></F>
-          <F label="Text-Farbe"><ColorInput value={p.buttonColor} onChange={v => u("buttonColor", v)} /></F>
-          <F label="Ecken-Radius"><input style={iStyle} value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
+          <F label={t("designer.buttonColor")}><ColorInput value={p.buttonBg} onChange={v => u("buttonBg", v)} /></F>
+          <F label={t("designer.textColor")}><ColorInput value={p.buttonColor} onChange={v => u("buttonColor", v)} /></F>
+          <F label={t("designer.borderRadius")}><input style={iStyle} value={p.borderRadius} onChange={e => u("borderRadius", e.target.value)} /></F>
         </>
       ) : (
-        <F label="Link-Farbe"><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
+        <F label={t("designer.linkColor")}><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
       )}
-      <F label="Schriftgröße"><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} /></F>
+      <F label={t("designer.fontSize")}><input style={iStyle} value={p.fontSize} onChange={e => u("fontSize", e.target.value)} /></F>
       <UTMEditor props={p} onChange={um} />
       <SpacingEditor p={p} onUpdate={onChange} />
     </div>
@@ -892,10 +900,10 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
   if (block.type === "divider") return (
     <div>
-      <F label="Farbe"><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
+      <F label={t("designer.color")}><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <F label="Stärke (px)"><input style={iStyle} type="number" value={p.thickness} onChange={e => u("thickness", e.target.value)} /></F>
-        <F label="Abstand oben/unten (px)"><input style={iStyle} type="number" value={p.margin} onChange={e => u("margin", e.target.value)} /></F>
+        <F label={t("designer.thicknessPx")}><input style={iStyle} type="number" value={p.thickness} onChange={e => u("thickness", e.target.value)} /></F>
+        <F label={t("designer.marginTopBottomPx")}><input style={iStyle} type="number" value={p.margin} onChange={e => u("margin", e.target.value)} /></F>
       </div>
       <SpacingEditor p={p} onUpdate={onChange} mode="lr" />
     </div>
@@ -903,7 +911,7 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
   if (block.type === "spacer") return (
     <div>
-      <F label="Höhe (px)"><input style={iStyle} type="number" value={p.height} onChange={e => u("height", e.target.value)} /></F>
+      <F label={t("designer.heightPx")}><input style={iStyle} type="number" value={p.height} onChange={e => u("height", e.target.value)} /></F>
       <SpacingEditor p={p} onUpdate={onChange} mode="lr" />
     </div>
   );
@@ -912,12 +920,12 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
   if (block.type === "columns") return (
     <div>
-      <F label="Breite linke Spalte (%)">
+      <F label={t("designer.leftColWidthPct")}>
         <input style={iStyle} type="number" value={p.leftWidth} onChange={e => u("leftWidth", e.target.value)} min={10} max={90} />
       </F>
       <div style={{ marginTop: 4, padding: "8px 10px", background: "#111", borderRadius: 6, fontSize: 11, color: "#555", lineHeight: "16px" }}>
         <i className="ti ti-drag-drop" style={{ marginRight: 4 }} />
-        Elemente aus der Palette in die Spalten ziehen
+        {t("designer.dragToColumns")}
       </div>
       <SpacingEditor p={p} onUpdate={onChange} />
     </div>
@@ -940,27 +948,27 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
     );
     return (
       <div>
-        <F label="Rahmenfarbe"><ColorInput value={p.borderColor || "#dddddd"} onChange={v => u("borderColor", v)} /></F>
+        <F label={t("designer.borderColor")}><ColorInput value={p.borderColor || "#dddddd"} onChange={v => u("borderColor", v)} /></F>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <F label="Rahmendicke (px)"><input style={iStyle} type="number" value={p.borderWidth || "1"} onChange={e => u("borderWidth", e.target.value)} min={0} max={10} /></F>
-          <F label="Zellenabstand (px)"><input style={iStyle} type="number" value={p.cellPadding || "8"} onChange={e => u("cellPadding", e.target.value)} min={0} max={40} /></F>
+          <F label={t("designer.borderWidthPx")}><input style={iStyle} type="number" value={p.borderWidth || "1"} onChange={e => u("borderWidth", e.target.value)} min={0} max={10} /></F>
+          <F label={t("designer.cellPaddingPx")}><input style={iStyle} type="number" value={p.cellPadding || "8"} onChange={e => u("cellPadding", e.target.value)} min={0} max={40} /></F>
         </div>
-        <BgRow label="Hintergrund (alle Zellen)" value={p.tableBg} onSet={v => u("tableBg", v)} onClear={() => u("tableBg", "")} clearLabel="Transparent" />
+        <BgRow label={t("designer.bgAllCells")} value={p.tableBg} onSet={v => u("tableBg", v)} onClear={() => u("tableBg", "")} clearLabel={t("designer.transparent")} />
         {scCell && (
           <div style={{ marginTop: 6, padding: "8px 10px", background: "#111", border: "1px solid #2a2a00", borderRadius: 6 }}>
             <div style={{ fontSize: 10, color: "#fce499", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".5px" }}>
               Zelle [{sc.ri + 1},{sc.ci + 1}]
             </div>
-            <BgRow label="Zellfarbe (überschreibt Tabelle)" value={scCell.bg}
+            <BgRow label={t("designer.cellBgOverride")} value={scCell.bg}
               onSet={v => onCellPropChange(sc.ri, sc.ci, "bg", v)}
               onClear={() => onCellPropChange(sc.ri, sc.ci, "bg", "")}
-              clearLabel="Wie Tabelle" />
+              clearLabel={t("designer.likeTable")} />
           </div>
         )}
         {!scCell && (
           <div style={{ marginTop: 4, padding: "8px 10px", background: "#111", borderRadius: 6, fontSize: 11, color: "#555", lineHeight: "16px" }}>
             <i className="ti ti-click" style={{ marginRight: 4 }} />
-            Zelle klicken für individuelle Zellfarbe
+            {t("designer.clickCellForColor")}
           </div>
         )}
         <SpacingEditor p={p} onUpdate={onChange} />
@@ -973,6 +981,7 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
 
 // ─── Social Prop Editor ───────────────────────────────────────────────────────
 function SocialPropEditor({ p, onChange, varTarget }) {
+  const { t } = useI18n();
   const [activeIdx, setActiveIdx] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const activeLabelRef = useRef(null);
@@ -1003,29 +1012,29 @@ function SocialPropEditor({ p, onChange, varTarget }) {
   return (
     <div>
       {/* Stil */}
-      <F label="Stil">
+      <F label={t("designer.socialStyle")}>
         <select style={iStyle} value={p.style} onChange={e => u("style", e.target.value)}>
-          <option value="icon-text">Icon + Text</option>
-          <option value="icon-only">Nur Icon</option>
-          <option value="text-only">Nur Text</option>
+          <option value="icon-text">{t("designer.socialStyleIconText")}</option>
+          <option value="icon-only">{t("designer.socialStyleIconOnly")}</option>
+          <option value="text-only">{t("designer.socialStyleTextOnly")}</option>
         </select>
       </F>
 
-      <F label="Icon-Größe (px)">
+      <F label={t("designer.iconSizePx")}>
         <input style={iStyle} type="number" value={p.iconSize} onChange={e => u("iconSize", e.target.value)} />
       </F>
-      <F label="Label-Größe (px)">
+      <F label={t("designer.labelSizePx")}>
         <input style={iStyle} type="number" value={p.fontSize ?? "12"} onChange={e => u("fontSize", e.target.value)} />
       </F>
-      <F label="Icon↔Label (px)">
+      <F label={t("designer.iconLabelGapPx")}>
         <input style={iStyle} type="number" value={p.iconGap ?? "6"} onChange={e => u("iconGap", e.target.value)} />
       </F>
-      <F label="Abstand zwischen Einträgen (px)">
+      <F label={t("designer.itemGapPx")}>
         <input style={iStyle} type="number" value={p.gap} onChange={e => u("gap", e.target.value)} />
       </F>
 
       {/* Font */}
-      <F label="Schriftart">
+      <F label={t("designer.fontFamily")}>
         <select style={iStyle} value={p.fontFamily || "Arial, Helvetica, sans-serif"} onChange={e => u("fontFamily", e.target.value)}>
           {FONTS.map(f => <option key={f} value={f}>{f.split(",")[0].replace(/'/g, "")}</option>)}
         </select>
@@ -1041,9 +1050,9 @@ function SocialPropEditor({ p, onChange, varTarget }) {
       {/* Direction + Align */}
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Richtung</label>
+          <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("designer.direction")}</label>
           <div style={{ display: "flex", gap: 3 }}>
-            {[["horizontal","ti-layout-columns","Horizontal"],["vertical","ti-layout-rows","Vertikal"]].map(([val, icon, title]) => (
+            {[["horizontal","ti-layout-columns",t("designer.dirHorizontal")],["vertical","ti-layout-rows",t("designer.dirVertical")]].map(([val, icon, title]) => (
               <button key={val} title={title} onClick={() => u("direction", val)}
                 style={{ flex: 1, padding: "5px", background: p.direction === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.direction === val ? "#1a1a0a" : "#666", cursor: "pointer", fontSize: 13 }}>
                 <i className={`ti ${icon}`} />
@@ -1052,9 +1061,9 @@ function SocialPropEditor({ p, onChange, varTarget }) {
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Ausrichtung</label>
+          <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("designer.alignment")}</label>
           <div style={{ display: "flex", gap: 3 }}>
-            {[["left","ti-align-left","Links"],["center","ti-align-center","Zentriert"],["right","ti-align-right","Rechts"]].map(([val, icon, title]) => (
+            {[["left","ti-align-left",t("designer.alignLeft")],["center","ti-align-center",t("designer.alignCenter")],["right","ti-align-right",t("designer.alignRight")]].map(([val, icon, title]) => (
               <button key={val} title={title} onClick={() => u("align", val)}
                 style={{ flex: 1, padding: "5px", background: p.align === val ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 5, color: p.align === val ? "#1a1a0a" : "#666", cursor: "pointer", fontSize: 13 }}>
                 <i className={`ti ${icon}`} />
@@ -1063,16 +1072,16 @@ function SocialPropEditor({ p, onChange, varTarget }) {
           </div>
         </div>
       </div>
-      <F label="Farbe"><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
+      <F label={t("designer.color")}><ColorInput value={p.color} onChange={v => u("color", v)} /></F>
 
       {/* Items list */}
       <div style={{ marginBottom: 6 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-          <label style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px" }}>Links</label>
+          <label style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px" }}>{t("designer.socialLinks")}</label>
           <div style={{ position: "relative" }}>
             <button onClick={() => setShowAdd(o => !o)}
               style={{ padding: "2px 8px", background: showAdd ? "#2a3a2a" : "#1a1a1a", border: "1px solid #2a3a2a", borderRadius: 4, color: "#6ee7b7", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-              <i className="ti ti-plus" style={{ fontSize: 10 }} /> Hinzufügen
+              <i className="ti ti-plus" style={{ fontSize: 10 }} /> {t("designer.add")}
             </button>
             {showAdd && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 3px)", background: "#161616", border: "1px solid #2a2a2a", borderRadius: 8, zIndex: 200, padding: 4, minWidth: 150, boxShadow: "0 4px 16px rgba(0,0,0,.5)" }}>
@@ -1081,7 +1090,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
                     style={{ width: "100%", display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", background: "none", border: "none", color: "#aaa", fontSize: 11, cursor: "pointer", borderRadius: 5, textAlign: "left" }}
                     onMouseEnter={e => e.currentTarget.style.background = "#222"}
                     onMouseLeave={e => e.currentTarget.style.background = "none"}>
-                    <span style={{ fontSize: 13, width: 16, textAlign: "center" }}>{v.icon}</span>{v.label}
+                    <span style={{ fontSize: 13, width: 16, textAlign: "center" }}>{v.icon}</span>{t(v.labelKey)}
                   </button>
                 ))}
               </div>
@@ -1091,7 +1100,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
 
         <div style={{ background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 6, overflow: "hidden" }}>
           {p.items.length === 0 && (
-            <div style={{ padding: "12px 10px", fontSize: 11, color: "#444", textAlign: "center" }}>Keine Links — oben hinzufügen</div>
+            <div style={{ padding: "12px 10px", fontSize: 11, color: "#444", textAlign: "center" }}>{t("designer.socialNoLinks")}</div>
           )}
           {p.items.map((item, i) => {
             const icon = SOCIAL_ICONS[item.platform] || { icon: "🔗", label: item.platform };
@@ -1107,7 +1116,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
                 }}>
                 <span style={{ fontSize: 13, width: 16, textAlign: "center", flexShrink: 0 }}>{icon.icon}</span>
                 <span style={{ fontSize: 11, color: isActive ? "#fce499" : "#888", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.label || icon.label}
+                  {item.label || t(icon.labelKey)}
                 </span>
                 <span style={{ fontSize: 10, color: "#444", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {(item.url || "").replace(/^https?:\/\//, "").replace(/^mailto:/, "").replace(/^tel:/, "")}
@@ -1128,7 +1137,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
             <span style={{ fontSize: 14 }}>{SOCIAL_ICONS[activeItem.platform]?.icon || "🔗"}</span>
             <select style={{ ...iStyle, flex: 1 }} value={activeItem.platform}
               onChange={e => updateItem(activeIdx, { platform: e.target.value })}>
-              {Object.entries(SOCIAL_ICONS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              {Object.entries(SOCIAL_ICONS).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey)}</option>)}
             </select>
             <button onClick={() => removeItem(activeIdx)}
               style={{ padding: "4px 7px", background: "#3a1a1a", border: "none", borderRadius: 5, color: "#f87171", cursor: "pointer", fontSize: 11, flexShrink: 0 }}>✕</button>
@@ -1139,7 +1148,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
               onFocus={e => { if (varTarget) varTarget.current = { el: e.target, setValue: v => updateItem(activeIdx, { url: v }) }; }}
               placeholder="https://..." />
           </F>
-          <F label="Label">
+          <F label={t("designer.label")}>
             <input style={{ ...iStyle, marginBottom: 5 }} value={activeItem.label || ""}
               ref={activeLabelRef}
               onChange={e => updateItem(activeIdx, { label: e.target.value })}
@@ -1149,7 +1158,7 @@ function SocialPropEditor({ p, onChange, varTarget }) {
               }}
               placeholder={SOCIAL_ICONS[activeItem.platform]?.label || ""} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {[["·","Mittelpunkt (·)"],["©","Copyright (©)"],["®","Registered (®)"],["™","Trademark (™)"]].map(([char, title]) => (
+              {[["·",t("designer.insertMiddotTitle")],["©",t("designer.insertCopyrightTitle")],["®",t("designer.insertRegisteredTitle")],["™",t("designer.insertTrademarkTitle")]].map(([char, title]) => (
                 <InsertBtn key={char} label={char} title={title} char={char}
                   taRef={activeLabelRef}
                   onInsert={v => updateItem(activeIdx, { label: v })} />
@@ -1166,17 +1175,27 @@ function SocialPropEditor({ p, onChange, varTarget }) {
 
 // ─── Icon Picker ─────────────────────────────────────────────────────────────
 const ICON_SETS = {
-  "Kontakt":  ["📞","📱","✉️","📠","💬","🌐","📍","🏠","🏢","📧"],
-  "Business": ["💼","📋","📄","📝","✅","❌","⭐","🔑","💡","📊","📈","🔔","📅","🕐"],
-  "Personen": ["👤","👥","🤝","👨‍💼","👩‍💼","🎓","👋"],
-  "Pfeile":   ["→","←","↑","↓","↗","↙","↔","➜","➝","▶","◀","▸","◂","»","«","›","‹"],
-  "Zeichen":  ["✓","✗","★","☆","●","○","■","□","◆","◇","▲","▼","•","◉","❖"],
-  "Symbole":  ["©","®","™","°","±","×","÷","€","$","£","¥","#","@","&","§","–","—"],
+  "contact":  ["📞","📱","✉️","📠","💬","🌐","📍","🏠","🏢","📧"],
+  "business": ["💼","📋","📄","📝","✅","❌","⭐","🔑","💡","📊","📈","🔔","📅","🕐"],
+  "people":   ["👤","👥","🤝","👨‍💼","👩‍💼","🎓","👋"],
+  "arrows":   ["→","←","↑","↓","↗","↙","↔","➜","➝","▶","◀","▸","◂","»","«","›","‹"],
+  "signs":    ["✓","✗","★","☆","●","○","■","□","◆","◇","▲","▼","•","◉","❖"],
+  "symbols":  ["©","®","™","°","±","×","÷","€","$","£","¥","#","@","&","§","–","—"],
+};
+
+const ICON_SET_LABEL_KEYS = {
+  "contact":  "designer.iconCatContact",
+  "business": "designer.iconCatBusiness",
+  "people":   "designer.iconCatPeople",
+  "arrows":   "designer.iconCatArrows",
+  "signs":    "designer.iconCatSigns",
+  "symbols":  "designer.iconCatSymbols",
 };
 
 function IconPicker({ varTarget }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [cat, setCat] = useState("Kontakt");
+  const [cat, setCat] = useState("contact");
 
   function insertIcon(e, icon) {
     e.preventDefault();
@@ -1198,18 +1217,18 @@ function IconPicker({ varTarget }) {
       <button onClick={() => setOpen(o => !o)}
         style={{ width: "100%", padding: "6px 10px", background: open ? "#1a1a2a" : "#161616", border: "1px solid #2a2a2a", borderRadius: 7, color: open ? "#93c5fd" : "#555", fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
         <i className="ti ti-mood-smile" style={{ fontSize: 12 }} />
-        Icon / Emoji einfügen {open ? "▲" : "▼"}
+        {t("designer.iconPickerInsert")} {open ? "▲" : "▼"}
       </button>
       {open && (
         <div style={{ marginTop: 5, padding: "10px", background: "#111", border: "1px solid #1e1e2e", borderRadius: 7 }}>
           <div style={{ fontSize: 10, color: "#444", marginBottom: 7, lineHeight: "15px" }}>
-            Textfeld fokussieren → Icon klicken → wird am Cursor eingefügt
+            {t("designer.iconPickerHint")}
           </div>
           <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 8 }}>
             {Object.keys(ICON_SETS).map(c => (
               <button key={c} onClick={() => setCat(c)}
                 style={{ padding: "2px 8px", background: cat === c ? "#fce499" : "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 4, color: cat === c ? "#1a1a0a" : "#666", fontSize: 10, cursor: "pointer", fontWeight: cat === c ? 700 : 400 }}>
-                {c}
+                {t(ICON_SET_LABEL_KEYS[c])}
               </button>
             ))}
           </div>
@@ -1229,23 +1248,24 @@ function IconPicker({ varTarget }) {
 
 // ─── Variable Picker ──────────────────────────────────────────────────────────
 const SENDER_VARS = [
-  { key: "vorname",          label: "Vorname" },
-  { key: "nachname",         label: "Nachname" },
-  { key: "name",             label: "Vor- + Nachname" },
-  { key: "email",            label: "E-Mail" },
-  { key: "berufsbezeichnung",label: "Berufsbezeichnung" },
-  { key: "firma",            label: "Firma" },
-  { key: "telefon",          label: "Telefon" },
-  { key: "mobil",            label: "Mobil" },
-  { key: "strasse",          label: "Straße" },
-  { key: "plz",              label: "PLZ" },
-  { key: "ort",              label: "Ort" },
-  { key: "land",             label: "Land" },
-  { key: "adresse",          label: "Vollst. Adresse" },
-  { key: "foto",             label: "Foto-URL" },
+  { key: "vorname",          labelKey: "designer.varFirstName" },
+  { key: "nachname",         labelKey: "designer.varLastName" },
+  { key: "name",             labelKey: "designer.varFullName" },
+  { key: "email",            labelKey: "designer.varEmail" },
+  { key: "berufsbezeichnung",labelKey: "designer.varJobTitle" },
+  { key: "firma",            labelKey: "designer.varCompany" },
+  { key: "telefon",          labelKey: "designer.varPhone" },
+  { key: "mobil",            labelKey: "designer.varMobile" },
+  { key: "strasse",          labelKey: "designer.varStreet" },
+  { key: "plz",              labelKey: "designer.varZip" },
+  { key: "ort",              labelKey: "designer.varCity" },
+  { key: "land",             labelKey: "designer.varCountry" },
+  { key: "adresse",          labelKey: "designer.varFullAddress" },
+  { key: "foto",             labelKey: "designer.varPhotoUrl" },
 ];
 
 function VarPicker({ varTarget }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
   function insertVar(e, key) {
@@ -1269,16 +1289,16 @@ function VarPicker({ varTarget }) {
       <button onClick={() => setOpen(o => !o)}
         style={{ width: "100%", padding: "6px 10px", background: open ? "#1a2a1a" : "#161616", border: "1px solid #2a2a2a", borderRadius: 7, color: open ? "#6ee7b7" : "#555", fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
         <i className="ti ti-variable" style={{ fontSize: 12 }} />
-        Absender-Variablen einfügen {open ? "▲" : "▼"}
+        {t("designer.varPickerInsert")} {open ? "▲" : "▼"}
       </button>
       {open && (
         <div style={{ marginTop: 5, padding: "10px", background: "#111", border: "1px solid #1e2a1e", borderRadius: 7 }}>
           <div style={{ fontSize: 10, color: "#444", marginBottom: 7, lineHeight: "15px" }}>
-            Textfeld fokussieren → Variable klicken → wird am Cursor eingefügt
+            {t("designer.varPickerHint")}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {SENDER_VARS.map(({ key, label }) => (
-              <button key={key} title={label}
+            {SENDER_VARS.map(({ key, labelKey }) => (
+              <button key={key} title={t(labelKey)}
                 onMouseDown={e => insertVar(e, key)}
                 style={{ padding: "3px 7px", background: "#1a2a1a", border: "1px solid #2a3a2a", borderRadius: 5, color: "#6ee7b7", fontSize: 10, cursor: "pointer", fontFamily: "monospace" }}>
                 {`{{${key}}}`}
@@ -1293,6 +1313,7 @@ function VarPicker({ varTarget }) {
 
 // ─── Drop Zone ────────────────────────────────────────────────────────────────
 function DropZone({ onDrop, isActive }) {
+  const { t } = useI18n();
   const [over, setOver] = useState(false);
   return (
     <div
@@ -1308,13 +1329,14 @@ function DropZone({ onDrop, isActive }) {
         transition: "all .15s",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-      {over && <span style={{ fontSize: 11, color: "#fce499" }}>Hier ablegen</span>}
+      {over && <span style={{ fontSize: 11, color: "#fce499" }}>{t("designer.dropHere")}</span>}
     </div>
   );
 }
 
 // ─── Inline Canvas Content ────────────────────────────────────────────────────
 function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSelectSub, draggingType, onDropToColumn, onRemoveSubBlock, onUpdateSub, onDropToCell, onRemoveFromCell, onAddRow, onRemoveRow, onAddCol, onRemoveCol, selectedCellPos, onSelectCell, onSelectParentBlock, varTarget }) {
+  const { t } = useI18n();
   const p = block.props;
   const containerRef = useRef(null);
   const inlineTextRef = useRef(null);
@@ -1360,12 +1382,12 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
         style={{ ...ta, margin: `${p.paddingTop}px 0 ${p.paddingBottom}px`, fontFamily: p.fontFamily || "Arial, Helvetica, sans-serif", fontSize: p.fontSize, fontWeight: p.fontWeight, fontStyle: p.fontStyle, color: p.color, textAlign: p.textAlign }}
       />
       <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
-        <InsertBtn label="↵" title="Zeilenumbruch" char={"\n"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
-        <InsertBtn label="⇥" title="Tabulator" char={"\t"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
-        <InsertBtn label="·" title="Mittelpunkt (·)" char={"·"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
-        <InsertBtn label="©" title="Copyright (©)" char={"©"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
-        <InsertBtn label="®" title="Registered (®)" char={"®"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
-        <InsertBtn label="™" title="Trademark (™)" char={"™"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="↵" title={t("designer.insertLinebreakTitle")} char={"\n"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="⇥" title={t("designer.insertTabTitle")} char={"\t"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="·" title={t("designer.insertMiddotTitle")} char={"·"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="©" title={t("designer.insertCopyrightTitle")} char={"©"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="®" title={t("designer.insertRegisteredTitle")} char={"®"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
+        <InsertBtn label="™" title={t("designer.insertTrademarkTitle")} char={"™"} taRef={inlineTextRef} onInsert={v => onUpdate({ ...p, content: v })} />
       </div>
     </div>
   );
@@ -1391,13 +1413,13 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
         <div style={{ display: "inline-block", position: "relative" }}>
           {p.src
             ? <img src={p.src} alt={p.alt} width={w} style={{ borderRadius: `${p.borderRadius}px`, display: "block", maxWidth: "100%" }} />
-            : <div style={{ width: w, height: 60, background: "#1a1a1a", border: "1px dashed #444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#555", borderRadius: `${p.borderRadius}px` }}>Bild-URL eingeben</div>
+            : <div style={{ width: w, height: 60, background: "#1a1a1a", border: "1px dashed #444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#555", borderRadius: `${p.borderRadius}px` }}>{t("designer.imageEnterUrl")}</div>
           }
           {/* Right-edge resize handle */}
           <div
             onMouseDown={startImgResize}
             onClick={e => e.stopPropagation()}
-            title="Breite ziehen"
+            title={t("designer.resizeWidth")}
             style={{
               position: "absolute", right: -7, top: "50%", transform: "translateY(-50%)",
               width: 14, height: 32, cursor: "ew-resize",
@@ -1442,7 +1464,7 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
     const renderCol = (side, subBlocks) => (
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase", letterSpacing: ".6px", fontWeight: 600, marginBottom: 4, paddingLeft: 2 }}>
-          {side === "left" ? `← Links (${Math.round(leftPct)}%)` : `Rechts (${Math.round(100 - leftPct)}%) →`}
+          {side === "left" ? `← ${t("designer.colLeft")} (${Math.round(leftPct)}%)` : `${t("designer.colRight")} (${Math.round(100 - leftPct)}%) →`}
         </div>
         <div
           style={{
@@ -1478,12 +1500,12 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
           ))}
           {canDrop && (
             <div style={{ padding: "5px 0", fontSize: 10, color: "#fce499", textAlign: "center", borderRadius: 4, border: "1px dashed #fce49966", marginTop: subBlocks.length ? 3 : 0 }}>
-              Hier ablegen
+              {t("designer.dropHere")}
             </div>
           )}
           {!canDrop && subBlocks.length === 0 && (
             <div style={{ padding: "10px 0", fontSize: 10, color: "#444", textAlign: "center" }}>
-              Element hereinziehen
+              {t("designer.dragElementHere")}
             </div>
           )}
         </div>
@@ -1502,7 +1524,7 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
           onMouseEnter={() => setHandleHover(true)}
           onMouseLeave={() => setHandleHover(false)}
           onClick={e => e.stopPropagation()}
-          title="Spaltenbreite ziehen"
+          title={t("designer.resizeColumnWidth")}
           style={{ width: 12, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}
         >
           <div style={{
@@ -1536,11 +1558,11 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
         {/* Titelleiste — immer klickbar, selektiert die Tabelle */}
         <div
           onClick={e => { e.stopPropagation(); onSelectParentBlock?.(); }}
-          title="Tabelle auswählen"
+          title={t("designer.selectTable")}
           style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 6px 3px", marginBottom: 4, cursor: "pointer", borderRadius: "4px 4px 0 0", background: isSelected ? "#1e1e0a" : "#161616", border: `1px solid ${isSelected ? "#fce49944" : "#222"}`, borderBottom: "none" }}
         >
           <i className="ti ti-table" style={{ fontSize: 11, color: isSelected ? "#fce499" : "#555" }} />
-          <span style={{ fontSize: 9, color: isSelected ? "#fce499" : "#555", textTransform: "uppercase", letterSpacing: ".5px", fontWeight: 600 }}>Tabelle</span>
+          <span style={{ fontSize: 9, color: isSelected ? "#fce499" : "#555", textTransform: "uppercase", letterSpacing: ".5px", fontWeight: 600 }}>{t("designer.blockTable")}</span>
           <span style={{ marginLeft: "auto", fontSize: 9, color: "#444" }}>{nRows} × {nCols}</span>
         </div>
 
@@ -1550,7 +1572,7 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
             <div key={ci} style={{ flex: 1, textAlign: "center" }}>
               {nCols > 1 && (
                 <button onClick={e => { e.stopPropagation(); onRemoveCol(ci); }} style={{ ...btnSm, background: "#2a1212", color: "#f87171" }}>
-                  × Sp.{ci + 1}
+                  × {t("designer.tableCol")}{ci + 1}
                 </button>
               )}
             </div>
@@ -1625,8 +1647,8 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
 
         {/* Add row / col */}
         <div style={{ display: "flex", gap: 6, marginTop: 6, paddingLeft: 26 }}>
-          <button onClick={e => { e.stopPropagation(); onAddRow(); }} style={{ padding: "3px 10px", background: "#1a1a1a", border: "1px dashed #333", borderRadius: 4, color: "#666", cursor: "pointer", fontSize: 11 }}>+ Zeile</button>
-          <button onClick={e => { e.stopPropagation(); onAddCol(); }} style={{ padding: "3px 10px", background: "#1a1a1a", border: "1px dashed #333", borderRadius: 4, color: "#666", cursor: "pointer", fontSize: 11 }}>+ Spalte</button>
+          <button onClick={e => { e.stopPropagation(); onAddRow(); }} style={{ padding: "3px 10px", background: "#1a1a1a", border: "1px dashed #333", borderRadius: 4, color: "#666", cursor: "pointer", fontSize: 11 }}>+ {t("designer.tableRow")}</button>
+          <button onClick={e => { e.stopPropagation(); onAddCol(); }} style={{ padding: "3px 10px", background: "#1a1a1a", border: "1px dashed #333", borderRadius: 4, color: "#666", cursor: "pointer", fontSize: 11 }}>+ {t("designer.tableColAdd")}</button>
         </div>
       </div>
     );
@@ -1637,6 +1659,7 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
 
 // ─── Main Designer ────────────────────────────────────────────────────────────
 export default function SignatureDesigner({ signature, onSave, onCancel, toast }) {
+  const { t } = useI18n();
   const [name, setName] = useState(signature?.name || "");
   const [isDefault, setIsDefault] = useState(signature?.is_default || false);
 
@@ -1652,7 +1675,7 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
       { id: 1, type: "divider",  props: { ...DEFAULT_PROPS.divider } },
       { id: 2, type: "columns",  props: { leftWidth: "50", leftBlocks: [], rightBlocks: [] } },
       { id: 3, type: "spacer",   props: { height: "8" } },
-      { id: 4, type: "text",     props: { ...DEFAULT_PROPS.text, content: "Meine Firma GmbH", fontWeight: "bold", fontSize: "13px" } },
+      { id: 4, type: "text",     props: { ...DEFAULT_PROPS.text, content: t("designer.defaultFirmName"), fontWeight: "bold", fontSize: "13px" } },
       { id: 5, type: "social",   props: { ...DEFAULT_PROPS.social } },
     ];
   });
@@ -1848,7 +1871,7 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
   }
 
   async function save() {
-    if (!name.trim()) { toast("err", "Bitte einen Namen eingeben"); return; }
+    if (!name.trim()) { toast("err", t("designer.toastNameRequired")); return; }
     setSaving(true);
     const html = htmlEdit ?? blocksToHTML(blocks, maxWidth, bgColor);
     const designerJson = JSON.stringify({ blocks: blocks.map(({ id, ...b }) => b), maxWidth, bgColor });
@@ -1868,22 +1891,22 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
       if (signature?.id) {
         const r = await fetch(API + `/api/signatures/${signature.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error(await r.text());
-        toast("ok", "Signatur gespeichert");
+        toast("ok", t("designer.toastSaved"));
       } else {
         const r = await fetch(API + "/api/signatures/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error(await r.text());
-        toast("ok", "Signatur erstellt");
+        toast("ok", t("designer.toastCreated"));
       }
       onSave();
-    } catch (e) { toast("err", "Fehler: " + e.message); }
+    } catch (e) { toast("err", t("designer.toastError") + e.message); }
     setSaving(false);
   }
 
-  const btnTab = (t) => ({
+  const btnTab = (tabKey) => ({
     padding: "4px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6,
     border: "none", cursor: "pointer", textTransform: "uppercase",
-    background: tab === t ? "#fce499" : "#222",
-    color: tab === t ? "#1a1a0a" : "#666",
+    background: tab === tabKey ? "#fce499" : "#222",
+    color: tab === tabKey ? "#1a1a0a" : "#666",
   });
 
   const isDragging = draggingType !== null || draggingId !== null;
@@ -1894,43 +1917,43 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <button onClick={onCancel} style={{ padding: "7px 12px", background: "transparent", border: "1px solid #2a2a2a", borderRadius: 7, color: "#888", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-            <i className="ti ti-arrow-left" /> Zurück
+            <i className="ti ti-arrow-left" /> {t("designer.back")}
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff", flex: 1 }}>Signatur-Designer</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff", flex: 1 }}>{t("designer.title")}</span>
           <div style={{ display: "flex", gap: 4 }}>
-            {["editor", "preview", "html"].map(t => <button key={t} style={btnTab(t)} onClick={() => setTab(t)}>{t === "html" ? "HTML" : t === "preview" ? "Vorschau" : "Editor"}</button>)}
+            {["editor", "preview", "html"].map(tabKey => <button key={tabKey} style={btnTab(tabKey)} onClick={() => setTab(tabKey)}>{tabKey === "html" ? "HTML" : tabKey === "preview" ? t("designer.tabPreview") : t("designer.tabEditor")}</button>)}
           </div>
           <button onClick={save} disabled={saving}
             style={{ padding: "8px 16px", background: "#fce499", color: "#1a1a0a", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-            <i className="ti ti-device-floppy" />{saving ? "Speichern..." : "Speichern"}
+            <i className="ti ti-device-floppy" />{saving ? t("designer.saving") : t("designer.save")}
           </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 130px auto", gap: 12, paddingBottom: 14, borderBottom: "1px solid #222" }}>
           <div>
-            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Name der Signatur</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="z.B. Standard Signatur Holdermann IT"
+            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("designer.signatureName")}</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder={t("designer.signatureNamePlaceholder")}
               style={{ width: "100%", padding: "8px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#e0e0e0", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Max. Breite (px)</label>
+            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("designer.maxWidthPx")}</label>
             <input type="number" value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value) || 600)} min={300} max={1200} step={10}
               style={{ width: "100%", padding: "8px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#e0e0e0", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Hintergrund</label>
+            <label style={{ display: "block", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>{t("designer.background")}</label>
             <div style={{ display: "flex", gap: 6, height: 37 }}>
               <input type="color" value={bgColor || "#ffffff"} onChange={e => setBgColor(e.target.value)}
                 style={{ width: 36, height: "100%", padding: 2, border: "1px solid #2a2a2a", borderRadius: 6, cursor: "pointer", background: "#1a1a1a", flexShrink: 0 }} />
               <button onClick={() => setBgColor(bgColor ? "" : "#ffffff")}
                 style={{ flex: 1, padding: "4px 8px", background: bgColor ? "#1a1a1a" : "#2a2a2a", border: "1px solid #2a2a2a", borderRadius: 6, color: bgColor ? "#555" : "#aaa", fontSize: 11, cursor: "pointer" }}>
-                {bgColor ? bgColor : "Transparent"}
+                {bgColor ? bgColor : t("designer.transparent")}
               </button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 2 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#777", cursor: "pointer", whiteSpace: "nowrap" }}>
               <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} />
-              Standard-Signatur
+              {t("designer.defaultSignature")}
             </label>
           </div>
         </div>
@@ -1951,9 +1974,9 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
           {htmlEdit !== null && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "6px 12px", background: "#1a1500", border: "1px solid #3a2a00", borderRadius: 7 }}>
               <i className="ti ti-pencil" style={{ color: "#fce499", fontSize: 13, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: "#888", flex: 1 }}>Manuell bearbeitet — Editor-Änderungen werden nicht mehr übernommen</span>
+              <span style={{ fontSize: 11, color: "#888", flex: 1 }}>{t("designer.htmlManuallyEdited")}</span>
               <button onClick={() => setHtmlEdit(null)} style={{ padding: "3px 10px", background: "transparent", border: "1px solid #444", borderRadius: 5, color: "#888", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>
-                Zurücksetzen
+                {t("designer.htmlReset")}
               </button>
             </div>
           )}
@@ -1974,9 +1997,9 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
             <button onClick={() => setShowTemplates(true)}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, padding: "7px 9px", fontSize: 12, border: "1px solid #fce49933", borderRadius: 6, background: "#1e1e0a", cursor: "pointer", color: "#fce499", marginBottom: 10, fontWeight: 600 }}>
               <i className="ti ti-template" style={{ fontSize: 13 }} />
-              Template laden
+              {t("designer.templateLoad")}
             </button>
-            <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 8, fontWeight: 600 }}>Elemente</div>
+            <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: ".8px", marginBottom: 8, fontWeight: 600 }}>{t("designer.elements")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {BLOCK_TYPES.map(bt => (
                 <button key={bt.type}
@@ -1986,11 +2009,11 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
                   onClick={() => addBlockAt(bt.type, blocks.length)}
                   style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 9px", fontSize: 12, border: "1px solid #222", borderRadius: 6, background: "#161616", cursor: "grab", textAlign: "left", color: "#aaa", width: "100%" }}>
                   <i className={`ti ${bt.icon}`} style={{ fontSize: 13, color: "#555" }} />
-                  {bt.label}
+                  {t(bt.label)}
                 </button>
               ))}
             </div>
-            <div style={{ marginTop: 8, fontSize: 10, color: "#333", lineHeight: "15px" }}>Klick = ans Ende<br />Drag = Position wählen</div>
+            <div style={{ marginTop: 8, fontSize: 10, color: "#333", lineHeight: "15px" }}>{t("designer.paletteHint")}</div>
           </div>
 
           {/* Template picker modal */}
@@ -2001,8 +2024,8 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
                 onClick={e => e.stopPropagation()}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>Signatur-Template wählen</div>
-                    <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Ersetzt die aktuellen Elemente — Name und Einstellungen bleiben erhalten</div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>{t("designer.templatePickerTitle")}</div>
+                    <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>{t("designer.templatePickerSubtitle")}</div>
                   </div>
                   <button onClick={() => setShowTemplates(false)}
                     style={{ width: 32, height: 32, border: "1px solid #2a2a2a", borderRadius: 7, background: "transparent", color: "#888", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
@@ -2031,7 +2054,7 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
               {blocks.length === 0 && !isDragging && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 150, color: "#444", fontSize: 13, flexDirection: "column", gap: 8 }}>
                   <i className="ti ti-drag-drop" style={{ fontSize: 28 }} />
-                  Elemente aus der Palette hinzufügen
+                  {t("designer.canvasEmpty")}
                 </div>
               )}
 
@@ -2123,7 +2146,7 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
                   <i className={`ti ${BLOCK_TYPES.find(b => b.type === selBlock.type)?.icon}`} style={{ fontSize: 14, color: "#666" }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#aaa" }}>{BLOCK_TYPES.find(b => b.type === selBlock.type)?.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#aaa" }}>{t(BLOCK_TYPES.find(b => b.type === selBlock.type)?.label)}</span>
                 </div>
                 <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 8, padding: 12 }}>
                   <PropEditor block={selBlock} onChange={np => updateProps(selBlock.id, np)}
@@ -2135,7 +2158,7 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
             ) : (
               <div style={{ padding: "24px 10px", textAlign: "center", color: "#444", fontSize: 12 }}>
                 <i className="ti ti-click" style={{ fontSize: 24, display: "block", marginBottom: 6 }} />
-                Element auswählen
+                {t("designer.selectElement")}
               </div>
             )}
           </div>
@@ -2143,9 +2166,9 @@ export default function SignatureDesigner({ signature, onSave, onCancel, toast }
       )}
 
       <div style={{ marginTop: 12, padding: "8px 12px", background: "#161616", borderRadius: 8, display: "flex", gap: 14, fontSize: 11, color: "#444" }}>
-        <span><i className="ti ti-layout-columns" style={{ marginRight: 3 }} />{blocks.length} Elemente</span>
-        <span><i className="ti ti-arrows-left-right" style={{ marginRight: 3 }} />Max. Breite: {maxWidth}px</span>
-        <span><i className="ti ti-chart-bar" style={{ marginRight: 3 }} />UTM-Tracking verfügbar in Link & Social</span>
+        <span><i className="ti ti-layout-columns" style={{ marginRight: 3 }} />{blocks.length} {t("designer.statusElements")}</span>
+        <span><i className="ti ti-arrows-left-right" style={{ marginRight: 3 }} />{t("designer.statusMaxWidth")}: {maxWidth}px</span>
+        <span><i className="ti ti-chart-bar" style={{ marginRight: 3 }} />{t("designer.statusUtm")}</span>
       </div>
     </div>
   );

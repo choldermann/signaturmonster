@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "../AppContext.jsx";
 
 const API = "";
 
@@ -24,17 +25,17 @@ const Icon = ({ name, size = 18, style = {} }) => (
   <i className={`ti ti-${name}`} style={{ fontSize: size, ...style }} aria-hidden />
 );
 
-const inputStyle = { width: "100%", padding: "9px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 8, color: "#e0e0e0", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
-const btnPrimary = { padding: "9px 18px", background: "#fce499", color: "#1a1a0a", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
-const btnSecondary = { padding: "9px 18px", background: "transparent", color: "#888", border: "1px solid #2a2a2a", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
-const btnDanger = { padding: "7px 14px", background: "transparent", color: "#f87171", border: "1px solid #3a1a1a", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
+const inputStyle = { width: "100%", padding: "9px 12px", background: "var(--bg-input)", border: "1px solid var(--border-3)", borderRadius: 8, color: "var(--text-2)", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+const btnPrimary = { padding: "9px 18px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
+const btnSecondary = { padding: "9px 18px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border-3)", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
+const btnDanger = { padding: "7px 14px", background: "transparent", color: "var(--red-s)", border: "1px solid var(--red-bg)", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
 
 function Field({ label, children, hint }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>{label}</label>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>{label}</label>
       {children}
-      {hint && <div style={{ fontSize: 11, color: "#444", marginTop: 4 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }
@@ -46,6 +47,7 @@ const EMPTY_FORM = {
 };
 
 export default function SelfServicePage({ toast }) {
+  const { t } = useI18n();
   const [profile, setProfile] = useState(undefined); // undefined = loading
   const [unclaimed, setUnclaimed] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -98,7 +100,7 @@ export default function SelfServicePage({ toast }) {
   async function claim(senderId) {
     try {
       await api("POST", `/api/senders/me/claim/${senderId}`);
-      toast("ok", "Profil verknüpft");
+      toast("ok", t("selfservice.toastClaimed"));
       loadProfile();
     } catch (e) {
       toast("err", e.message);
@@ -106,10 +108,10 @@ export default function SelfServicePage({ toast }) {
   }
 
   async function releaseClaim() {
-    if (!confirm("Verknüpfung wirklich aufheben? Du kannst danach ein anderes Profil wählen.")) return;
+    if (!confirm(t("selfservice.confirmRelease"))) return;
     try {
       await api("DELETE", "/api/senders/me/claim");
-      toast("ok", "Verknüpfung aufgehoben");
+      toast("ok", t("selfservice.toastReleased"));
       setProfile(null);
       setForm(EMPTY_FORM);
       setDirty(false);
@@ -125,7 +127,7 @@ export default function SelfServicePage({ toast }) {
       const updated = await api("PUT", "/api/senders/me", form);
       setProfile(updated);
       setDirty(false);
-      toast("ok", "Profil gespeichert");
+      toast("ok", t("selfservice.toastSaved"));
     } catch (e) {
       toast("err", e.message);
     }
@@ -145,12 +147,12 @@ export default function SelfServicePage({ toast }) {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
-      if (!r.ok) throw new Error("Upload fehlgeschlagen");
+      if (!r.ok) throw new Error(t("selfservice.uploadFailed"));
       const img = await r.json();
       const url = `/api/images/${img.id}/serve`;
       setForm(f => ({ ...f, photo_url: url }));
       setDirty(true);
-      toast("ok", "Foto hochgeladen");
+      toast("ok", t("selfservice.toastPhotoUploaded"));
     } catch (e) {
       toast("err", e.message);
     }
@@ -158,61 +160,61 @@ export default function SelfServicePage({ toast }) {
   }
 
   if (profile === undefined) {
-    return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
+    return <div style={{ color: "var(--text-5)", padding: 40 }}>{t("common.loading")}</div>;
   }
 
   return (
     <div style={{ maxWidth: 760 }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Mein Profil</h1>
-        <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-          Deine Kontaktdaten werden automatisch in Signaturen eingesetzt.
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("selfservice.title")}</h1>
+        <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>
+          {t("selfservice.subtitle")}
         </p>
       </div>
 
       {/* ── Kein Profil verknüpft ──────────────────────────────────── */}
       {profile === null && (
         <>
-          <div style={{ padding: "16px 20px", background: "#1a1a1a", border: "1px solid #fce49933", borderRadius: 10, marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <Icon name="info-circle" size={16} style={{ color: "#fce499", marginTop: 2, flexShrink: 0 }} />
+          <div style={{ padding: "16px 20px", background: "var(--bg-input)", border: "1px solid var(--blue-bd)", borderRadius: 10, marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <Icon name="info-circle" size={16} style={{ color: "var(--accent)", marginTop: 2, flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#fce499" }}>Noch kein Profil verknüpft</div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 3, lineHeight: "18px" }}>
-                Wähle unten deine E-Mail-Adresse aus, um dein Sender-Profil zu verwalten. Deine Angaben werden dann automatisch in ausgehende Mails eingesetzt.
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>{t("selfservice.noProfileTitle")}</div>
+              <div style={{ fontSize: 12, color: "var(--text-5)", marginTop: 3, lineHeight: "18px" }}>
+                {t("selfservice.noProfileHint")}
               </div>
             </div>
           </div>
 
           {unclaimed.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "50px 20px", color: "#444" }}>
+            <div style={{ textAlign: "center", padding: "50px 20px", color: "var(--text-6)" }}>
               <Icon name="at" size={36} style={{ display: "block", margin: "0 auto 12px" }} />
-              <div style={{ fontSize: 14, color: "#555" }}>Keine offenen Profile verfügbar</div>
-              <div style={{ fontSize: 12, color: "#333", marginTop: 6 }}>
-                Ein Administrator muss zuerst ein Sender-Profil für deine E-Mail-Adresse anlegen.
+              <div style={{ fontSize: 14, color: "var(--text-5)" }}>{t("selfservice.noUnclaimedTitle")}</div>
+              <div style={{ fontSize: 12, color: "var(--text-7)", marginTop: 6 }}>
+                {t("selfservice.noUnclaimedHint")}
               </div>
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 12 }}>
-                Verfügbare Profile — wähle deines:
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 12 }}>
+                {t("selfservice.availableProfiles")}
               </div>
               {unclaimed.map(s => (
-                <div key={s.id} style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "14px 18px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                <div key={s.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "14px 18px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--bg-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
                     {s.photo_url
                       ? <img src={s.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; }} />
-                      : <Icon name="user" size={16} style={{ color: "#444" }} />
+                      : <Icon name="user" size={16} style={{ color: "var(--text-6)" }} />
                     }
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)" }}>
                       {s.first_name || s.last_name ? `${s.first_name} ${s.last_name}`.trim() : "—"}
-                      {s.job_title && <span style={{ fontSize: 11, color: "#555", fontWeight: 400, marginLeft: 8 }}>{s.job_title}</span>}
+                      {s.job_title && <span style={{ fontSize: 11, color: "var(--text-5)", fontWeight: 400, marginLeft: 8 }}>{s.job_title}</span>}
                     </div>
-                    <div style={{ fontSize: 12, color: "#555", marginTop: 2, fontFamily: "monospace" }}>{s.email}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-5)", marginTop: 2, fontFamily: "monospace" }}>{s.email}</div>
                   </div>
                   <button style={{ ...btnPrimary, padding: "7px 14px", fontSize: 12 }} onClick={() => claim(s.id)}>
-                    <Icon name="link" size={13} /> Verknüpfen
+                    <Icon name="link" size={13} /> {t("selfservice.btnClaim")}
                   </button>
                 </div>
               ))}
@@ -225,34 +227,34 @@ export default function SelfServicePage({ toast }) {
       {profile && (
         <>
           {/* Header: E-Mail + Verknüpfung aufheben */}
-          <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--bg-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
               {form.photo_url
                 ? <img src={form.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; }} />
-                : <Icon name="user" size={16} style={{ color: "#444" }} />
+                : <Icon name="user" size={16} style={{ color: "var(--text-6)" }} />
               }
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#ddd" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)" }}>
                 {form.first_name || form.last_name ? `${form.first_name} ${form.last_name}`.trim() : "—"}
               </div>
-              <div style={{ fontSize: 12, color: "#555", fontFamily: "monospace" }}>{profile.email}</div>
+              <div style={{ fontSize: 12, color: "var(--text-5)", fontFamily: "monospace" }}>{profile.email}</div>
             </div>
             <button style={btnDanger} onClick={releaseClaim}>
-              <Icon name="unlink" size={13} /> Verknüpfung aufheben
+              <Icon name="unlink" size={13} /> {t("selfservice.btnRelease")}
             </button>
           </div>
 
           {/* Foto-Upload */}
-          <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="photo" size={13} style={{ color: "#fce499" }} /> Profilfoto
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="photo" size={13} style={{ color: "var(--accent)" }} /> {t("selfservice.sectionPhoto")}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#111", border: "2px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--bg-nav)", border: "2px solid var(--border-3)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
                 {form.photo_url
                   ? <img src={form.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; }} />
-                  : <Icon name="user" size={28} style={{ color: "#333" }} />
+                  : <Icon name="user" size={28} style={{ color: "var(--text-7)" }} />
                 }
               </div>
               <div style={{ flex: 1 }}>
@@ -263,20 +265,20 @@ export default function SelfServicePage({ toast }) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button style={{ ...btnSecondary, padding: "7px 14px", fontSize: 12 }} onClick={() => photoInputRef.current?.click()} disabled={uploading}>
                     <Icon name={uploading ? "loader-2" : "upload"} size={13} />
-                    {uploading ? "Lade hoch..." : "Foto hochladen"}
+                    {uploading ? t("selfservice.uploading") : t("selfservice.btnUploadPhoto")}
                   </button>
                   {form.photo_url && (
                     <button style={{ ...btnDanger, padding: "7px 14px" }} onClick={() => { setForm(f => ({ ...f, photo_url: "" })); setDirty(true); }}>
-                      <Icon name="x" size={13} /> Entfernen
+                      <Icon name="x" size={13} /> {t("selfservice.btnRemovePhoto")}
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>
-                  JPG, PNG oder GIF · max. 5 MB
+                <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 6 }}>
+                  {t("selfservice.photoHint")}
                 </div>
                 {form.photo_url && (
                   <div style={{ marginTop: 8 }}>
-                    <Field label="Foto-URL">
+                    <Field label={t("selfservice.fieldPhotoUrl")}>
                       <input style={{ ...inputStyle, fontSize: 11, fontFamily: "monospace" }} value={form.photo_url} onChange={e => handleChange("photo_url", e.target.value)} placeholder="https://..." />
                     </Field>
                   </div>
@@ -286,61 +288,61 @@ export default function SelfServicePage({ toast }) {
           </div>
 
           {/* Stammdaten */}
-          <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="id-badge-2" size={13} style={{ color: "#fce499" }} /> Stammdaten
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="id-badge-2" size={13} style={{ color: "var(--accent)" }} /> {t("selfservice.sectionBaseData")}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Vorname">
+              <Field label={t("selfservice.fieldFirstName")}>
                 <input style={inputStyle} value={form.first_name} onChange={e => handleChange("first_name", e.target.value)} placeholder="Max" />
               </Field>
-              <Field label="Nachname">
+              <Field label={t("selfservice.fieldLastName")}>
                 <input style={inputStyle} value={form.last_name} onChange={e => handleChange("last_name", e.target.value)} placeholder="Mustermann" />
               </Field>
-              <Field label="Berufsbezeichnung">
+              <Field label={t("selfservice.fieldJobTitle")}>
                 <input style={inputStyle} value={form.job_title} onChange={e => handleChange("job_title", e.target.value)} placeholder="Geschäftsführer" />
               </Field>
-              <Field label="Firma">
+              <Field label={t("selfservice.fieldCompany")}>
                 <input style={inputStyle} value={form.company} onChange={e => handleChange("company", e.target.value)} placeholder="Mustermann GmbH" />
               </Field>
             </div>
           </div>
 
           {/* Kontaktdaten */}
-          <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="phone" size={13} style={{ color: "#fce499" }} /> Kontakt & Adresse
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="phone" size={13} style={{ color: "var(--accent)" }} /> {t("selfservice.sectionContact")}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Telefon">
+              <Field label={t("selfservice.fieldPhone")}>
                 <input style={inputStyle} value={form.phone} onChange={e => handleChange("phone", e.target.value)} placeholder="+49 89 123456" />
               </Field>
-              <Field label="Mobil">
+              <Field label={t("selfservice.fieldMobile")}>
                 <input style={inputStyle} value={form.mobile} onChange={e => handleChange("mobile", e.target.value)} placeholder="+49 170 123456" />
               </Field>
-              <Field label="Straße & Hausnummer">
+              <Field label={t("selfservice.fieldStreet")}>
                 <input style={inputStyle} value={form.street} onChange={e => handleChange("street", e.target.value)} placeholder="Musterstraße 1" />
               </Field>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
-                <Field label="PLZ">
+                <Field label={t("selfservice.fieldPostalCode")}>
                   <input style={inputStyle} value={form.postal_code} onChange={e => handleChange("postal_code", e.target.value)} placeholder="12345" />
                 </Field>
-                <Field label="Ort">
+                <Field label={t("selfservice.fieldCity")}>
                   <input style={inputStyle} value={form.city} onChange={e => handleChange("city", e.target.value)} placeholder="München" />
                 </Field>
               </div>
-              <Field label="Land">
+              <Field label={t("selfservice.fieldCountry")}>
                 <input style={inputStyle} value={form.country} onChange={e => handleChange("country", e.target.value)} placeholder="Deutschland" />
               </Field>
             </div>
           </div>
 
           {/* Variablen-Referenz */}
-          <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
-            <div style={{ fontSize: 11, color: "#444", marginBottom: 8 }}>Verfügbare Variablen in Signaturen:</div>
+          <div style={{ background: "var(--bg-nav)", border: "1px solid var(--border-1)", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "var(--text-6)", marginBottom: 8 }}>{t("selfservice.variablesHint")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {["{{vorname}}", "{{nachname}}", "{{name}}", "{{email}}", "{{berufsbezeichnung}}", "{{firma}}", "{{telefon}}", "{{mobil}}", "{{strasse}}", "{{plz}}", "{{ort}}", "{{land}}", "{{adresse}}", "{{foto}}"].map(v => (
-                <code key={v} style={{ fontSize: 11, background: "#1a1a1a", color: "#fce499", padding: "2px 7px", borderRadius: 4, border: "1px solid #2a2a00" }}>{v}</code>
+                <code key={v} style={{ fontSize: 11, background: "var(--bg-input)", color: "var(--accent)", padding: "2px 7px", borderRadius: 4, border: "1px solid var(--accent-bg)" }}>{v}</code>
               ))}
             </div>
           </div>
@@ -349,7 +351,7 @@ export default function SelfServicePage({ toast }) {
           <div style={{ display: "flex", gap: 10 }}>
             <button style={{ ...btnPrimary, opacity: dirty ? 1 : 0.5 }} onClick={save} disabled={saving || !dirty}>
               <Icon name={saving ? "loader-2" : "device-floppy"} size={15} />
-              {saving ? "Speichere..." : "Änderungen speichern"}
+              {saving ? t("common.saving") : t("selfservice.btnSaveChanges")}
             </button>
             {dirty && (
               <button style={btnSecondary} onClick={() => {
@@ -363,7 +365,7 @@ export default function SelfServicePage({ toast }) {
                 });
                 setDirty(false);
               }}>
-                Zurücksetzen
+                {t("selfservice.btnReset")}
               </button>
             )}
           </div>

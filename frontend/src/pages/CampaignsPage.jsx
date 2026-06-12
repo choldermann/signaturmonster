@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useI18n } from "../AppContext.jsx";
 
 const API = "";
 async function api(method, path, body) {
@@ -12,10 +13,10 @@ async function api(method, path, body) {
 }
 
 const Icon = ({ name, size = 16, style = {} }) => <i className={`ti ti-${name}`} style={{ fontSize: size, ...style }} aria-hidden />;
-const btnPrimary   = { padding: "8px 16px", background: "#fce499", color: "#1a1a0a", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
-const btnSecondary = { padding: "8px 16px", background: "transparent", color: "#888", border: "1px solid #2a2a2a", borderRadius: 8, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
-const btnDanger    = { padding: "6px 10px", background: "transparent", color: "#f87171", border: "1px solid #3a1a1a", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
-const iStyle       = { width: "100%", padding: "7px 10px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: "#ddd", fontSize: 12, boxSizing: "border-box" };
+const btnPrimary   = { padding: "8px 16px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
+const btnSecondary = { padding: "8px 16px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border-3)", borderRadius: 8, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
+const btnDanger    = { padding: "6px 10px", background: "transparent", color: "var(--red-s)", border: "1px solid var(--red-bg)", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
+const iStyle       = { width: "100%", padding: "7px 10px", background: "var(--bg-nav)", border: "1px solid var(--border-3)", borderRadius: 6, color: "var(--text-2)", fontSize: 12, boxSizing: "border-box" };
 
 function campaignStatus(c) {
   const now = new Date();
@@ -26,16 +27,17 @@ function campaignStatus(c) {
 }
 
 function StatusBadge({ c }) {
+  const { t } = useI18n();
   const status = campaignStatus(c);
   const cfg = {
-    active:  { bg: "#0a1f14", color: "#6ee7b7", border: "#064e3b", label: "Aktiv" },
-    paused:  { bg: "#1a1a1a", color: "#888",    border: "#2a2a2a", label: "Pausiert" },
-    expired: { bg: "#1f0a0a", color: "#f87171", border: "#3a1a1a", label: "Abgelaufen" },
-    pending: { bg: "#1a1400", color: "#fcd34d", border: "#78600a", label: "Noch nicht gestartet" },
+    active:  { bg: "var(--green-bg)",  color: "var(--green)",  border: "var(--green-bd)", labelKey: "common.active" },
+    paused:  { bg: "var(--bg-input)",  color: "var(--text-3)", border: "var(--border-3)", labelKey: "campaigns.statusPaused" },
+    expired: { bg: "var(--red-bg)",    color: "var(--red-s)",  border: "var(--red-bg)",   labelKey: "campaigns.statusExpired" },
+    pending: { bg: "#1a1400",          color: "#fcd34d",       border: "var(--accent-bd)", labelKey: "campaigns.statusPending" },
   }[status];
   return (
     <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-      {cfg.label}
+      {t(cfg.labelKey)}
     </span>
   );
 }
@@ -47,6 +49,7 @@ const EMPTY = {
 };
 
 function ImagePicker({ value, onChange }) {
+  const { t } = useI18n();
   const [images, setImages] = useState([]);
   const [open, setOpen]     = useState(false);
   const [selected, setSelected] = useState(null);
@@ -65,14 +68,14 @@ function ImagePicker({ value, onChange }) {
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         {selected ? (
           <img src={`/api/images/${selected.id}/thumb`} alt={selected.name}
-            style={{ width: 80, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid #2a2a2a" }} />
+            style={{ width: 80, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border-3)" }} />
         ) : (
-          <div style={{ width: 80, height: 40, background: "#111", borderRadius: 6, border: "1px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="photo-off" size={16} style={{ color: "#444" }} />
+          <div style={{ width: 80, height: 40, background: "var(--bg-nav)", borderRadius: 6, border: "1px solid var(--border-3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="photo-off" size={16} style={{ color: "var(--text-6)" }} />
           </div>
         )}
         <button type="button" style={btnSecondary} onClick={() => setOpen(true)}>
-          <Icon name="photo" size={13} />{selected ? "Bild wechseln" : "Bild wählen"}
+          <Icon name="photo" size={13} />{selected ? t("campaigns.imageChange") : t("campaigns.imageSelect")}
         </button>
         {selected && (
           <button type="button" style={btnDanger} onClick={() => onChange(null)}>
@@ -83,23 +86,23 @@ function ImagePicker({ value, onChange }) {
 
       {open && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#161616", border: "1px solid #2a2a2a", borderRadius: 14, padding: 24, width: 640, maxWidth: "95vw", maxHeight: "80vh", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-3)", borderRadius: 14, padding: 24, width: 640, maxWidth: "95vw", maxHeight: "80vh", display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, color: "#fff", fontSize: 15 }}>Bild aus Bibliothek wählen</span>
-              <button style={btnSecondary} onClick={() => setOpen(false)}>Schließen</button>
+              <span style={{ fontWeight: 700, color: "var(--text-1)", fontSize: 15 }}>{t("campaigns.imagePickerTitle")}</span>
+              <button style={btnSecondary} onClick={() => setOpen(false)}>{t("campaigns.imagePickerClose")}</button>
             </div>
             <div style={{ overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
               {images.map(img => (
                 <div key={img.id} onClick={() => { onChange(img.id); setOpen(false); }}
-                  style={{ cursor: "pointer", borderRadius: 8, border: `2px solid ${value === img.id ? "#fce499" : "#2a2a2a"}`, overflow: "hidden", background: "#111" }}>
+                  style={{ cursor: "pointer", borderRadius: 8, border: `2px solid ${value === img.id ? "var(--accent)" : "var(--border-3)"}`, overflow: "hidden", background: "var(--bg-nav)" }}>
                   <img src={`/api/images/${img.id}/thumb`} alt={img.name}
                     style={{ width: "100%", height: 80, objectFit: "cover", display: "block" }} />
-                  <div style={{ padding: "5px 8px", fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
+                  <div style={{ padding: "5px 8px", fontSize: 11, color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
                 </div>
               ))}
               {images.length === 0 && (
-                <div style={{ gridColumn: "1/-1", color: "#555", fontSize: 13, padding: 20, textAlign: "center" }}>
-                  Noch keine Bilder. Lade Bilder in der Bildbibliothek hoch.
+                <div style={{ gridColumn: "1/-1", color: "var(--text-5)", fontSize: 13, padding: 20, textAlign: "center" }}>
+                  {t("campaigns.imagePickerEmpty")}
                 </div>
               )}
             </div>
@@ -113,13 +116,14 @@ function ImagePicker({ value, onChange }) {
 function F({ label, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <label style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</label>
+      <label style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</label>
       {children}
     </div>
   );
 }
 
 function CampaignForm({ initial, onSave, onCancel }) {
+  const { t } = useI18n();
   const [form, setForm] = useState(initial || EMPTY);
 
   function u(k, v) { setForm(f => ({ ...f, [k]: v })); }
@@ -137,43 +141,43 @@ function CampaignForm({ initial, onSave, onCancel }) {
   }
 
   return (
-    <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 12, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 700, color: "#fff", fontSize: 14 }}>{form.id ? "Kampagne bearbeiten" : "Neue Kampagne"}</span>
+        <span style={{ fontWeight: 700, color: "var(--text-1)", fontSize: 14 }}>{form.id ? t("campaigns.formEditTitle") : t("campaigns.formNewTitle")}</span>
         <div style={{ display: "flex", gap: 10 }}>
-          <button style={btnSecondary} onClick={onCancel}>Abbrechen</button>
-          <button style={btnPrimary} onClick={save}><Icon name="check" size={13} />Speichern</button>
+          <button style={btnSecondary} onClick={onCancel}>{t("common.cancel")}</button>
+          <button style={btnPrimary} onClick={save}><Icon name="check" size={13} />{t("common.save")}</button>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <F label="Name">
+        <F label={t("campaigns.fieldName")}>
           <input style={iStyle} value={form.name} onChange={e => u("name", e.target.value)} placeholder="z.B. Sommer-Aktion 2026" />
         </F>
-        <F label="Status">
+        <F label={t("campaigns.fieldStatus")}>
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", paddingTop: 6 }}>
             <input type="checkbox" checked={form.is_active} onChange={e => u("is_active", e.target.checked)} />
-            <span style={{ fontSize: 13, color: "#ccc" }}>Aktiv</span>
+            <span style={{ fontSize: 13, color: "var(--text-2)" }}>{t("common.active")}</span>
           </label>
         </F>
-        <F label="Startdatum (optional)">
+        <F label={t("campaigns.fieldStartDate")}>
           <input type="datetime-local" style={iStyle} value={form.start_date || ""} onChange={e => u("start_date", e.target.value)} />
         </F>
-        <F label="Enddatum (optional)">
+        <F label={t("campaigns.fieldEndDate")}>
           <input type="datetime-local" style={iStyle} value={form.end_date || ""} onChange={e => u("end_date", e.target.value)} />
         </F>
       </div>
 
-      <F label="Banner-Bild (aus Bildbibliothek)">
+      <F label={t("campaigns.fieldBannerImage")}>
         <ImagePicker value={form.image_asset_id} onChange={v => u("image_asset_id", v)} />
       </F>
 
-      <F label="Ziel-URL">
+      <F label={t("campaigns.fieldTargetUrl")}>
         <input style={iStyle} value={form.link_url} onChange={e => u("link_url", e.target.value)} placeholder="https://beispiel.de/landingpage" />
       </F>
 
-      <div style={{ background: "#111", borderRadius: 8, padding: "12px 14px" }}>
-        <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>UTM-Parameter</div>
+      <div style={{ background: "var(--bg-nav)", borderRadius: 8, padding: "12px 14px" }}>
+        <div style={{ fontSize: 11, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>UTM-Parameter</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <F label="utm_source"><input style={iStyle} value={form.utm_source} onChange={e => u("utm_source", e.target.value)} placeholder="email" /></F>
           <F label="utm_medium"><input style={iStyle} value={form.utm_medium} onChange={e => u("utm_medium", e.target.value)} placeholder="email" /></F>
@@ -186,6 +190,7 @@ function CampaignForm({ initial, onSave, onCancel }) {
 }
 
 export default function CampaignsPage({ toast }) {
+  const { t } = useI18n();
   const [campaigns, setCampaigns]     = useState([]);
   const [editing, setEditing]         = useState(null);   // null | {} | campaign
   const [serverUrl, setServerUrl]     = useState("");
@@ -211,11 +216,11 @@ export default function CampaignsPage({ toast }) {
     await api("PUT", "/api/settings/signaturmonster_url", { value: urlInput });
     setServerUrl(urlInput);
     setEditingUrl(false);
-    toast?.("ok", "Server-URL gespeichert");
+    toast?.("ok", t("campaigns.toastUrlSaved"));
   }
 
   async function deleteCampaign(id) {
-    if (!confirm("Kampagne wirklich löschen?")) return;
+    if (!confirm(t("campaigns.confirmDelete"))) return;
     await api("DELETE", `/api/campaigns/${id}`);
     load();
   }
@@ -226,28 +231,28 @@ export default function CampaignsPage({ toast }) {
     <div>
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Kampagnen</h1>
-          <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-            Zeitgesteuerte Banner in E-Mail-Signaturen. Aktive Kampagnen werden per Zufalls-Rotation ausgewählt.
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("campaigns.title")}</h1>
+          <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>
+            {t("campaigns.subtitle")}
           </p>
         </div>
         <button style={btnPrimary} onClick={() => setEditing(EMPTY)}>
-          <Icon name="plus" size={14} />Neue Kampagne
+          <Icon name="plus" size={14} />{t("campaigns.btnNew")}
         </button>
       </div>
 
       {/* Server-URL Konfiguration */}
-      <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 12, padding: "14px 20px", marginBottom: 20 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, padding: "14px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: editingUrl ? 10 : 0 }}>
-          <Icon name="world" size={14} style={{ color: "#fce499" }} />
-          <span style={{ fontSize: 13, color: "#ccc", fontWeight: 600 }}>Öffentliche Server-URL</span>
+          <Icon name="world" size={14} style={{ color: "var(--accent)" }} />
+          <span style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 600 }}>{t("campaigns.serverUrlLabel")}</span>
           {!editingUrl && (
             <>
-              <span style={{ fontSize: 12, color: serverUrl ? "#6ee7b7" : "#555", fontFamily: "monospace", marginLeft: 6 }}>
-                {serverUrl || "nicht konfiguriert"}
+              <span style={{ fontSize: 12, color: serverUrl ? "var(--green)" : "var(--text-5)", fontFamily: "monospace", marginLeft: 6 }}>
+                {serverUrl || t("campaigns.serverUrlNotSet")}
               </span>
               <button style={{ ...btnSecondary, padding: "4px 10px", fontSize: 12, marginLeft: "auto" }} onClick={() => { setEditingUrl(true); setUrlInput(serverUrl); }}>
-                <Icon name="edit" size={12} />Bearbeiten
+                <Icon name="edit" size={12} />{t("common.edit")}
               </button>
             </>
           )}
@@ -256,25 +261,25 @@ export default function CampaignsPage({ toast }) {
           <div style={{ display: "flex", gap: 10 }}>
             <input style={{ ...iStyle, flex: 1 }} value={urlInput} onChange={e => setUrlInput(e.target.value)}
               placeholder="https://signaturmonster.dein-server.de" />
-            <button style={btnPrimary} onClick={saveUrl}><Icon name="check" size={13} />Speichern</button>
-            <button style={btnSecondary} onClick={() => setEditingUrl(false)}>Abbrechen</button>
+            <button style={btnPrimary} onClick={saveUrl}><Icon name="check" size={13} />{t("common.save")}</button>
+            <button style={btnSecondary} onClick={() => setEditingUrl(false)}>{t("common.cancel")}</button>
           </div>
         )}
         {!editingUrl && (
-          <p style={{ fontSize: 11, color: "#444", margin: "6px 0 0" }}>
-            Benötigt für Klick-Tracking-Links in E-Mails. Muss von E-Mail-Empfängern erreichbar sein.
+          <p style={{ fontSize: 11, color: "var(--text-6)", margin: "6px 0 0" }}>
+            {t("campaigns.serverUrlHint")}
           </p>
         )}
       </div>
 
       {/* Template-Hinweis */}
-      <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <Icon name="info-circle" size={15} style={{ color: "#93c5fd", marginTop: 2, flexShrink: 0 }} />
+      <div style={{ background: "var(--bg-nav)", border: "1px solid var(--border-1)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <Icon name="info-circle" size={15} style={{ color: "var(--blue)", marginTop: 2, flexShrink: 0 }} />
         <div>
-          <span style={{ fontSize: 13, color: "#93c5fd", fontWeight: 600 }}>Integration in Signaturen: </span>
-          <span style={{ fontSize: 13, color: "#888" }}>Füge </span>
-          <code style={{ fontSize: 12, background: "#1a1a1a", padding: "1px 6px", borderRadius: 4, color: "#fce499", border: "1px solid #2a2a2a" }}>{"{{"} campaign_banner {"}}"}</code>
-          <span style={{ fontSize: 13, color: "#888" }}> in den HTML-Teil deiner Signatur ein. Bei jeder E-Mail wird automatisch eine zufällige aktive Kampagne eingesetzt.</span>
+          <span style={{ fontSize: 13, color: "var(--blue)", fontWeight: 600 }}>{t("campaigns.integrationLabel")} </span>
+          <span style={{ fontSize: 13, color: "var(--text-3)" }}>{t("campaigns.integrationPre")} </span>
+          <code style={{ fontSize: 12, background: "var(--bg-input)", padding: "1px 6px", borderRadius: 4, color: "var(--accent)", border: "1px solid var(--border-3)" }}>{"{{"} campaign_banner {"}}"}</code>
+          <span style={{ fontSize: 13, color: "var(--text-3)" }}> {t("campaigns.integrationPost")}</span>
         </div>
       </div>
 
@@ -287,47 +292,47 @@ export default function CampaignsPage({ toast }) {
 
       {/* Kampagnen-Liste */}
       {campaigns.length === 0 && !editing ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "#444", fontSize: 14 }}>
-          Noch keine Kampagnen. Erstelle die erste!
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-6)", fontSize: 14 }}>
+          {t("campaigns.empty")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {campaigns.map(c => (
-            <div key={c.id} style={{ background: "#161616", border: "1px solid #222", borderRadius: 12, padding: "14px 20px" }}>
+            <div key={c.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, padding: "14px 20px" }}>
               <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
                 {/* Vorschau */}
                 {c.image_asset_id ? (
                   <img src={`/api/images/${c.image_asset_id}/thumb`} alt=""
-                    style={{ width: 90, height: 50, objectFit: "cover", borderRadius: 8, border: "1px solid #2a2a2a", flexShrink: 0 }} />
+                    style={{ width: 90, height: 50, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border-3)", flexShrink: 0 }} />
                 ) : (
-                  <div style={{ width: 90, height: 50, background: "#111", borderRadius: 8, border: "1px dashed #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon name="photo-off" size={16} style={{ color: "#333" }} />
+                  <div style={{ width: 90, height: 50, background: "var(--bg-nav)", borderRadius: 8, border: "1px dashed var(--border-3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name="photo-off" size={16} style={{ color: "var(--text-7)" }} />
                   </div>
                 )}
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 700, color: "#fff", fontSize: 14 }}>{c.name}</span>
+                    <span style={{ fontWeight: 700, color: "var(--text-1)", fontSize: 14 }}>{c.name}</span>
                     <StatusBadge c={c} />
                   </div>
                   <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                     {(c.start_date || c.end_date) && (
-                      <span style={{ fontSize: 12, color: "#555", display: "flex", gap: 5, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: "var(--text-5)", display: "flex", gap: 5, alignItems: "center" }}>
                         <Icon name="calendar" size={12} />
                         {c.start_date ? new Date(c.start_date).toLocaleDateString("de-DE") : "∞"}
                         {" → "}
                         {c.end_date   ? new Date(c.end_date).toLocaleDateString("de-DE") : "∞"}
                       </span>
                     )}
-                    <span style={{ fontSize: 12, color: "#555", display: "flex", gap: 5, alignItems: "center" }}>
-                      <Icon name="eye" size={12} />{c.impression_count || 0} Impressions
+                    <span style={{ fontSize: 12, color: "var(--text-5)", display: "flex", gap: 5, alignItems: "center" }}>
+                      <Icon name="eye" size={12} />{c.impression_count || 0} {t("campaigns.impressions")}
                     </span>
-                    <span style={{ fontSize: 12, color: "#555", display: "flex", gap: 5, alignItems: "center" }}>
-                      <Icon name="cursor-text" size={12} />{c.click_count || 0} Klicks
+                    <span style={{ fontSize: 12, color: "var(--text-5)", display: "flex", gap: 5, alignItems: "center" }}>
+                      <Icon name="cursor-text" size={12} />{c.click_count || 0} {t("campaigns.clicks")}
                     </span>
                     {c.link_url && (
-                      <span style={{ fontSize: 12, color: "#444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
                         → {c.link_url}
                       </span>
                     )}
@@ -337,7 +342,7 @@ export default function CampaignsPage({ toast }) {
                 {/* Aktionen */}
                 <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                   <button style={btnSecondary} onClick={() => setEditing(c)}>
-                    <Icon name="edit" size={13} />Bearbeiten
+                    <Icon name="edit" size={13} />{t("common.edit")}
                   </button>
                   <button style={btnDanger} onClick={() => deleteCampaign(c.id)}>
                     <Icon name="trash" size={13} />

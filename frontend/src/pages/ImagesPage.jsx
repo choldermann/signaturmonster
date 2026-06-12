@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useI18n } from "../AppContext.jsx";
 
 const Icon = ({ name, size = 18, style = {} }) => (
   <i className={`ti ti-${name}`} style={{ fontSize: size, ...style }} aria-hidden />
 );
 
-const btnPrimary   = { padding: "9px 18px", background: "#fce499", color: "#1a1a0a", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
-const btnSecondary = { padding: "7px 12px", background: "transparent", color: "#888", border: "1px solid #2a2a2a", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
-const btnDanger    = { padding: "7px 10px", background: "transparent", color: "#f87171", border: "1px solid #3a1a1a", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
+const btnPrimary   = { padding: "9px 18px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
+const btnSecondary = { padding: "7px 12px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border-3)", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
+const btnDanger    = { padding: "7px 10px", background: "transparent", color: "var(--red-s)", border: "1px solid var(--red-bg)", borderRadius: 7, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 };
 
 function formatBytes(b) {
   if (!b) return "—";
@@ -16,6 +17,7 @@ function formatBytes(b) {
 }
 
 export default function ImagesPage({ toast }) {
+  const { t } = useI18n();
   const [images, setImages]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [dragging, setDragging] = useState(false);
@@ -51,8 +53,8 @@ export default function ImagesPage({ toast }) {
       if (r.ok) ok++; else fail++;
     }
     setUploading(false);
-    if (ok)   toast("ok",  `${ok} Bild${ok > 1 ? "er" : ""} hochgeladen`);
-    if (fail) toast("err", `${fail} Upload${fail > 1 ? "s" : ""} fehlgeschlagen`);
+    if (ok)   toast("ok",  `${ok} ${t(ok > 1 ? "images.imagesUploaded" : "images.imageUploaded")}`);
+    if (fail) toast("err", `${fail} ${t(fail > 1 ? "images.uploadsFailed" : "images.uploadFailed")}`);
     load();
   }
 
@@ -63,7 +65,7 @@ export default function ImagesPage({ toast }) {
 
   async function del(id) {
     await fetch(`/api/images/${id}`, { method: "DELETE", headers });
-    toast("ok", "Bild gelöscht");
+    toast("ok", t("images.imageDeleted"));
     load();
   }
 
@@ -84,16 +86,16 @@ export default function ImagesPage({ toast }) {
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  if (loading) return <div style={{ color: "#555", padding: 40 }}>Lade...</div>;
+  if (loading) return <div style={{ color: "var(--text-5)", padding: 40 }}>{t("common.loading")}</div>;
 
   return (
     <div>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Bildbibliothek</h1>
-          <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-            Bilder hochladen, verwalten und in Signaturen oder Bannern verwenden.
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("images.title")}</h1>
+          <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>
+            {t("images.subtitle")}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -101,7 +103,7 @@ export default function ImagesPage({ toast }) {
             onChange={e => uploadFiles([...e.target.files])} />
           <button style={btnPrimary} onClick={() => fileRef.current?.click()} disabled={uploading}>
             <Icon name={uploading ? "loader" : "upload"} size={15} />
-            {uploading ? "Lade hoch…" : "Bilder hochladen"}
+            {uploading ? t("images.uploading") : t("images.uploadImages")}
           </button>
         </div>
       </div>
@@ -113,27 +115,27 @@ export default function ImagesPage({ toast }) {
         onDrop={onDrop}
         onClick={() => fileRef.current?.click()}
         style={{
-          border: `2px dashed ${dragging ? "#fce499" : "#2a2a2a"}`,
+          border: `2px dashed ${dragging ? "var(--accent)" : "var(--border-3)"}`,
           borderRadius: 12, padding: "28px 20px", textAlign: "center",
           marginBottom: 24, cursor: "pointer", transition: "border-color .15s",
-          background: dragging ? "#1a1800" : "transparent",
+          background: dragging ? "var(--accent-bg2)" : "transparent",
         }}
       >
-        <Icon name="photo-up" size={28} style={{ color: dragging ? "#fce499" : "#333", display: "block", margin: "0 auto 8px" }} />
-        <div style={{ fontSize: 13, color: dragging ? "#fce499" : "#444" }}>
-          {dragging ? "Loslassen zum Hochladen" : "Bilder hierher ziehen oder klicken"}
+        <Icon name="photo-up" size={28} style={{ color: dragging ? "var(--accent)" : "var(--text-7)", display: "block", margin: "0 auto 8px" }} />
+        <div style={{ fontSize: 13, color: dragging ? "var(--accent)" : "var(--text-6)" }}>
+          {dragging ? t("images.dropToUpload") : t("images.dragOrClick")}
         </div>
-        <div style={{ fontSize: 11, color: "#333", marginTop: 4 }}>
-          JPG, PNG, GIF, WEBP · Automatische Verkleinerung auf max. 1200 px
+        <div style={{ fontSize: 11, color: "var(--text-7)", marginTop: 4 }}>
+          {t("images.formatHint")}
         </div>
       </div>
 
       {/* Grid */}
       {images.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "50px 20px", color: "#444" }}>
+        <div style={{ textAlign: "center", padding: "50px 20px", color: "var(--text-6)" }}>
           <Icon name="photo" size={36} style={{ display: "block", margin: "0 auto 10px" }} />
-          <div style={{ fontSize: 14 }}>Noch keine Bilder</div>
-          <div style={{ fontSize: 12, color: "#333", marginTop: 6 }}>Lade dein erstes Bild hoch.</div>
+          <div style={{ fontSize: 14 }}>{t("images.noImages")}</div>
+          <div style={{ fontSize: 12, color: "var(--text-7)", marginTop: 6 }}>{t("images.noImagesHint")}</div>
         </div>
       ) : (
         <div style={{
@@ -143,11 +145,11 @@ export default function ImagesPage({ toast }) {
         }}>
           {images.map(img => (
             <div key={img.id} style={{
-              background: "#161616", border: "1px solid #222", borderRadius: 10,
+              background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 10,
               overflow: "hidden", display: "flex", flexDirection: "column",
             }}>
               {/* Thumbnail */}
-              <div style={{ height: 130, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
+              <div style={{ height: 130, background: "var(--bg-nav)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
                 <img
                   src={`/api/images/${img.id}/thumb`}
                   alt={img.name}
@@ -164,20 +166,20 @@ export default function ImagesPage({ toast }) {
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") saveRename(img.id); if (e.key === "Escape") setEditingId(null); }}
-                      style={{ flex: 1, padding: "4px 7px", background: "#1a1a1a", border: "1px solid #fce499", borderRadius: 5, color: "#e0e0e0", fontSize: 12, outline: "none" }}
+                      style={{ flex: 1, padding: "4px 7px", background: "var(--bg-input)", border: "1px solid var(--accent)", borderRadius: 5, color: "var(--text-2)", fontSize: 12, outline: "none" }}
                     />
                     <button onClick={() => saveRename(img.id)} style={{ ...btnPrimary, padding: "4px 8px", fontSize: 11 }}>✓</button>
                   </div>
                 ) : (
                   <div
-                    style={{ fontSize: 12, fontWeight: 600, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                    style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                     title={img.name}
                     onDoubleClick={() => { setEditingId(img.id); setEditName(img.name); }}
                   >
                     {img.name}
                   </div>
                 )}
-                <div style={{ fontSize: 10, color: "#444", marginTop: 4, display: "flex", gap: 8 }}>
+                <div style={{ fontSize: 10, color: "var(--text-6)", marginTop: 4, display: "flex", gap: 8 }}>
                   {img.width ? <span>{img.width}×{img.height}</span> : null}
                   <span>{formatBytes(img.file_size)}</span>
                 </div>
@@ -186,21 +188,21 @@ export default function ImagesPage({ toast }) {
               {/* Actions */}
               <div style={{ padding: "0 10px 10px", display: "flex", gap: 5 }}>
                 <button
-                  style={{ ...btnSecondary, flex: 1, justifyContent: "center", background: copiedId === img.id ? "#1a3a2a" : undefined, color: copiedId === img.id ? "#6ee7b7" : undefined }}
+                  style={{ ...btnSecondary, flex: 1, justifyContent: "center", background: copiedId === img.id ? "var(--green-bg)" : undefined, color: copiedId === img.id ? "var(--green)" : undefined }}
                   onClick={() => copyUrl(img.id)}
-                  title="URL kopieren"
+                  title={t("images.copyUrl")}
                 >
                   <Icon name={copiedId === img.id ? "check" : "link"} size={13} />
-                  {copiedId === img.id ? "Kopiert" : "URL"}
+                  {copiedId === img.id ? t("images.copied") : "URL"}
                 </button>
                 <button
                   style={{ ...btnSecondary, padding: "7px 9px" }}
                   onClick={() => { setEditingId(img.id); setEditName(img.name); }}
-                  title="Umbenennen"
+                  title={t("images.rename")}
                 >
                   <Icon name="pencil" size={13} />
                 </button>
-                <button style={btnDanger} onClick={() => del(img.id)} title="Löschen">
+                <button style={btnDanger} onClick={() => del(img.id)} title={t("common.delete")}>
                   <Icon name="trash" size={13} />
                 </button>
               </div>

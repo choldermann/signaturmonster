@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useI18n } from "../AppContext.jsx";
 
 const API = "";
 async function api(method, path) {
@@ -14,16 +15,16 @@ const Icon = ({ name, size = 18, style = {} }) => (
   <i className={`ti ti-${name}`} style={{ fontSize: size, ...style }} aria-hidden />
 );
 
-const btnPrimary  = { padding: "9px 18px", background: "#fce499", color: "#1a1a0a", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
-const btnSecondary = { padding: "9px 18px", background: "transparent", color: "#888", border: "1px solid #2a2a2a", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
+const btnPrimary  = { padding: "9px 18px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
+const btnSecondary = { padding: "9px 18px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border-3)", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 };
 
 function Card({ title, icon, children, action }) {
   return (
-    <div style={{ background: "#161616", border: "1px solid #222", borderRadius: 12, marginBottom: 20 }}>
-      <div style={{ padding: "14px 20px", borderBottom: "1px solid #1e1e1e", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, marginBottom: 20 }}>
+      <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border-1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          {icon && <Icon name={icon} size={15} style={{ color: "#fce499" }} />}
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#ccc" }}>{title}</span>
+          {icon && <Icon name={icon} size={15} style={{ color: "var(--accent)" }} />}
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)" }}>{title}</span>
         </div>
         {action}
       </div>
@@ -33,37 +34,39 @@ function Card({ title, icon, children, action }) {
 }
 
 function Badge({ ok }) {
+  const { t } = useI18n();
   return (
     <span style={{
       fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700,
-      background: ok ? "#0a1f14" : "#1a1400",
-      color: ok ? "#6ee7b7" : "#fce499",
-      border: `1px solid ${ok ? "#064e3b" : "#78600a"}`,
+      background: ok ? "var(--green-bg)" : "var(--accent-bg2)",
+      color: ok ? "var(--green)" : "var(--accent)",
+      border: `1px solid ${ok ? "var(--green-bd)" : "var(--accent-bd)"}`,
     }}>
-      {ok ? "Aktuell" : "Update verfügbar"}
+      {ok ? t("update.badgeCurrent") : t("update.badgeAvailable")}
     </span>
   );
 }
 
 function VersionBlock({ label, hash, message, date }) {
   return (
-    <div style={{ flex: 1, minWidth: 0, background: "#111", borderRadius: 10, padding: "14px 16px", border: "1px solid #1e1e1e" }}>
-      <div style={{ fontSize: 10, color: "#444", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: "monospace", fontSize: 13, color: "#fce499", fontWeight: 700, marginBottom: 4 }}>{hash || "—"}</div>
-      <div style={{ fontSize: 12, color: "#888", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message || "—"}</div>
-      <div style={{ fontSize: 11, color: "#444" }}>{date || ""}</div>
+    <div style={{ flex: 1, minWidth: 0, background: "var(--bg-nav)", borderRadius: 10, padding: "14px 16px", border: "1px solid var(--border-1)" }}>
+      <div style={{ fontSize: 10, color: "var(--text-6)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--accent)", fontWeight: 700, marginBottom: 4 }}>{hash || "—"}</div>
+      <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{message || "—"}</div>
+      <div style={{ fontSize: 11, color: "var(--text-6)" }}>{date || ""}</div>
     </div>
   );
 }
 
-const STEPS = [
-  { key: "pull",  ok: "pull_ok",  label: "Images laden",            hint: "Kann je nach Internetgeschwindigkeit 2–5 Min. dauern" },
-  { key: "rm",    ok: "rm_ok",    label: "Alte Container entfernen" },
-  { key: "up",    ok: "up_ok",    label: "Neue Container starten"   },
-  { key: "self",  ok: "done",     label: "Updater neu starten"      },
+const STEPS_DEF = [
+  { key: "pull",  ok: "pull_ok",  labelKey: "update.stepPull",    hintKey: "update.stepPullHint" },
+  { key: "rm",    ok: "rm_ok",    labelKey: "update.stepRemove" },
+  { key: "up",    ok: "up_ok",    labelKey: "update.stepStart" },
+  { key: "self",  ok: "done",     labelKey: "update.stepRestart" },
 ];
 
 function UpdateDialog({ entries, restarting, waiting, debugLog }) {
+  const { t } = useI18n();
   const logRef = React.useRef(null);
   React.useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -89,35 +92,37 @@ function UpdateDialog({ entries, restarting, waiting, debugLog }) {
         @keyframes spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
         @keyframes fadeUp { from { opacity:0;transform:translateY(12px) } to { opacity:1;transform:translateY(0) } }
       `}</style>
-      <div style={{ background: "#161616", border: "1px solid #2a2a2a", borderRadius: 14, padding: "28px 32px", width: 480, maxWidth: "95vw", animation: "fadeUp .25s ease" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-3)", borderRadius: 14, padding: "28px 32px", width: 480, maxWidth: "95vw", animation: "fadeUp .25s ease" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-          <Icon name="refresh" size={18} style={{ color: "#fce499", animation: isDone || isError ? "none" : "spin 1.2s linear infinite" }} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Software-Update</span>
+          <Icon name="refresh" size={18} style={{ color: "var(--accent)", animation: isDone || isError ? "none" : "spin 1.2s linear infinite" }} />
+          <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-1)" }}>{t("update.dialogTitle")}</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          {STEPS.map(({ key, ok, label, hint }) => {
+          {STEPS_DEF.map(({ key, ok, labelKey, hintKey }) => {
             const status   = stepStatus(key, ok);
+            const label    = t(labelKey);
+            const hint     = hintKey ? t(hintKey) : undefined;
             const entryMsg = (entries.find(e => e.step === key) || {}).msg || "";
             return (
               <div key={key} style={{ display: "flex", gap: 12 }}>
                 <div style={{ width: 22, paddingTop: 2, display: "flex", alignItems: "flex-start", justifyContent: "center", flexShrink: 0 }}>
                   {status === "ok"      && <Icon name="circle-check" size={16} style={{ color: "#4ade80" }} />}
-                  {status === "running" && <Icon name="loader-2"     size={16} style={{ color: "#fce499", animation: "spin 1s linear infinite" }} />}
-                  {status === "error"   && <Icon name="circle-x"     size={16} style={{ color: "#f87171" }} />}
-                  {status === "pending" && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2a2a2a", marginTop: 4 }} />}
+                  {status === "running" && <Icon name="loader-2"     size={16} style={{ color: "var(--accent)", animation: "spin 1s linear infinite" }} />}
+                  {status === "error"   && <Icon name="circle-x"     size={16} style={{ color: "var(--red-s)" }} />}
+                  {status === "pending" && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--border-3)", marginTop: 4 }} />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: 13, color: status === "ok" ? "#aaa" : status === "running" ? "#fff" : status === "error" ? "#f87171" : "#444", fontWeight: status === "running" ? 600 : 400 }}>
+                  <span style={{ fontSize: 13, color: status === "ok" ? "var(--text-3)" : status === "running" ? "var(--text-1)" : status === "error" ? "var(--red-s)" : "var(--text-6)", fontWeight: status === "running" ? 600 : 400 }}>
                     {label}
-                    {status === "running" && <span style={{ color: "#555" }}> …</span>}
+                    {status === "running" && <span style={{ color: "var(--text-5)" }}> …</span>}
                     {status === "ok"      && <span style={{ color: "#4ade80", fontSize: 11, marginLeft: 6 }}>✓</span>}
                   </span>
                   {status === "running" && hint && (
-                    <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>{hint}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-5)", marginTop: 3 }}>{hint}</div>
                   )}
                   {status === "running" && entryMsg && (
-                    <div style={{ fontSize: 11, color: "#666", fontFamily: "monospace", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entryMsg}>
+                    <div style={{ fontSize: 11, color: "var(--text-4)", fontFamily: "monospace", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entryMsg}>
                       {entryMsg}
                     </div>
                   )}
@@ -128,27 +133,25 @@ function UpdateDialog({ entries, restarting, waiting, debugLog }) {
         </div>
 
         {(restarting || waiting) && (
-          <div style={{ borderTop: "1px solid #222", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
-            <Icon name="loader-2" size={14} style={{ color: "#93c5fd", animation: "spin 1s linear infinite", flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: "#555" }}>
-              {restarting
-                ? "Warte auf Server … Seite lädt automatisch neu."
-                : "Container werden neu gestartet — Statusabfrage pausiert kurz."}
+          <div style={{ borderTop: "1px solid var(--border-2)", paddingTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="loader-2" size={14} style={{ color: "var(--blue)", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: "var(--text-5)" }}>
+              {restarting ? t("update.waitingServer") : t("update.waitingContainer")}
             </span>
           </div>
         )}
 
         {debugLog && debugLog.length > 0 && (
-          <div style={{ borderTop: "1px solid #1e1e1e", paddingTop: 12, marginTop: 4 }}>
-            <div style={{ fontSize: 10, color: "#444", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.6px" }}>Diagnose-Log</div>
-            <pre style={{ fontSize: 10, color: "#555", background: "#0d0d0d", borderRadius: 6, padding: "8px 10px", margin: 0, overflowY: "auto", maxHeight: 120, whiteSpace: "pre-wrap" }}>{debugLog.join("\n")}</pre>
+          <div style={{ borderTop: "1px solid var(--border-1)", paddingTop: 12, marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "var(--text-6)", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.6px" }}>{t("update.diagLog")}</div>
+            <pre style={{ fontSize: 10, color: "var(--text-5)", background: "var(--bg-page)", borderRadius: 6, padding: "8px 10px", margin: 0, overflowY: "auto", maxHeight: 120, whiteSpace: "pre-wrap" }}>{debugLog.join("\n")}</pre>
           </div>
         )}
 
         {isError && (
-          <div style={{ borderTop: "1px solid #3a1a1a", paddingTop: 14, marginTop: 4 }}>
-            <div style={{ fontSize: 11, color: "#f87171", marginBottom: 6, fontWeight: 600 }}>Fehlerdetails</div>
-            <pre style={{ fontSize: 11, color: "#888", background: "#111", borderRadius: 6, padding: "10px 12px", margin: 0, overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 140 }}>{errorMsg}</pre>
+          <div style={{ borderTop: "1px solid var(--red-bg)", paddingTop: 14, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--red-s)", marginBottom: 6, fontWeight: 600 }}>{t("update.errorDetails")}</div>
+            <pre style={{ fontSize: 11, color: "var(--text-3)", background: "var(--bg-nav)", borderRadius: 6, padding: "10px 12px", margin: 0, overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 140 }}>{errorMsg}</pre>
           </div>
         )}
       </div>
@@ -157,6 +160,7 @@ function UpdateDialog({ entries, restarting, waiting, debugLog }) {
 }
 
 export default function UpdatePage({ toast }) {
+  const { t } = useI18n();
   const [info, setInfo]             = useState(null);
   const [changelog, setChangelog]   = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -180,7 +184,7 @@ export default function UpdatePage({ toast }) {
   useEffect(() => { load(); }, [load]);
 
   async function runUpdate() {
-    if (!confirm("Jetzt updaten? Die Anwendung wird neu gestartet.")) return;
+    if (!confirm(t("update.confirmPrompt"))) return;
     setLogEntries([]);
     setRestarting(false);
     setWaiting(false);
@@ -262,8 +266,8 @@ export default function UpdatePage({ toast }) {
           setWaiting(false);
           setLogEntries(prev => [...prev.filter(e => e.step !== "error"), {
             step: "error",
-            msg: "Verbindung zum Updater verloren",
-            detail: "Der Updater antwortet seit über 5 Minuten nicht. Prüfe mit 'docker ps', ob das Update im Hintergrund abgeschlossen wurde.",
+            msg: t("update.errorLostConnection"),
+            detail: t("update.errorLostConnectionDetail"),
           }]);
         }
       }
@@ -275,38 +279,38 @@ export default function UpdatePage({ toast }) {
       {showDialog && <UpdateDialog entries={logEntries} restarting={restarting} waiting={waiting} debugLog={debugLog} />}
 
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>Software-Update</h1>
-        <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
-          Updates werden als fertige Container aus der GitHub Container Registry geladen.
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("update.title")}</h1>
+        <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>
+          {t("update.subtitle")}
         </p>
       </div>
 
-      <Card title="Versionsstatus" icon="git-commit"
+      <Card title={t("update.cardVersionStatus")} icon="git-commit"
         action={
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {info && <Badge ok={info.up_to_date} />}
             <button style={btnSecondary} onClick={load} disabled={loading}>
-              <Icon name="refresh" size={13} />Prüfen
+              <Icon name="refresh" size={13} />{t("update.check")}
             </button>
             {info && !info.up_to_date && (
               <button style={btnPrimary} onClick={runUpdate} disabled={loading}>
                 <Icon name="download" size={14} />
-                {`Update (${info.behind} Commit${info.behind !== 1 ? "s" : ""})`}
+                {t("update.btnUpdate", { behind: info.behind, s: info.behind !== 1 ? "s" : "" })}
               </button>
             )}
           </div>
         }>
         {loading ? (
-          <div style={{ color: "#444", fontSize: 13 }}>Verbinde mit GitHub…</div>
+          <div style={{ color: "var(--text-6)", fontSize: 13 }}>{t("update.connecting")}</div>
         ) : !info || info.error ? (
-          <div style={{ color: "#f87171", fontSize: 13 }}>Updater nicht erreichbar — läuft der sm-updater Container?</div>
+          <div style={{ color: "var(--red-s)", fontSize: 13 }}>{t("update.updaterUnavailable")}</div>
         ) : (
           <div style={{ display: "flex", gap: 16 }}>
-            <VersionBlock label="Installiert" hash={info.current} message={info.current_message} date={info.current_date} />
+            <VersionBlock label={t("update.versionInstalled")} hash={info.current} message={info.current_message} date={info.current_date} />
             {!info.up_to_date && (
               <>
-                <div style={{ display: "flex", alignItems: "center", color: "#333", fontSize: 18 }}>→</div>
-                <VersionBlock label="Verfügbar (GitHub)" hash={info.latest} message={info.latest_message} date={info.latest_date} />
+                <div style={{ display: "flex", alignItems: "center", color: "var(--text-7)", fontSize: 18 }}>→</div>
+                <VersionBlock label={t("update.versionAvailable")} hash={info.latest} message={info.latest_message} date={info.latest_date} />
               </>
             )}
           </div>
@@ -314,21 +318,21 @@ export default function UpdatePage({ toast }) {
       </Card>
 
       {changelog.length > 0 && (
-        <Card title={`Änderungen (${changelog.length})`} icon="list">
+        <Card title={t("update.cardChanges", { count: changelog.length })} icon="list">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
-                {["Hash", "Beschreibung", "Datum"].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "5px 10px", fontSize: 11, color: "#444", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", borderBottom: "1px solid #1e1e1e" }}>{h}</th>
+                {[t("update.colHash"), t("update.colDescription"), t("update.colDate")].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "5px 10px", fontSize: 11, color: "var(--text-6)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", borderBottom: "1px solid var(--border-1)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {changelog.map(c => (
-                <tr key={c.hash} style={{ borderBottom: "1px solid #1a1a1a" }}>
-                  <td style={{ padding: "9px 10px", fontFamily: "monospace", color: "#fce499", fontSize: 12 }}>{c.hash}</td>
-                  <td style={{ padding: "9px 10px", color: "#ccc" }}>{c.message}</td>
-                  <td style={{ padding: "9px 10px", color: "#444", fontSize: 12 }}>{c.date}</td>
+                <tr key={c.hash} style={{ borderBottom: "1px solid var(--bg-input)" }}>
+                  <td style={{ padding: "9px 10px", fontFamily: "monospace", color: "var(--accent)", fontSize: 12 }}>{c.hash}</td>
+                  <td style={{ padding: "9px 10px", color: "var(--text-2)" }}>{c.message}</td>
+                  <td style={{ padding: "9px 10px", color: "var(--text-6)", fontSize: 12 }}>{c.date}</td>
                 </tr>
               ))}
             </tbody>
@@ -337,9 +341,9 @@ export default function UpdatePage({ toast }) {
       )}
 
       {info && info.up_to_date && !loading && (
-        <div style={{ padding: "14px 18px", background: "#0a1f14", border: "1px solid #064e3b", borderRadius: 10, display: "flex", gap: 10, alignItems: "center" }}>
-          <Icon name="circle-check" size={16} style={{ color: "#6ee7b7" }} />
-          <span style={{ fontSize: 13, color: "#6ee7b7" }}>Signaturmonster ist auf dem neuesten Stand.</span>
+        <div style={{ padding: "14px 18px", background: "var(--green-bg)", border: "1px solid var(--green-bd)", borderRadius: 10, display: "flex", gap: 10, alignItems: "center" }}>
+          <Icon name="circle-check" size={16} style={{ color: "var(--green)" }} />
+          <span style={{ fontSize: 13, color: "var(--green)" }}>{t("update.upToDate")}</span>
         </div>
       )}
     </div>
