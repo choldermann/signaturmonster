@@ -8,6 +8,7 @@ from email.message import Message
 from signature_engine import SignatureEngine
 from rule_engine import RuleEngine
 from relay import SMTPRelay
+from commands import parse_commands
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,9 @@ class SignaturmonsterHandler(AsyncMessage):
             self.rule_engine._extract_addresses(cc_raw)
         )
 
+        # Parse and strip #sm: control commands before any other processing
+        commands = parse_commands(message)
+
         logger.info(f"Processing mail from: {sender_email}")
 
         action            = "no_rule"
@@ -69,11 +73,20 @@ class SignaturmonsterHandler(AsyncMessage):
                 ci         = rule.get("ci_config")  or None
                 disclaimer = rule.get("disclaimer") or None
                 powered_by = rule.get("powered_by", True)
-                message = await self.signature_engine.inject(
-                    message, rule["signature"], enrichment,
-                    ci=ci, sender=sender_profile, disclaimer=disclaimer,
-                    powered_by=powered_by, campaign=campaign,
-                )
+
+                # Apply #sm: command overrides
+                if commands["nobeautify"]:   ci = None
+                if commands["nodisclaimer"]: disclaimer = None
+                if commands["nobanner"]:     campaign = None
+                sig = rule["signature"] if not commands["nosig"] else {"html_content": "", "text_content": ""}
+
+                if not commands["off"]:
+                    message = await self.signature_engine.inject(
+                        message, sig, enrichment,
+                        ci=ci, sender=sender_profile, disclaimer=disclaimer,
+                        powered_by=powered_by and not commands["nosig"],
+                        campaign=campaign,
+                    )
                 mode = "branded" if ci else "signature"
                 logger.info(f"[{mode}] Signature '{rule['signature']['name']}' injected for {sender_email}")
         except Exception as e:

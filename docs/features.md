@@ -119,6 +119,34 @@ Regeln steuern, welche Signatur (und welches CI-Profil) an eine Mail angehängt 
 
 ---
 
+## 3a. Mail-Befehle (Pro-Absender-Kontrolle)
+
+Absender können einzelne Features pro Mail deaktivieren, indem sie einen Steuerbefehl auf einer eigenen Zeile in die Mail schreiben. Der Proxy erkennt und entfernt die Zeile vor dem Versand — der Empfänger sieht sie nicht.
+
+**Verfügbare Befehle (Groß-/Kleinschreibung egal):**
+
+| Befehl | Effekt |
+|---|---|
+| `#sm:nosig` | Keine Signatur (CI-Branding bleibt, falls in der Regel konfiguriert) |
+| `#sm:nobanner` | Kein Kampagnen-Banner |
+| `#sm:nodisclaimer` | Kein Disclaimer |
+| `#sm:nobeautify` | Kein CI-Beautifier / Branding (Signatur bleibt) |
+| `#sm:off` | Alles deaktiviert — Mail wird unverändert weitergeleitet |
+
+**Verwendung:** Befehl auf einer eigenen Zeile in die Mail tippen, z.B.:
+
+```
+Hallo Herr Müller,
+
+anbei die Unterlagen.
+
+#sm:nosig
+```
+
+Der Befehl wird aus Plaintext- und HTML-Teil entfernt. In HTML-Mails erkennt der Parser den Befehl wenn er allein in einem Absatz- oder Div-Element steht.
+
+---
+
 ## 4. CI-Profile (Mail-Beautifier)
 
 CI-Profile definieren das visuelle Erscheinungsbild von ausgehenden Mails. Wird einer Regel ein CI-Profil zugewiesen, wird die Mail nicht nur mit einer Signatur ergänzt, sondern komplett in einen CI-Wrapper gepackt.
