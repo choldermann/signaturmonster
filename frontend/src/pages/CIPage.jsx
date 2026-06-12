@@ -234,7 +234,6 @@ function CIEditor({ ci, onSave, onCancel, toast }) {
             </div>
             <ColorField label={t("ci.colorAccent")} value={form.primary_color} onChange={v => u("primary_color", v)} />
             <ColorField label={t("ci.colorText")} value={form.text_color} onChange={v => u("text_color", v)} />
-            <ColorField label={t("ci.colorBg")} value={form.bg_color} onChange={v => u("bg_color", v)} />
             <ColorField label={t("ci.colorHeader")} value={form.header_bg} onChange={v => u("header_bg", v)} />
             <ColorField label={t("ci.colorContent")} value={form.content_bg} onChange={v => u("content_bg", v)} />
           </div>
@@ -406,7 +405,7 @@ export default function CIPage({ toast }) {
               <div style={{ padding: "14px 16px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>{ci.name}</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                  {[ci.primary_color, ci.text_color, ci.bg_color, ci.header_bg].map((c, i) => (
+                  {[ci.primary_color, ci.text_color, ci.content_bg, ci.header_bg].map((c, i) => (
                     <div key={i} title={c} style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "1px solid var(--text-7)" }} />
                   ))}
                   <span style={{ fontSize: 11, color: "var(--text-5)", marginLeft: 4, alignSelf: "center" }}>
