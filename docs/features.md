@@ -112,6 +112,7 @@ Regeln steuern, welche Signatur (und welches CI-Profil) an eine Mail angehängt 
 - **CI-Profil** (optional — aktiviert Mail-Beautifier)
 - **SMTP-Konto** (optional — erzwingt einen bestimmten Relay, überschreibt Domain-Match)
 - **Disclaimer** (optional — befüllt den Disclaimer-Platzhalter in der Signatur)
+- **Kopie weiterleiten an** (optional — kommagetrennte E-Mail-Adressen; jede verarbeitete Mail wird zusätzlich an diese Postfächer zugestellt, ohne die Original-Header zu verändern)
 - **Aktiv/Inaktiv**
 
 **Regel-Test:** Im Bereich "Test" kann ein beliebiger Absender simuliert werden, um zu sehen, welche Regel greift und welche Signatur zugewiesen würde.
@@ -123,9 +124,9 @@ Regeln steuern, welche Signatur (und welches CI-Profil) an eine Mail angehängt 
 CI-Profile definieren das visuelle Erscheinungsbild von ausgehenden Mails. Wird einer Regel ein CI-Profil zugewiesen, wird die Mail nicht nur mit einer Signatur ergänzt, sondern komplett in einen CI-Wrapper gepackt.
 
 **Was der Beautifier tut:**
-1. HTML der Mail bereinigen: herstellerspezifische CSS-Eigenschaften (`font-family`, `font-size`, `color`, `background`, `margin`, `padding` etc.) entfernen
+1. HTML der Mail bereinigen: CI-Layout-Properties (`font-family`, `line-height`, `margin`, `padding`) normalisieren — **Nutzerformatierungen wie Textfarben, Markierungen (`background-color`) und individuelle Schriftgrößen bleiben erhalten**
 2. Outlook/Mozilla-spezifische CSS-Klassen entfernen (`MsoNormal`, `WordSection`, `moz-*`)
-3. `<font>`-Tags von Attributen befreien
+3. `<font color="…">`-Tags zu `<span style="color:…">` konvertieren (Farbe bleibt erhalten)
 4. Leere Trailing-Elemente entfernen
 5. Bereinigten Inhalt in einen table-basierten CI-Wrapper einbetten
 
@@ -481,7 +482,9 @@ Ausgehende Mails werden zunächst in eine SQLite-Queue geschrieben. Ein Worker-L
 | 2. Fehler | 5 Minuten |
 | 3. Fehler | 30 Minuten |
 | 4. Fehler | 2 Stunden |
-| 5. Fehler (max) | → Status `failed` |
+| 5. Fehler (max) | → Status `failed` + Bounce-Benachrichtigung |
+
+**Bounce-Benachrichtigung:** Nach dem letzten Fehlversuch sendet der Proxy automatisch eine Unzustellbarkeits-Mail an den ursprünglichen Absender. Die Nachricht enthält Empfänger, Betreff, Fehlermeldung und Queue-ID.
 
 **Queue-Status je Eintrag:** `pending` | `sent` | `failed`
 
