@@ -386,7 +386,7 @@ function RulesPage({ toast }) {
   const { t } = useI18n();
   const [rules, setRules] = useState([]);
   const [sigs, setSigs] = useState([]);
-  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true, recipient_scope: "all", match_recipient: "", match_recipient_domain: "", time_from: "", time_until: "", days_of_week: "" };
+  const EMPTY = { name: "", match_sender: "", match_domain: "", apply_on_new: true, apply_on_reply: false, signature_id: "", ci_config_id: "", smtp_account_id: "", disclaimer_id: "", priority: 100, is_active: true, recipient_scope: "all", match_recipient: "", match_recipient_domain: "", time_from: "", time_until: "", days_of_week: "", forward_to: "" };
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -422,13 +422,13 @@ function RulesPage({ toast }) {
 
   function openNew() { setForm(EMPTY); setEditingId("new"); }
   function openEdit(rule) {
-    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active, recipient_scope: rule.recipient_scope || "all", match_recipient: rule.match_recipient || "", match_recipient_domain: rule.match_recipient_domain || "", time_from: rule.time_from || "", time_until: rule.time_until || "", days_of_week: rule.days_of_week || "" });
+    setForm({ name: rule.name, match_sender: rule.match_sender || "", match_domain: rule.match_domain || "", apply_on_new: rule.apply_on_new, apply_on_reply: rule.apply_on_reply, signature_id: rule.signature_id || "", ci_config_id: rule.ci_config_id || "", smtp_account_id: rule.smtp_account_id || "", disclaimer_id: rule.disclaimer_id || "", priority: rule.priority, is_active: rule.is_active, recipient_scope: rule.recipient_scope || "all", match_recipient: rule.match_recipient || "", match_recipient_domain: rule.match_recipient_domain || "", time_from: rule.time_from || "", time_until: rule.time_until || "", days_of_week: rule.days_of_week || "", forward_to: rule.forward_to || "" });
     setEditingId(rule.id);
   }
   function closeForm() { setEditingId(null); setForm(EMPTY); }
 
   async function save() {
-    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null, recipient_scope: form.recipient_scope || "all", match_recipient: form.match_recipient || null, match_recipient_domain: form.match_recipient_domain || null, time_from: form.time_from || null, time_until: form.time_until || null, days_of_week: form.days_of_week || null };
+    const payload = { ...form, match_sender: form.match_sender || null, match_domain: form.match_domain || null, signature_id: parseInt(form.signature_id), ci_config_id: form.ci_config_id ? parseInt(form.ci_config_id) : null, smtp_account_id: form.smtp_account_id ? parseInt(form.smtp_account_id) : null, disclaimer_id: form.disclaimer_id ? parseInt(form.disclaimer_id) : null, enrichment_source: null, template_id: null, recipient_scope: form.recipient_scope || "all", match_recipient: form.match_recipient || null, match_recipient_domain: form.match_recipient_domain || null, time_from: form.time_from || null, time_until: form.time_until || null, days_of_week: form.days_of_week || null, forward_to: form.forward_to || null };
     try {
       if (editingId === "new") { await api("POST", "/api/rules/", payload); toast("ok", t("rules.toast.created")); }
       else { await api("PUT", `/api/rules/${editingId}`, payload); toast("ok", t("rules.toast.saved")); }
@@ -633,6 +633,16 @@ function RulesPage({ toast }) {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Weiterleitung */}
+          <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg-page)", borderRadius: 8, border: "1px solid var(--border-1)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-6)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
+              {t("rules.form.forwardSection")}
+            </div>
+            <Field label={t("rules.form.forwardTo")} hint={t("rules.form.forwardHint")}>
+              <input style={inputStyle} value={form.forward_to} onChange={e => setForm(f => ({ ...f, forward_to: e.target.value }))} placeholder={t("rules.form.forwardPlaceholder")} />
+            </Field>
           </div>
 
           <div style={{ display: "flex", gap: 16, marginTop: 8 }}>

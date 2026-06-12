@@ -43,11 +43,12 @@ class SignaturmonsterHandler(AsyncMessage):
 
         logger.info(f"Processing mail from: {sender_email}")
 
-        action         = "no_rule"
-        rule_id        = None
-        rule_name      = ""
-        signature_name = ""
-        smtp_account   = None
+        action            = "no_rule"
+        rule_id           = None
+        rule_name         = ""
+        signature_name    = ""
+        smtp_account      = None
+        forward_addresses = []
 
         try:
             rule = await self.rule_engine.get_rule(sender_header, message)
@@ -57,6 +58,8 @@ class SignaturmonsterHandler(AsyncMessage):
                 rule_name      = rule.get("signature", {}).get("name", "") or ""
                 signature_name = rule_name
                 smtp_account   = rule.get("smtp_account") or None
+                forward_raw    = rule.get("forward_to", "") or ""
+                forward_addresses = [a.strip() for a in forward_raw.split(",") if a.strip()]
 
                 sender_profile, enrichment, campaign = await asyncio.gather(
                     self.rule_engine.get_sender_profile(sender_email),
@@ -99,6 +102,12 @@ class SignaturmonsterHandler(AsyncMessage):
             await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=rcpt_tos)
             if queue_id:
                 asyncio.ensure_future(self.rule_engine.mark_sent(queue_id))
+            for fwd_addr in forward_addresses:
+                try:
+                    await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=[fwd_addr])
+                    logger.info(f"Forward copy sent to {fwd_addr} for rule {rule_id}")
+                except Exception as fe:
+                    logger.warning(f"Forward copy to {fwd_addr} failed: {fe}")
         except Exception as e:
             relay_ok    = False
             relay_error = str(e)[:300]

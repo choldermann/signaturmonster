@@ -36,6 +36,7 @@ class RuleCreate(BaseModel):
     time_from: Optional[str] = None
     time_until: Optional[str] = None
     days_of_week: Optional[str] = None
+    forward_to: Optional[str] = None
 
 def _recipient_domains(recipients: list[str]) -> set[str]:
     domains = set()
@@ -196,6 +197,7 @@ async def match_rule(req: RuleMatchRequest, db: AsyncSession = Depends(get_db)):
             "smtp_account":      smtp_account_dict,
             "disclaimer":        disclaimer_dict,
             "powered_by":        powered_by,
+            "forward_to":        rule.forward_to or "",
         }
     return None
 

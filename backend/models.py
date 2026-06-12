@@ -102,6 +102,7 @@ class Rule(Base):
     time_from              = Column(String, nullable=True)   # "HH:MM"
     time_until             = Column(String, nullable=True)   # "HH:MM"
     days_of_week           = Column(String, nullable=True)   # "0,1,2,3,4" (0=Mon, 6=Sun)
+    forward_to             = Column(String, nullable=True)   # comma-separated email addresses
 
 class SenderProfile(Base):
     __tablename__ = "sender_profiles"

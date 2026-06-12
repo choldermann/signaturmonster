@@ -8,12 +8,10 @@ from bs4 import BeautifulSoup, Tag
 
 logger = logging.getLogger(__name__)
 
+# Only strip CI-controlled layout properties.
+# color, background-color, font-size are intentional user formatting and must be preserved.
 STRIP_STYLE_PROPS = [
     r'font-family\s*:[^;]+;?',
-    r'font-size\s*:[^;]+;?',
-    r'color\s*:[^;]+;?',
-    r'background-color\s*:[^;]+;?',
-    r'background\s*:[^;]+;?',
     r'line-height\s*:[^;]+;?',
     r'margin\s*:[^;]+;?',
     r'padding\s*:[^;]+;?',
@@ -58,7 +56,11 @@ class MailBeautifier:
                     del tag["style"]
 
             for font_tag in body.find_all("font"):
+                # Preserve color as inline style, drop layout attributes (face, size)
+                color = font_tag.get("color")
                 font_tag.attrs = {}
+                if color:
+                    font_tag["style"] = f"color:{color}"
 
             for tag in body.find_all(class_=re.compile(r'moz-|MsoNormal|WordSection')):
                 if "class" in tag.attrs:
