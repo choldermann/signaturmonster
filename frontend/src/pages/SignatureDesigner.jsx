@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ACCENT_COLORS } from "../data/colorPresets.js";
 import { SIGNATURE_TEMPLATES } from "../data/signatureTemplates.js";
 import { useI18n } from "../AppContext.jsx";
+import ImageLibraryModal from "../components/ImageLibraryModal.jsx";
 
 const API = "";
 
@@ -759,6 +760,7 @@ function ImageSrcField({ value, onChange, iStyle }) {
   const { t } = useI18n();
   const fileRef = useRef(null);
   const isData = value && value.startsWith("data:");
+  const [showLibrary, setShowLibrary] = useState(false);
 
   async function handleFile(e) {
     const file = e.target.files[0];
@@ -770,11 +772,21 @@ function ImageSrcField({ value, onChange, iStyle }) {
 
   return (
     <div style={{ marginBottom: 10 }}>
+      {showLibrary && (
+        <ImageLibraryModal
+          onSelect={url => { onChange(url); setShowLibrary(false); }}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
       <div style={{ fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>{t("designer.imageLabel")}</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <button onClick={() => fileRef.current.click()}
           style={{ flex: "0 0 auto", padding: "7px 10px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#fce499", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
           <i className="ti ti-upload" style={{ fontSize: 13 }} /> {t("designer.imageUpload")}
+        </button>
+        <button onClick={() => setShowLibrary(true)}
+          style={{ flex: "0 0 auto", padding: "7px 10px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 7, color: "#fce499", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+          <i className="ti ti-photo-library" style={{ fontSize: 13 }} /> {t("images.title")}
         </button>
         <input style={{ ...iStyle, flex: 1, fontSize: 11 }} value={isData ? t("designer.imageEmbedded") : (value || "")}
           readOnly={isData}

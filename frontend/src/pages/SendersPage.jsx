@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "../AppContext.jsx";
+import ImageLibraryModal from "../components/ImageLibraryModal.jsx";
 
 const API = "";
 async function api(method, path, body) {
@@ -40,6 +41,7 @@ function SenderEditor({ sender, onSave, onCancel, toast }) {
   const { t } = useI18n();
   const [form, setForm] = useState(sender ? { ...sender } : { ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const u = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   async function save() {
@@ -124,8 +126,20 @@ function SenderEditor({ sender, onSave, onCancel, toast }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>
               <i className="ti ti-photo" style={{ color: "var(--accent)" }} /> {t("senders.profilePhoto")}
             </div>
+            {showLibrary && (
+              <ImageLibraryModal
+                onSelect={url => { u("photo_url", url); setShowLibrary(false); }}
+                onClose={() => setShowLibrary(false)}
+              />
+            )}
             <Field label={t("senders.photoUrl")} hint={t("senders.photoUrlHint")}>
-              <input style={iStyle} value={form.photo_url} onChange={e => u("photo_url", e.target.value)} placeholder="https://firma.de/fotos/max.jpg" />
+              <div style={{ display: "flex", gap: 6 }}>
+                <input style={{ ...iStyle, flex: 1 }} value={form.photo_url} onChange={e => u("photo_url", e.target.value)} placeholder="https://firma.de/fotos/max.jpg" />
+                <button onClick={() => setShowLibrary(true)}
+                  style={{ flexShrink: 0, padding: "9px 12px", background: "var(--bg-hover)", border: "1px solid var(--border-3)", borderRadius: 8, color: "var(--accent)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                  <i className="ti ti-photo-library" style={{ fontSize: 14 }} /> {t("images.title")}
+                </button>
+              </div>
             </Field>
           </div>
         </div>

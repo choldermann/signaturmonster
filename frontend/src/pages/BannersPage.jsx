@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ACCENT_COLORS } from "../data/colorPresets.js";
 import { useI18n } from "../AppContext.jsx";
+import ImageLibraryModal from "../components/ImageLibraryModal.jsx";
 
 async function api(method, path, body) {
   const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -209,6 +210,7 @@ function ImageUpload({ value, onChange }) {
   const { t } = useI18n();
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   function processFile(file) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -231,6 +233,12 @@ function ImageUpload({ value, onChange }) {
 
   return (
     <div>
+      {showLibrary && (
+        <ImageLibraryModal
+          onSelect={url => { onChange(url); setShowLibrary(false); }}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
       {value ? (
         <div style={{ position: "relative", borderRadius: 6, overflow: "hidden" }}>
           <img src={value} alt="" style={{ width: "100%", display: "block", maxHeight: 120, objectFit: "cover" }} />
@@ -250,6 +258,16 @@ function ImageUpload({ value, onChange }) {
           {t("banners.imgUploadHint")}
         </div>
       )}
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button onClick={() => inputRef.current?.click()}
+          style={{ flex: 1, padding: "5px 8px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 6, color: "#aaa", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Icon name="upload" size={12} /> {t("designer.imageUpload")}
+        </button>
+        <button onClick={() => setShowLibrary(true)}
+          style={{ flex: 1, padding: "5px 8px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 6, color: "#fce499", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Icon name="photo-library" size={12} /> {t("images.title")}
+        </button>
+      </div>
       <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={e => { processFile(e.target.files[0]); e.target.value = ""; }} />
     </div>
