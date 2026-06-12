@@ -64,12 +64,7 @@ function Nav({ page, setPage, user, onLogout }) {
   const { theme, toggleTheme } = useTheme();
 
   const groups = [
-    {
-      label: t("nav.group.account"),
-      items: [
-        { id: "self-service", icon: "user-circle", label: t("nav.item.selfService") },
-      ],
-    },
+    // "Mein Profil" (self-service) hidden until employee login exists
     {
       label: t("nav.group.config"),
       items: [
