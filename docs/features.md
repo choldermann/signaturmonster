@@ -620,6 +620,39 @@ Neue Datenbanktabellen werden beim Start automatisch angelegt (`create_all`). Ne
 
 ---
 
+## 21. Thunderbird Addon
+
+Das Thunderbird-Addon ist ein **Killer-Feature**: Es zeigt die Signaturmonster-Signatur direkt im Compose-Fenster an, damit der Benutzer sofort sieht, wie seine Mail beim Empfänger aussehen wird — inklusive aller Variablen (Name, Titel, Firma, Foto etc.).
+
+**Verzeichnis:** `thunderbird-addon/`
+
+### Funktionsweise
+
+1. **Addon installieren:** Die `.xpi`-Datei in Thunderbird installieren (Extras → Add-ons → Aus Datei installieren)
+2. **Einrichten:** Server-URL + Login-Daten in den Addon-Einstellungen eingeben → Das Addon meldet sich am Signaturmonster-Backend an und speichert den Token lokal
+3. **Compose öffnen:** Beim Öffnen eines neuen Compose-Fensters ruft das Addon `GET /api/addon/preview?sender=<email>` auf, ermittelt die passende Regel/Signatur und bettet sie als Vorschau ein
+4. **Identität wechseln:** Ändert der Benutzer die Von:-Adresse, wird die Vorschau automatisch aktualisiert
+5. **Manuell aktualisieren:** Über den Toolbar-Button im Compose-Fenster kann die Vorschau jederzeit neu geladen werden
+6. **Versand:** Beim Versand ergänzt das Addon automatisch den Header `X-SM-Addon: injected` — der SMTP-Proxy erkennt diesen Header und überspringt die Signatur-Injektion (injiziert aber weiterhin CI-Branding/Disclaimer), sodass keine Doppel-Signatur entsteht
+
+### Technische Details
+
+- **Manifest V2**, getestet ab Thunderbird 91
+- **Permissions:** `compose`, `accountsRead`, `storage`
+- **Auth:** JWT-Login via `POST /api/auth/login`; Token wird in `browser.storage.local` gespeichert
+- **Preview-Endpoint:** `GET /api/addon/preview?sender=email` — liefert `{has_rule, html, text, rule_name, signature_name, has_ci}`
+- **Proxy-Koordination:** Header `X-SM-Addon: injected` → Proxy setzt `nosig`-Flag, CI/Beautifier laufen weiter, Header wird vor Weiterleitung entfernt
+- **DOM-Manipulation:** DOMParser in background.js, SM-Preview-Div via `id="signaturmonster-preview"` identifiziert und bei Aktualisierung ersetzt
+
+### Einschränkungen
+
+- Nur HTML-Mails; Plain-Text-Compose wird ignoriert
+- Zeitbasierte Regeln (Tageszeit/Wochentag) werden in der Vorschau nicht berücksichtigt
+- Disclaimer und Campaign-Banner werden als `[Platzhalter]` angezeigt (werden erst beim Versand via Proxy befüllt)
+- Das Addon muss manuell als `.xpi` installiert werden (noch kein AMO-Listing)
+
+---
+
 ## Bekannte Einschränkungen (v0.7.0)
 
 - JTL-Wawi-Integration ist in der UI auswählbar, aber die Anreicherungslogik ist noch nicht implementiert (nur Lexware ist aktiv)

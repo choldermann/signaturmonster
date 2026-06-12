@@ -1,0 +1,42 @@
+{
+  "manifest_version": 2,
+  "name": "Signaturmonster",
+  "version": "1.0.0",
+  "description": "Bettet deine Signaturmonster-Signatur live in das Compose-Fenster ein.",
+  "author": "Signaturmonster",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "signaturmonster@signaturmonster.de",
+      "strict_min_version": "91.0"
+    }
+  },
+
+  "permissions": [
+    "compose",
+    "accountsRead",
+    "storage"
+  ],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
+
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+
+  "compose_action": {
+    "default_title": "Signaturmonster Signatur aktualisieren",
+    "default_icon": {
+      "48": "icons/icon-48.svg",
+      "96": "icons/icon-96.svg"
+    }
+  },
+
+  "icons": {
+    "48": "icons/icon-48.svg",
+    "96": "icons/icon-96.svg"
+  }
+}

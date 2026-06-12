@@ -20,6 +20,7 @@ from routers import images as images_router
 from routers import campaigns as campaigns_router
 from routers import maillog as maillog_router
 from routers import mailqueue as mailqueue_router
+from routers import addon as addon_router
 
 app = FastAPI(title="Signaturmonster API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -91,6 +92,7 @@ app.include_router(images_router.router,        prefix="/api/images",        tag
 app.include_router(campaigns_router.router,     prefix="/api/campaigns",     tags=["campaigns"])
 app.include_router(maillog_router.router,       prefix="/api/maillog",       tags=["maillog"])
 app.include_router(mailqueue_router.router,    prefix="/api/mailqueue",     tags=["mailqueue"])
+app.include_router(addon_router.router,        prefix="/api/addon",         tags=["addon"])
 
 @app.get("/health")
 async def health():

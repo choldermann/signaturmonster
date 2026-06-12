@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signaturmonster – Einstellungen</title>
+  <style>
+    :root {
+      --yellow: #fce499;
+      --dark:   #181818;
+      --mid:    #2a2a2a;
+      --text:   #f0f0f0;
+      --muted:  #888;
+      --red:    #e05555;
+      --green:  #5cb85c;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 16px;
+    }
+
+    .card {
+      background: var(--mid);
+      border-radius: 14px;
+      border: 1px solid #333;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .logo-mark {
+      width: 44px; height: 44px;
+      background: var(--dark);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: bold;
+      color: var(--yellow);
+      border: 1px solid #333;
+    }
+
+    .logo-text { font-size: 20px; font-weight: bold; color: var(--yellow); }
+    .logo-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      margin-top: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--dark);
+      border: 1px solid #444;
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: var(--yellow); }
+
+    .btn {
+      margin-top: 24px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary  { background: var(--yellow); color: var(--dark); }
+    .btn-danger   { background: var(--red);    color: #fff; margin-top: 12px; }
+
+    .status-box {
+      margin-top: 24px;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      display: none;
+    }
+    .status-box.success { background: #1e3a1e; border: 1px solid var(--green); color: var(--green); display: block; }
+    .status-box.error   { background: #3a1e1e; border: 1px solid var(--red);   color: var(--red);   display: block; }
+    .status-box.info    { background: #2a2a14; border: 1px solid var(--yellow); color: var(--yellow); display: block; }
+
+    .connected-info {
+      display: none;
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: var(--dark);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .connected-info strong { color: var(--text); }
+
+    hr { border: none; border-top: 1px solid #333; margin: 28px 0; }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-mark">S</div>
+      <div>
+        <div class="logo-text">Signaturmonster</div>
+        <div class="logo-sub">Thunderbird Addon · Einstellungen</div>
+      </div>
+    </div>
+
+    <div id="login-section">
+      <div class="section-title">Server-Verbindung</div>
+
+      <label for="serverUrl">Server-URL</label>
+      <input type="url" id="serverUrl" placeholder="https://sm.meinefirma.de" />
+
+      <label for="username">Benutzername (E-Mail)</label>
+      <input type="text" id="username" placeholder="admin@meinefirma.de" />
+
+      <label for="password">Passwort</label>
+      <input type="password" id="password" placeholder="••••••••" />
+
+      <button class="btn btn-primary" id="btnConnect">Verbinden</button>
+    </div>
+
+    <div id="status" class="status-box"></div>
+
+    <div id="connected-info" class="connected-info">
+      Verbunden mit <strong id="connectedServer"></strong><br />
+      Angemeldet als <strong id="connectedUser"></strong>
+    </div>
+
+    <div id="logout-section" style="display:none;">
+      <button class="btn btn-danger" id="btnLogout">Verbindung trennen</button>
+    </div>
+
+    <hr />
+
+    <div class="section-title">So funktioniert das Addon</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">
+      Wenn du eine neue Mail verfasst, holt das Addon automatisch deine Signatur
+      von Signaturmonster und zeigt sie als Vorschau an — damit du siehst, wie die
+      Mail beim Empfänger aussehen wird.<br /><br />
+      Beim Versand wird der SMTP-Proxy informiert, dass die Signatur bereits
+      eingebettet ist, sodass sie nicht doppelt erscheint.
+    </p>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

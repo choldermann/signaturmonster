@@ -45,6 +45,14 @@ class SignaturmonsterHandler(AsyncMessage):
         # Parse and strip #sm: control commands before any other processing
         commands = parse_commands(message)
 
+        # Thunderbird addon adds X-SM-Addon: injected when it has already embedded the
+        # signature in the compose window → skip signature injection, CI still runs.
+        if message.get("X-SM-Addon", "").strip().lower() == "injected":
+            commands["nosig"] = True
+            while "X-SM-Addon" in message:
+                del message["X-SM-Addon"]
+            logger.info("X-SM-Addon detected: skipping signature, CI/beautifier active")
+
         logger.info(f"Processing mail from: {sender_email}")
 
         action            = "no_rule"
