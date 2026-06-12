@@ -14,6 +14,7 @@
   "nav.item.logs": "System-Log",
   "nav.item.maillog": "Audit-Log",
   "nav.item.mailqueue": "Mail-Queue",
+  "nav.item.addon": "Thunderbird Addon",
   "nav.item.senders": "Mailadressen",
   "nav.item.signatures": "Signaturen",
   "nav.item.rules": "Regeln",

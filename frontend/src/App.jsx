@@ -76,7 +76,8 @@ function Nav({ page, setPage, user, onLogout }) {
         { id: "update",      icon: "refresh",      label: t("nav.item.update") },
         { id: "logs",        icon: "terminal-2",   label: t("nav.item.logs") },
         { id: "maillog",     icon: "mail-search",  label: t("nav.item.maillog") },
-        { id: "mailqueue",   icon: "mail-forward", label: t("nav.item.mailqueue") },
+        { id: "mailqueue",   icon: "mail-forward",  label: t("nav.item.mailqueue") },
+        { id: "addon",       icon: "brand-firefox", label: t("nav.item.addon") },
       ],
     },
     {
@@ -1034,6 +1035,14 @@ const MailQueuePageLoader = ({ toast }) => {
   return <Comp toast={toast} />;
 };
 
+const AddonPageLoader = () => {
+  const { t } = useI18n();
+  const [Comp, setComp] = useState(null);
+  useEffect(() => { import("./pages/AddonPage.jsx").then(m => setComp(() => m.default)); }, []);
+  if (!Comp) return <div style={{ color: "var(--text-5)", padding: 40 }}>{t("common.loading")}</div>;
+  return <Comp />;
+};
+
 const MailLogPageLoader = ({ toast }) => {
   const { t } = useI18n();
   const [Comp, setComp] = useState(null);
@@ -1121,6 +1130,7 @@ export default function App() {
         {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
         {page === "maillog"     && <MailLogPageLoader toast={toast} />}
         {page === "mailqueue"   && <MailQueuePageLoader toast={toast} />}
+        {page === "addon"       && <AddonPageLoader />}
         {page === "self-service" && <SelfServicePageLoader toast={toast} />}
       </main>
       <Toast toasts={toasts} />
