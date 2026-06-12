@@ -75,7 +75,7 @@ class SignaturmonsterHandler(AsyncMessage):
                 powered_by = rule.get("powered_by", True)
 
                 # Apply #sm: command overrides
-                if commands["nobeautify"]:   ci = None
+                if commands["noci"]:         ci = None
                 if commands["nodisclaimer"]: disclaimer = None
                 if commands["nobanner"]:     campaign = None
                 sig = rule["signature"] if not commands["nosig"] else {"html_content": "", "text_content": ""}

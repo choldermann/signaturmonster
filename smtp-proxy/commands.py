@@ -8,7 +8,7 @@ Supported commands (case-insensitive, on a line/block of their own):
   #sm:nosig         — skip signature injection (CI beautifier still applies)
   #sm:nobanner      — skip campaign banner
   #sm:nodisclaimer  — skip disclaimer
-  #sm:nobeautify    — skip CI beautifier / branding (plain signature inject only)
+  #sm:noci          — skip CI beautifier / branding (plain signature inject only)
   #sm:off           — disable all of the above
 """
 
@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 _CMD_RE = re.compile(
-    r"^#sm:(nosig|nobanner|nodisclaimer|nobeautify|off)$",
+    r"^#sm:(nosig|nobanner|nodisclaimer|noci|off)$",
     re.IGNORECASE,
 )
 
@@ -40,7 +40,7 @@ def parse_commands(message: Message) -> dict:
         "nosig":        False,
         "nobanner":     False,
         "nodisclaimer": False,
-        "nobeautify":   False,
+        "noci":         False,
         "off":          False,
     }
 
@@ -60,7 +60,7 @@ def parse_commands(message: Message) -> dict:
 
     # #sm:off implies all individual flags
     if flags["off"]:
-        flags["nosig"] = flags["nobanner"] = flags["nodisclaimer"] = flags["nobeautify"] = True
+        flags["nosig"] = flags["nobanner"] = flags["nodisclaimer"] = flags["noci"] = True
 
     if any(flags.values()):
         active = [k for k, v in flags.items() if v]

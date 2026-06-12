@@ -130,7 +130,7 @@ Absender können einzelne Features pro Mail deaktivieren, indem sie einen Steuer
 | `#sm:nosig` | Keine Signatur (CI-Branding bleibt, falls in der Regel konfiguriert) |
 | `#sm:nobanner` | Kein Kampagnen-Banner |
 | `#sm:nodisclaimer` | Kein Disclaimer |
-| `#sm:nobeautify` | Kein CI-Beautifier / Branding (Signatur bleibt) |
+| `#sm:noci` | Kein CI-Beautifier / Branding (Signatur bleibt) |
 | `#sm:off` | Alles deaktiviert — Mail wird unverändert weitergeleitet |
 
 **Verwendung:** Befehl auf einer eigenen Zeile in die Mail tippen, z.B.:
