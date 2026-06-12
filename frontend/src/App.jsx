@@ -113,9 +113,11 @@ function Nav({ page, setPage, user, onLogout }) {
 
   return (
     <nav style={{
-      width: 220, minHeight: "100vh",
+      width: 220, height: "100vh",
+      position: "sticky", top: 0,
       background: "var(--bg-nav)", borderRight: "1px solid var(--border-1)",
       display: "flex", flexDirection: "column", padding: "0 0 24px", flexShrink: 0,
+      overflow: "hidden",
     }}>
       <div style={{ padding: "28px 24px 24px", borderBottom: "1px solid var(--border-1)" }}>
         <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--accent)", fontWeight: 700 }}>Signatur</div>
