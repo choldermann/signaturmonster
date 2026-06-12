@@ -127,8 +127,10 @@ CI-Profile definieren das visuelle Erscheinungsbild von ausgehenden Mails. Wird 
 1. HTML der Mail bereinigen: CI-Layout-Properties (`font-family`, `line-height`, `margin`, `padding`) normalisieren — **Nutzerformatierungen wie Textfarben, Markierungen (`background-color`) und individuelle Schriftgrößen bleiben erhalten**
 2. Outlook/Mozilla-spezifische CSS-Klassen entfernen (`MsoNormal`, `WordSection`, `moz-*`)
 3. `<font color="…">`-Tags zu `<span style="color:…">` konvertieren (Farbe bleibt erhalten)
-4. Leere Trailing-Elemente entfernen
+4. Leere Trailing-Elemente entfernen — eingebettete Bilder und Tabellen am Mail-Ende bleiben erhalten
 5. Bereinigten Inhalt in einen table-basierten CI-Wrapper einbetten
+
+**Was der Beautifier nicht anfasst:** `<table>`, `<img>` und alle anderen HTML-Tags bleiben mit ihren Attributen vollständig erhalten. Eingebettete Bilder (base64/CID), Tabellen, Fettdruck, Farben und andere Inline-Formatierungen werden nicht herausgefiltert.
 
 **Konfigurierbare CI-Parameter:**
 
