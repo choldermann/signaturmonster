@@ -936,5 +936,9 @@
   "users.adminOnlyHint": "Only administrators can manage other users",
   "queue.timeImmediate": "now",
   "queue.timeMinutes": "{n} min.",
-  "queue.timeHours": "{n} h"
+  "queue.timeHours": "{n} h",
+  "queue.pendingInfo": "{count} email(s) waiting for delivery",
+  "queue.failedInfo": "{count} email(s) permanently failed",
+  "queue.pagination": "{total} entries · page {page} of {pages}",
+  "queue.attempt": "Attempt {n}"
 }

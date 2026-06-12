@@ -936,5 +936,9 @@
   "users.adminOnlyHint": "Nur Administratoren können andere Benutzer verwalten",
   "queue.timeImmediate": "sofort",
   "queue.timeMinutes": "{n} Min.",
-  "queue.timeHours": "{n} Std."
+  "queue.timeHours": "{n} Std.",
+  "queue.pendingInfo": "{count} E-Mail(s) warten auf Zustellung",
+  "queue.failedInfo": "{count} E-Mail(s) dauerhaft fehlgeschlagen",
+  "queue.pagination": "{total} Einträge · Seite {page} von {pages}",
+  "queue.attempt": "Versuch {n}"
 }
