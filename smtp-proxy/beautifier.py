@@ -91,7 +91,8 @@ class MailBeautifier:
             last = tag.contents[-1]
             if isinstance(last, Tag):
                 text = last.get_text(strip=True)
-                if not text:
+                has_img = bool(last.find("img"))
+                if not text and not has_img:
                     last.decompose()
                     continue
             break
