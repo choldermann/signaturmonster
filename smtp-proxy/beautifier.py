@@ -70,8 +70,15 @@ class MailBeautifier:
             for sig in body.find_all(class_=re.compile(r'moz-signature|sm-sig')):
                 sig.decompose()
 
+            # Remove <style> tags from body — their selectors reference <head> classes
+            # that are already lost, and they can conflict with the CI wrapper styles.
+            for style_tag in body.find_all("style"):
+                style_tag.decompose()
+
             self._remove_trailing_empty(body)
-            return str(body)
+            # decode_contents() gives inner HTML without the <body> wrapper tag itself,
+            # preventing a nested <body> inside the CI wrapper's <td>.
+            return body.decode_contents()
 
         except Exception as e:
             logger.error(f"HTML cleanup failed: {e}")
