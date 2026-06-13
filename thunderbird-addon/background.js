@@ -128,10 +128,14 @@ if (browser.compose.onOpen) {
   browser.windows.onCreated.addListener(async (win) => {
     if (win.type !== "compose") return;
     setTimeout(async () => {
-      const tabId = win.tabs && win.tabs[0] && win.tabs[0].id;
-      if (!tabId) return;
-      await updateSignature(tabId);
-    }, 600);
+      try {
+        const tabs = await browser.tabs.query({ windowId: win.id });
+        if (!tabs || tabs.length === 0) return;
+        await updateSignature(tabs[0].id);
+      } catch (e) {
+        console.error("Signaturmonster: auto-inject fehlgeschlagen", e);
+      }
+    }, 1000);
   });
 }
 
