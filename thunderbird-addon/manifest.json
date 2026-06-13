@@ -15,7 +15,8 @@
   "permissions": [
     "compose",
     "accountsRead",
-    "storage"
+    "storage",
+    "<all_urls>"
   ],
 
   "background": {
