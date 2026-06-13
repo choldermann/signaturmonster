@@ -118,13 +118,27 @@ async function updateSignature(tabId) {
 // ─── Event-Listener ──────────────────────────────────────────────────────────
 
 console.log("Signaturmonster background script geladen.");
-console.log("browser.compose verfügbare Properties:", browser.compose ? Object.getOwnPropertyNames(browser.compose) : "undefined");
 
 // Beim Öffnen eines neuen Compose-Fensters
-browser.compose.onOpen.addListener(async (tab) => {
-  console.log("Signaturmonster: compose.onOpen, tab", tab.id);
-  await updateSignature(tab.id);
-});
+// compose.onOpen existiert in älteren Thunderbird-Versionen (< 102),
+// neuere Versionen nutzen windows.onCreated mit type "compose".
+if (browser.compose.onOpen) {
+  browser.compose.onOpen.addListener(async (tab) => {
+    console.log("Signaturmonster: compose.onOpen, tab", tab.id);
+    await updateSignature(tab.id);
+  });
+} else {
+  browser.windows.onCreated.addListener(async (win) => {
+    if (win.type !== "compose") return;
+    console.log("Signaturmonster: windows.onCreated (compose), win", win.id);
+    // Kurz warten bis das Compose-Fenster vollständig initialisiert ist
+    setTimeout(async () => {
+      const tabId = win.tabs && win.tabs[0] && win.tabs[0].id;
+      if (!tabId) return;
+      await updateSignature(tabId);
+    }, 600);
+  });
+}
 
 // Beim Wechseln der Absenderidentität (Von:-Adresse)
 browser.compose.onIdentityChanged.addListener(async (tab, _identity) => {
