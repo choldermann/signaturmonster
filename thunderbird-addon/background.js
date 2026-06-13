@@ -119,17 +119,14 @@ async function updateSignature(tabId) {
 
 console.log("Signaturmonster background script geladen.");
 
-// Thunderbird: messenger ist der primäre Namespace, browser ist ein Alias
-const tbAPI = (typeof messenger !== "undefined") ? messenger : browser;
-
 // Beim Öffnen eines neuen Compose-Fensters
-tbAPI.compose.onOpen.addListener(async (tab) => {
+browser.compose.onOpen.addListener(async (tab) => {
   console.log("Signaturmonster: compose.onOpen, tab", tab.id);
   await updateSignature(tab.id);
 });
 
 // Beim Wechseln der Absenderidentität (Von:-Adresse)
-tbAPI.compose.onIdentityChanged.addListener(async (tab, _identity) => {
+browser.compose.onIdentityChanged.addListener(async (tab, _identity) => {
   console.log("Signaturmonster: onIdentityChanged, tab", tab.id);
   await updateSignature(tab.id);
 });
@@ -158,7 +155,7 @@ function showStatusInCompose(tabId, message, color) {
 }
 
 // Manuelles Aktualisieren via Toolbar-Button
-tbAPI.composeAction.onClicked.addListener(async (tab) => {
+browser.composeAction.onClicked.addListener(async (tab) => {
   console.log("Signaturmonster: composeAction.onClicked, tab", tab.id);
   const settings = await getSettings();
   if (!settings.serverUrl || !settings.token) {
@@ -193,7 +190,7 @@ tbAPI.composeAction.onClicked.addListener(async (tab) => {
 
 // Vor dem Versand: X-SM-Addon Header hinzufügen damit der Proxy die
 // Signatur nicht ein zweites Mal injiziert (aber CI/Branding läuft weiter).
-tbAPI.compose.onBeforeSend.addListener(async (tab, details) => {
+browser.compose.onBeforeSend.addListener(async (tab, details) => {
   const settings = await getSettings();
   // Nur wenn das Addon konfiguriert ist, soll der Header ergänzt werden.
   if (!settings.serverUrl || !settings.token) return;
