@@ -20,6 +20,42 @@ class SignaturmonsterHandler(AsyncMessage):
         self.relay            = SMTPRelay()
         self.rate_limiter     = rate_limiter
 
+    def _strip_addon_preview(self, message: Message):
+        """Entfernt Addon-Preview-Elemente aus HTML-Parts vor der echten Injektion."""
+        import base64
+        from bs4 import BeautifulSoup
+        STRIP_IDS = ("signaturmonster-preview", "sm-addon-marker")
+
+        def _clean(html: str) -> str:
+            soup = BeautifulSoup(html, "lxml")
+            for eid in STRIP_IDS:
+                el = soup.find(id=eid)
+                if el:
+                    el.decompose()
+            return str(soup)
+
+        def _process_part(part: Message):
+            if part.get_content_type() != "text/html":
+                return
+            charset = part.get_content_charset() or "utf-8"
+            raw = part.get_payload(decode=True)
+            if not raw:
+                return
+            cleaned = _clean(raw.decode(charset, errors="replace"))
+            payload_bytes = cleaned.encode("utf-8")
+            b64 = base64.encodebytes(payload_bytes).decode("ascii")
+            part.set_param("charset", "utf-8")
+            if "content-transfer-encoding" in part:
+                del part["content-transfer-encoding"]
+            part["Content-Transfer-Encoding"] = "base64"
+            part.set_payload(b64)
+
+        if message.is_multipart():
+            for part in message.walk():
+                _process_part(part)
+        else:
+            _process_part(message)
+
     async def handle_DATA(self, server, session, envelope):
         if self.rate_limiter:
             ip = session.peer[0] if session.peer else "unknown"
@@ -47,10 +83,10 @@ class SignaturmonsterHandler(AsyncMessage):
         commands = parse_commands(message)
 
         # Thunderbird addon embeds <!--SM-ADDON-INJECTED--> in the HTML body.
-        # additionalHeaders from onBeforeSend are not forwarded by Thunderbird.
+        # Strip the preview elements so the proxy can inject the real signature.
         if addon_injected:
-            commands["nosig"] = True
-            logger.info("SM-ADDON-INJECTED marker detected: skipping signature injection")
+            self._strip_addon_preview(message)
+            logger.info("SM-ADDON-INJECTED marker detected: preview stripped, real injection proceeds")
 
         logger.info(f"Processing mail from: {sender_email}")
 
