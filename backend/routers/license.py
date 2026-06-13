@@ -296,23 +296,11 @@ async def deactivate(db: AsyncSession = Depends(get_db)):
 # ─── Feature-Guard (Dependency) ──────────────────────────────────────────────
 def require_feature(feature_id: str):
     """FastAPI-Dependency-Factory: prüft ob ein Feature in der aktiven Lizenz enthalten ist."""
-    async def _check(db: AsyncSession = Depends(get_db)):
-        try:
-            lic = await _resolve_license(db)
-            active = lic.get("active_features") or []
-            if feature_id not in active:
-                raise HTTPException(
-                    status_code=402,
-                    detail=f"Feature '{feature_id}' nicht lizenziert — Upgrade: monstersuite.de",
-                )
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error(f"require_feature({feature_id!r}) error: {exc}", exc_info=True)
-            raise HTTPException(
-                status_code=402,
-                detail=f"Feature '{feature_id}' nicht lizenziert — Upgrade: monstersuite.de",
-            )
+    async def _check():
+        raise HTTPException(
+            status_code=402,
+            detail=f"Feature '{feature_id}' nicht lizenziert — Upgrade: monstersuite.de",
+        )
     return _check
 
 # ─── Offline-Key-Generator (Entwicklung / Demo) ───────────────────────────────
