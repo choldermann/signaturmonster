@@ -1,5 +1,6 @@
 import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from routers.license import require_feature as _rf
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -51,7 +52,7 @@ def _process(data: bytes, mime_type: str) -> tuple[bytes, bytes, int, int]:
 
 # ── List (metadata only, no blob) ─────────────────────────────────────────────
 
-@router.get("/")
+@router.get("/", dependencies=[Depends(_rf("banners"))])
 async def list_images(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(
@@ -66,7 +67,7 @@ async def list_images(db: AsyncSession = Depends(get_db)):
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 
-@router.post("/upload")
+@router.post("/upload", dependencies=[Depends(_rf("banners"))])
 async def upload_image(
     file: UploadFile = File(...),
     name: str = Form(""),
@@ -102,7 +103,7 @@ async def upload_image(
 
 # ── Rename ────────────────────────────────────────────────────────────────────
 
-@router.patch("/{image_id}")
+@router.patch("/{image_id}", dependencies=[Depends(_rf("banners"))])
 async def rename_image(image_id: int, body: dict, db: AsyncSession = Depends(get_db)):
     img = await db.get(ImageAsset, image_id)
     if not img:
@@ -145,7 +146,7 @@ async def serve_thumb(image_id: int, db: AsyncSession = Depends(get_db)):
 
 # ── Delete ────────────────────────────────────────────────────────────────────
 
-@router.delete("/{image_id}")
+@router.delete("/{image_id}", dependencies=[Depends(_rf("banners"))])
 async def delete_image(image_id: int, db: AsyncSession = Depends(get_db)):
     img = await db.get(ImageAsset, image_id)
     if not img:

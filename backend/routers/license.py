@@ -22,7 +22,7 @@ monstersuite.de API-Vertrag (POST /api/v1/licenses/activate + /validate):
 import os, hmac as _hmac, hashlib, base64, json, socket, logging
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 import httpx
@@ -229,6 +229,18 @@ def _build_response(server_data: dict, age_hours: Optional[float],
         "features":        ALL_FEATURES,
         "_offline":        server_data.get("_offline", False),
     }
+
+# ─── Feature-Gate-Dependency ─────────────────────────────────────────────────
+def require_feature(feature_id: str):
+    """FastAPI-Dependency-Factory: 402 wenn Feature nicht lizenziert."""
+    async def _check(db: AsyncSession = Depends(get_db)):
+        lic = await _resolve_license(db)
+        if feature_id not in (lic.get("active_features") or []):
+            raise HTTPException(
+                status_code=402,
+                detail=f"Feature '{feature_id}' nicht lizenziert — Upgrade: monstersuite.de",
+            )
+    return _check
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 @router.get("/")

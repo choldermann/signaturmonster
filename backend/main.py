@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -72,19 +72,21 @@ async def startup():
     import asyncio
     await asyncio.to_thread(write_log, "INFO", "backend", "Signaturmonster Backend gestartet")
 
+from routers.license import require_feature as _rf
+
 app.include_router(auth_router.router,          prefix="/api/auth",          tags=["auth"])
 app.include_router(license_router.router,       prefix="/api/license",       tags=["license"])
 app.include_router(signatures.router,           prefix="/api/signatures",    tags=["signatures"])
 app.include_router(rules_router.router,         prefix="/api/rules",         tags=["rules"])
-app.include_router(users.router,                prefix="/api/users",         tags=["users"])
+app.include_router(users.router,                prefix="/api/users",         tags=["users"],         dependencies=[Depends(_rf("user_mgmt"))])
 app.include_router(settings.router,             prefix="/api/settings",      tags=["settings"])
 app.include_router(enrichment.router,           prefix="/api/enrichment",    tags=["enrichment"])
-app.include_router(templates.router,            prefix="/api/templates",     tags=["templates"])
-app.include_router(ci_router.router,            prefix="/api/ci",            tags=["ci"])
-app.include_router(senders_router.router,       prefix="/api/senders",       tags=["senders"])
+app.include_router(templates.router,            prefix="/api/templates",     tags=["templates"],     dependencies=[Depends(_rf("templates"))])
+app.include_router(ci_router.router,            prefix="/api/ci",            tags=["ci"],            dependencies=[Depends(_rf("ci_branding"))])
+app.include_router(senders_router.router,       prefix="/api/senders",       tags=["senders"],       dependencies=[Depends(_rf("senders"))])
 app.include_router(smtp_accounts_router.router, prefix="/api/smtp-accounts", tags=["smtp-accounts"])
-app.include_router(disclaimers_router.router,   prefix="/api/disclaimers",   tags=["disclaimers"])
-app.include_router(banners_router.router,       prefix="/api/banners",       tags=["banners"])
+app.include_router(disclaimers_router.router,   prefix="/api/disclaimers",   tags=["disclaimers"],   dependencies=[Depends(_rf("disclaimer"))])
+app.include_router(banners_router.router,       prefix="/api/banners",       tags=["banners"],       dependencies=[Depends(_rf("banners"))])
 app.include_router(smtp_users_router.router,    prefix="/api/smtp-users",    tags=["smtp-users"])
 app.include_router(update_router.router,        prefix="/api/update",        tags=["update"])
 app.include_router(logs_router.router,          prefix="/api/logs",          tags=["logs"])
