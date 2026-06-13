@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException
+from routers.license import require_feature as _rf
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
@@ -103,13 +104,13 @@ async def _get_server_url(db: AsyncSession) -> str:
 
 # ── CRUD ────────────────────────────────────────────────────────────────────
 
-@router.get("/", response_model=list[CampaignOut])
+@router.get("/", response_model=list[CampaignOut], dependencies=[Depends(_rf("banners"))])
 async def list_campaigns(db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(Campaign).order_by(Campaign.created_at.desc()))
     return [_campaign_out(c) for c in res.scalars().all()]
 
 
-@router.post("/", response_model=CampaignOut)
+@router.post("/", response_model=CampaignOut, dependencies=[Depends(_rf("banners"))])
 async def create_campaign(data: CampaignIn, db: AsyncSession = Depends(get_db)):
     c = Campaign(
         name=data.name, is_active=data.is_active,
@@ -125,7 +126,7 @@ async def create_campaign(data: CampaignIn, db: AsyncSession = Depends(get_db)):
     return _campaign_out(c)
 
 
-@router.put("/{campaign_id}", response_model=CampaignOut)
+@router.put("/{campaign_id}", response_model=CampaignOut, dependencies=[Depends(_rf("banners"))])
 async def update_campaign(campaign_id: int, data: CampaignIn, db: AsyncSession = Depends(get_db)):
     c = await db.get(Campaign, campaign_id)
     if not c:
@@ -145,7 +146,7 @@ async def update_campaign(campaign_id: int, data: CampaignIn, db: AsyncSession =
     return _campaign_out(c)
 
 
-@router.delete("/{campaign_id}")
+@router.delete("/{campaign_id}", dependencies=[Depends(_rf("banners"))])
 async def delete_campaign(campaign_id: int, db: AsyncSession = Depends(get_db)):
     c = await db.get(Campaign, campaign_id)
     if not c:

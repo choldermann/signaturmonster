@@ -2,6 +2,20 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import LoginPage from "./pages/LoginPage.jsx";
 import { useTheme, useI18n } from "./AppContext.jsx";
 
+const FREE_FEATURES = new Set(["smtp_basic", "signatures", "rules"]);
+
+const PAGE_FEATURE = {
+  "senders":     "senders",
+  "disclaimers": "disclaimer",
+  "banners":     "banners",
+  "campaigns":   "banners",
+  "images":      "banners",
+  "ci":          "ci_branding",
+  "templates":   "templates",
+  "trules":      "templates",
+  "admin-users": "user_mgmt",
+};
+
 const API = "";
 
 async function api(method, path, body) {
@@ -59,7 +73,7 @@ function Toast({ toasts }) {
   );
 }
 
-function Nav({ page, setPage, user, onLogout }) {
+function Nav({ page, setPage, user, onLogout, activeFeatures }) {
   const { t, lang, toggleLang } = useI18n();
   const { theme, toggleTheme } = useTheme();
 
@@ -127,21 +141,28 @@ function Nav({ page, setPage, user, onLogout }) {
             <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-6)", textTransform: "uppercase", letterSpacing: "1px", padding: "0 8px", marginBottom: 4 }}>
               {group.label}
             </div>
-            {group.items.map(item => (
-              <button key={item.id} onClick={() => setPage(item.id)}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                  marginBottom: 1, textAlign: "left", fontSize: 13, fontWeight: 500,
-                  background: page === item.id ? "var(--bg-hover)" : "transparent",
-                  color: page === item.id ? "var(--accent)" : "var(--text-4)",
-                  transition: "all .15s",
-                }}>
-                <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : "var(--text-6)" }} />
-                {item.label}
-                {page === item.id && <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
-              </button>
-            ))}
+            {group.items.map(item => {
+              const requiredFeature = PAGE_FEATURE[item.id];
+              const locked = requiredFeature && !activeFeatures.has(requiredFeature);
+              return (
+                <button key={item.id} onClick={() => setPage(item.id)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                    marginBottom: 1, textAlign: "left", fontSize: 13, fontWeight: 500,
+                    background: page === item.id ? "var(--bg-hover)" : "transparent",
+                    color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-4)",
+                    transition: "all .15s",
+                    opacity: locked ? 0.65 : 1,
+                  }}>
+                  <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-6)" }} />
+                  {item.label}
+                  {locked
+                    ? <Icon name="lock" size={11} style={{ marginLeft: "auto", color: "var(--text-7)" }} />
+                    : page === item.id && <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -946,6 +967,37 @@ function TestPage({ toast }) {
   );
 }
 
+// ─── Locked Feature Screen ────────────────────────────────────────────────────
+function LockedFeaturePage({ featureId, onGoLicense }) {
+  const { t } = useI18n();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, textAlign: "center", padding: "60px 40px" }}>
+      <div style={{ width: 72, height: 72, borderRadius: 18, background: "var(--bg-card)", border: "1px solid var(--border-2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+        <Icon name="lock" size={32} style={{ color: "var(--text-6)" }} />
+      </div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-2)", marginBottom: 8 }}>
+        {t("license.lockedTitle")}
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text-5)", maxWidth: 420, lineHeight: "20px", marginBottom: 8 }}>
+        {t("license.lockedText")}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-6)", fontFamily: "monospace", background: "var(--bg-input)", border: "1px solid var(--border-2)", borderRadius: 6, padding: "4px 10px", marginBottom: 24 }}>
+        {featureId}
+      </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <button onClick={onGoLicense}
+          style={{ padding: "10px 20px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}>
+          <Icon name="key" size={15} />{t("license.lockedCta")}
+        </button>
+        <a href="https://monstersuite.de" target="_blank" rel="noopener noreferrer"
+          style={{ padding: "10px 20px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border-3)", borderRadius: 8, fontSize: 13, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <Icon name="external-link" size={14} />monstersuite.de
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Lazy-loaded page wrappers ────────────────────────────────────────────────
 const TemplatesPageLoader = ({ toast }) => {
   const { t } = useI18n();
@@ -1077,9 +1129,17 @@ const SelfServicePageLoader = ({ toast }) => {
 export default function App() {
   const [page, setPage] = useState("smtp");
   const [toasts, setToasts] = useState([]);
+  const [activeFeatures, setActiveFeatures] = useState(FREE_FEATURES);
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sm_user")); } catch { return null; }
   });
+
+  useEffect(() => {
+    if (!user) return;
+    api("GET", "/api/license/").then(d => {
+      setActiveFeatures(new Set(d.active_features || [...FREE_FEATURES]));
+    }).catch(() => {});
+  }, [user]);
 
   function toast(type, msg) {
     const id = Date.now();
@@ -1109,29 +1169,39 @@ export default function App() {
         ::-webkit-scrollbar-track { background: var(--bg-nav); }
         ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
       `}</style>
-      <Nav page={page} setPage={setPage} user={user} onLogout={handleLogout} />
+      <Nav page={page} setPage={setPage} user={user} onLogout={handleLogout} activeFeatures={activeFeatures} />
       <main style={{ flex: 1, padding: isFullWidth ? "28px 32px" : "32px 40px", maxWidth: isFullWidth ? "none" : 800, overflowY: "auto", overflowX: "hidden" }}>
-        {page === "smtp"        && <SMTPPage toast={toast} />}
-        {page === "senders"     && <SendersPageLoader toast={toast} />}
-        {page === "signatures"  && <SignaturesPage toast={toast} />}
-        {page === "rules"       && <RulesPage toast={toast} />}
-        {page === "trules"      && <TemplateRulesPage toast={toast} />}
-        {page === "test"        && <TestPage toast={toast} />}
-        {page === "templates"   && <TemplatesPageLoader toast={toast} />}
-        {page === "ci"          && <CIPageLoader toast={toast} />}
-        {page === "smtp-users"  && <SMTPUsersLoader toast={toast} />}
-        {page === "update"      && <UpdatePageLoader toast={toast} />}
-        {page === "admin-users" && <UsersManagementLoader toast={toast} />}
-        {page === "license"     && <LicensePageLoader toast={toast} />}
-        {page === "disclaimers" && <DisclaimersPageLoader toast={toast} />}
-        {page === "banners"     && <BannersPageLoader toast={toast} />}
-        {page === "logs"        && <LogsPageLoader toast={toast} />}
-        {page === "images"      && <ImagesPageLoader toast={toast} />}
-        {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
-        {page === "maillog"     && <MailLogPageLoader toast={toast} />}
-        {page === "mailqueue"   && <MailQueuePageLoader toast={toast} />}
-        {page === "addon"       && <AddonPageLoader />}
-        {page === "self-service" && <SelfServicePageLoader toast={toast} />}
+        {(() => {
+          const requiredFeature = PAGE_FEATURE[page];
+          if (requiredFeature && !activeFeatures.has(requiredFeature)) {
+            return <LockedFeaturePage featureId={requiredFeature} onGoLicense={() => setPage("license")} />;
+          }
+          return (
+            <>
+              {page === "smtp"        && <SMTPPage toast={toast} />}
+              {page === "senders"     && <SendersPageLoader toast={toast} />}
+              {page === "signatures"  && <SignaturesPage toast={toast} />}
+              {page === "rules"       && <RulesPage toast={toast} />}
+              {page === "trules"      && <TemplateRulesPage toast={toast} />}
+              {page === "test"        && <TestPage toast={toast} />}
+              {page === "templates"   && <TemplatesPageLoader toast={toast} />}
+              {page === "ci"          && <CIPageLoader toast={toast} />}
+              {page === "smtp-users"  && <SMTPUsersLoader toast={toast} />}
+              {page === "update"      && <UpdatePageLoader toast={toast} />}
+              {page === "admin-users" && <UsersManagementLoader toast={toast} />}
+              {page === "license"     && <LicensePageLoader toast={toast} />}
+              {page === "disclaimers" && <DisclaimersPageLoader toast={toast} />}
+              {page === "banners"     && <BannersPageLoader toast={toast} />}
+              {page === "logs"        && <LogsPageLoader toast={toast} />}
+              {page === "images"      && <ImagesPageLoader toast={toast} />}
+              {page === "campaigns"   && <CampaignsPageLoader toast={toast} />}
+              {page === "maillog"     && <MailLogPageLoader toast={toast} />}
+              {page === "mailqueue"   && <MailQueuePageLoader toast={toast} />}
+              {page === "addon"       && <AddonPageLoader />}
+              {page === "self-service" && <SelfServicePageLoader toast={toast} />}
+            </>
+          );
+        })()}
       </main>
       <Toast toasts={toasts} />
     </div>
