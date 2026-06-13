@@ -127,15 +127,34 @@ browser.compose.onIdentityChanged.addListener(async (tab, _identity) => {
   await updateSignature(tab.id);
 });
 
+function showStatusInCompose(tabId, message, color) {
+  const html = `<div id="sm-status-banner" style="font-family:Arial,sans-serif;font-size:12px;padding:6px 12px;background:${color};color:#fff;border-radius:4px;margin:8px 0;">${message}</div>`;
+  browser.compose.getComposeDetails(tabId).then(details => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(details.body || "<html><body></body></html>", "text/html");
+    const old = doc.getElementById("sm-status-banner");
+    if (old) old.remove();
+    const tmp = doc.createElement("div");
+    tmp.innerHTML = html;
+    doc.body.insertBefore(tmp.firstChild, doc.body.firstChild);
+    browser.compose.setComposeDetails(tabId, { body: doc.documentElement.outerHTML });
+    // Banner nach 4 Sekunden wieder entfernen
+    setTimeout(async () => {
+      try {
+        const d = await browser.compose.getComposeDetails(tabId);
+        const d2 = parser.parseFromString(d.body || "", "text/html");
+        const b = d2.getElementById("sm-status-banner");
+        if (b) { b.remove(); browser.compose.setComposeDetails(tabId, { body: d2.documentElement.outerHTML }); }
+      } catch {}
+    }, 4000);
+  }).catch(() => {});
+}
+
 // Manuelles Aktualisieren via Toolbar-Button
 browser.composeAction.onClicked.addListener(async (tab) => {
   const settings = await getSettings();
   if (!settings.serverUrl || !settings.token) {
-    browser.notifications.create({
-      type: "basic", iconUrl: "icons/icon-48.svg",
-      title: "Signaturmonster",
-      message: "Bitte zuerst in den Addon-Einstellungen anmelden.",
-    });
+    showStatusInCompose(tab.id, "⚠ Signaturmonster: Bitte zuerst in den Addon-Einstellungen anmelden.", "#c0392b");
     return;
   }
 
@@ -143,11 +162,7 @@ browser.composeAction.onClicked.addListener(async (tab) => {
   try { details = await browser.compose.getComposeDetails(tab.id); } catch { return; }
 
   if (details.isPlainText) {
-    browser.notifications.create({
-      type: "basic", iconUrl: "icons/icon-48.svg",
-      title: "Signaturmonster",
-      message: "Nur in HTML-Mails verfügbar. Bitte auf HTML-Format umstellen.",
-    });
+    showStatusInCompose(tab.id, "⚠ Signaturmonster: Nur in HTML-Mails verfügbar.", "#c0392b");
     return;
   }
 
@@ -155,30 +170,17 @@ browser.composeAction.onClicked.addListener(async (tab) => {
   const sigData = await fetchPreview(senderEmail, settings);
 
   if (!sigData) {
-    browser.notifications.create({
-      type: "basic", iconUrl: "icons/icon-48.svg",
-      title: "Signaturmonster",
-      message: "Server nicht erreichbar oder Token abgelaufen.",
-    });
+    showStatusInCompose(tab.id, "⚠ Signaturmonster: Server nicht erreichbar oder Token abgelaufen.", "#c0392b");
     return;
   }
 
   if (!sigData.has_rule || !sigData.html) {
-    browser.notifications.create({
-      type: "basic", iconUrl: "icons/icon-48.svg",
-      title: "Signaturmonster",
-      message: `Keine passende Regel für ${senderEmail}. Bitte Regeln in Signaturmonster prüfen (apply_on_new muss aktiv sein).`,
-    });
+    showStatusInCompose(tab.id, `⚠ Signaturmonster: Keine passende Regel für ${senderEmail}.`, "#e67e22");
     return;
   }
 
   await updateSignature(tab.id);
-
-  browser.notifications.create({
-    type: "basic", iconUrl: "icons/icon-48.svg",
-    title: "Signaturmonster",
-    message: `Signatur aktualisiert: ${sigData.rule_name}`,
-  });
+  showStatusInCompose(tab.id, `✓ Signaturmonster: Signatur aktualisiert (${sigData.rule_name})`, "#27ae60");
 });
 
 // Vor dem Versand: X-SM-Addon Header hinzufügen damit der Proxy die
