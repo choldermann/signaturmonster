@@ -203,14 +203,20 @@ browser.composeAction.onClicked.addListener(async (tab) => {
 // Vor dem Versand: X-SM-Addon Header hinzufügen damit der Proxy die
 // Signatur nicht ein zweites Mal injiziert (aber CI/Branding läuft weiter).
 browser.compose.onBeforeSend.addListener(async (tab, details) => {
+  console.log("Signaturmonster: onBeforeSend gefeuert, tab", tab.id);
   const settings = await getSettings();
-  // Nur wenn das Addon konfiguriert ist, soll der Header ergänzt werden.
-  if (!settings.serverUrl || !settings.token) return;
+  if (!settings.serverUrl || !settings.token) {
+    console.log("Signaturmonster: onBeforeSend – kein Token, Header wird nicht gesetzt");
+    return;
+  }
 
   const existing = details.additionalHeaders || [];
-  if (existing.some((h) => h.name === SM_HEADER_NAME)) return;
+  if (existing.some((h) => h.name === SM_HEADER_NAME)) {
+    console.log("Signaturmonster: Header bereits vorhanden");
+    return;
+  }
 
-  return {
+  const result = {
     details: {
       additionalHeaders: [
         ...existing,
@@ -218,4 +224,6 @@ browser.compose.onBeforeSend.addListener(async (tab, details) => {
       ],
     },
   };
+  console.log("Signaturmonster: X-SM-Addon Header gesetzt:", JSON.stringify(result));
+  return result;
 });
