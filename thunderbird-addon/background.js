@@ -126,13 +126,11 @@ if (browser.compose.onOpen) {
   });
 } else {
   browser.windows.onCreated.addListener(async (win) => {
-    console.log("Signaturmonster: windows.onCreated type=", win.type, "id=", win.id);
-    if (win.type !== "compose") return;
+    if (win.type !== "messageCompose") return;
     setTimeout(async () => {
       try {
         const tabs = await browser.tabs.query({ windowId: win.id });
-        console.log("Signaturmonster: tabs.query result=", tabs.length, tabs.map(t => t.id));
-        if (!tabs || tabs.length === 0) return;
+if (!tabs || tabs.length === 0) return;
         await updateSignature(tabs[0].id);
       } catch (e) {
         console.error("Signaturmonster: auto-inject fehlgeschlagen", e);
