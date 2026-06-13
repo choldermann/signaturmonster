@@ -118,6 +118,7 @@ async function updateSignature(tabId) {
 // ─── Event-Listener ──────────────────────────────────────────────────────────
 
 console.log("Signaturmonster background script geladen.");
+console.log("browser.compose verfügbare Properties:", browser.compose ? Object.getOwnPropertyNames(browser.compose) : "undefined");
 
 // Beim Öffnen eines neuen Compose-Fensters
 browser.compose.onOpen.addListener(async (tab) => {
