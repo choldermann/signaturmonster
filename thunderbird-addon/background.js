@@ -129,7 +129,56 @@ browser.compose.onIdentityChanged.addListener(async (tab, _identity) => {
 
 // Manuelles Aktualisieren via Toolbar-Button
 browser.composeAction.onClicked.addListener(async (tab) => {
+  const settings = await getSettings();
+  if (!settings.serverUrl || !settings.token) {
+    browser.notifications.create({
+      type: "basic", iconUrl: "icons/icon-48.svg",
+      title: "Signaturmonster",
+      message: "Bitte zuerst in den Addon-Einstellungen anmelden.",
+    });
+    return;
+  }
+
+  let details;
+  try { details = await browser.compose.getComposeDetails(tab.id); } catch { return; }
+
+  if (details.isPlainText) {
+    browser.notifications.create({
+      type: "basic", iconUrl: "icons/icon-48.svg",
+      title: "Signaturmonster",
+      message: "Nur in HTML-Mails verfügbar. Bitte auf HTML-Format umstellen.",
+    });
+    return;
+  }
+
+  const senderEmail = extractEmail(details.from);
+  const sigData = await fetchPreview(senderEmail, settings);
+
+  if (!sigData) {
+    browser.notifications.create({
+      type: "basic", iconUrl: "icons/icon-48.svg",
+      title: "Signaturmonster",
+      message: "Server nicht erreichbar oder Token abgelaufen.",
+    });
+    return;
+  }
+
+  if (!sigData.has_rule || !sigData.html) {
+    browser.notifications.create({
+      type: "basic", iconUrl: "icons/icon-48.svg",
+      title: "Signaturmonster",
+      message: `Keine passende Regel für ${senderEmail}. Bitte Regeln in Signaturmonster prüfen (apply_on_new muss aktiv sein).`,
+    });
+    return;
+  }
+
   await updateSignature(tab.id);
+
+  browser.notifications.create({
+    type: "basic", iconUrl: "icons/icon-48.svg",
+    title: "Signaturmonster",
+    message: `Signatur aktualisiert: ${sigData.rule_name}`,
+  });
 });
 
 // Vor dem Versand: X-SM-Addon Header hinzufügen damit der Proxy die
