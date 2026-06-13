@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Signaturmonster",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bettet deine Signaturmonster-Signatur live in das Compose-Fenster ein.",
   "author": "Signaturmonster",
 
