@@ -47,12 +47,15 @@ $("btnConnect").addEventListener("click", async () => {
     const resp = await fetch(`${serverUrl}/api/auth/login`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ email: username, password }),
+      body:    JSON.stringify({ username, password }),
     });
 
     if (!resp.ok) {
       const data = await resp.json().catch(() => ({}));
-      showStatus(data.detail || `Anmeldefehler (${resp.status})`, "error");
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map(e => e.msg).join(", ")
+        : (data.detail || `Anmeldefehler (${resp.status})`);
+      showStatus(detail, "error");
       return;
     }
 
