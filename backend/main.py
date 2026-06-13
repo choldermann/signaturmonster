@@ -81,7 +81,7 @@ app.include_router(enrichment.router,           prefix="/api/enrichment",    tag
 from routers.license import require_feature as _rf
 app.include_router(templates.router,            prefix="/api/templates",     tags=["templates"],     dependencies=[Depends(_rf("templates"))])
 app.include_router(ci_router.router,            prefix="/api/ci",            tags=["ci"],            dependencies=[Depends(_rf("ci_branding"))])
-app.include_router(senders_router.router,       prefix="/api/senders",       tags=["senders"],       dependencies=[Depends(_rf("senders"))])
+app.include_router(senders_router.router,       prefix="/api/senders",       tags=["senders"])
 app.include_router(smtp_accounts_router.router, prefix="/api/smtp-accounts", tags=["smtp-accounts"])
 app.include_router(disclaimers_router.router,   prefix="/api/disclaimers",   tags=["disclaimers"],   dependencies=[Depends(_rf("disclaimer"))])
 app.include_router(banners_router.router,       prefix="/api/banners",       tags=["banners"],       dependencies=[Depends(_rf("banners"))])
