@@ -7,9 +7,7 @@
  * der SMTP-Proxy die Signatur nicht doppelt injiziert.
  */
 
-const SM_PREVIEW_ID   = "signaturmonster-preview";
-const SM_HEADER_NAME  = "X-SM-Addon";
-const SM_HEADER_VALUE = "injected";
+const SM_PREVIEW_ID = "signaturmonster-preview";
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
@@ -68,11 +66,21 @@ function injectSignatureIntoBody(currentBody, sigHtml) {
     "text/html"
   );
 
-  // Altes SM-Preview entfernen
+  // Altes SM-Preview und alten Marker entfernen
   const existing = doc.getElementById(SM_PREVIEW_ID);
   if (existing) existing.remove();
+  const existingMarker = doc.getElementById("sm-addon-marker");
+  if (existingMarker) existingMarker.remove();
 
   if (sigHtml) {
+    // Unsichtbarer Kommentar-Marker damit der SMTP-Proxy die Signatur nicht
+    // ein zweites Mal injiziert (additionalHeaders werden von Thunderbird nicht weitergeleitet)
+    const markerDiv = doc.createElement("div");
+    markerDiv.id = "sm-addon-marker";
+    markerDiv.style.display = "none";
+    markerDiv.appendChild(doc.createComment("SM-ADDON-INJECTED"));
+    doc.body.appendChild(markerDiv);
+
     const tmp = doc.createElement("div");
     tmp.innerHTML = sigHtml;
     while (tmp.firstChild) {
@@ -202,28 +210,6 @@ browser.composeAction.onClicked.addListener(async (tab) => {
 
 // Vor dem Versand: X-SM-Addon Header hinzufügen damit der Proxy die
 // Signatur nicht ein zweites Mal injiziert (aber CI/Branding läuft weiter).
-browser.compose.onBeforeSend.addListener(async (tab, details) => {
-  console.log("Signaturmonster: onBeforeSend gefeuert, tab", tab.id);
-  const settings = await getSettings();
-  if (!settings.serverUrl || !settings.token) {
-    console.log("Signaturmonster: onBeforeSend – kein Token, Header wird nicht gesetzt");
-    return;
-  }
-
-  const existing = details.additionalHeaders || [];
-  if (existing.some((h) => h.name === SM_HEADER_NAME)) {
-    console.log("Signaturmonster: Header bereits vorhanden");
-    return;
-  }
-
-  const result = {
-    details: {
-      additionalHeaders: [
-        ...existing,
-        { name: SM_HEADER_NAME, value: SM_HEADER_VALUE },
-      ],
-    },
-  };
-  console.log("Signaturmonster: X-SM-Addon Header gesetzt:", JSON.stringify(result));
-  return result;
-});
+// onBeforeSend: kein Header-Setzen nötig – der Proxy erkennt den
+// <!--SM-ADDON-INJECTED-->-Kommentar direkt im HTML-Body.
+browser.compose.onBeforeSend.addListener((_tab, _details) => {});

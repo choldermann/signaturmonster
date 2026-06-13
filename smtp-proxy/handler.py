@@ -27,10 +27,11 @@ class SignaturmonsterHandler(AsyncMessage):
                 return "451 4.7.1 Rate limit exceeded, please try again later"
         from email import message_from_bytes
         message = message_from_bytes(envelope.content)
-        await self.handle_message(message, rcpt_tos=list(envelope.rcpt_tos))
+        addon_injected = b"<!--SM-ADDON-INJECTED-->" in envelope.content
+        await self.handle_message(message, rcpt_tos=list(envelope.rcpt_tos), addon_injected=addon_injected)
         return "250 Message accepted for delivery"
 
-    async def handle_message(self, message: Message, rcpt_tos: list | None = None):
+    async def handle_message(self, message: Message, rcpt_tos: list | None = None, addon_injected: bool = False):
         t0            = time.time()
         sender_header = message.get("From", "")
         sender_email  = self.rule_engine._extract_address(sender_header)
@@ -45,17 +46,11 @@ class SignaturmonsterHandler(AsyncMessage):
         # Parse and strip #sm: control commands before any other processing
         commands = parse_commands(message)
 
-        # DEBUG: Log alle X-* Header die ankommen
-        x_headers = [(k, v) for k, v in message.items() if k.lower().startswith("x-")]
-        logger.info(f"DEBUG incoming X-headers: {x_headers}")
-
-        # Thunderbird addon adds X-SM-Addon: injected when it has already embedded the
-        # signature in the compose window → skip signature injection, CI still runs.
-        if message.get("X-SM-Addon", "").strip().lower() == "injected":
+        # Thunderbird addon embeds <!--SM-ADDON-INJECTED--> in the HTML body.
+        # additionalHeaders from onBeforeSend are not forwarded by Thunderbird.
+        if addon_injected:
             commands["nosig"] = True
-            while "X-SM-Addon" in message:
-                del message["X-SM-Addon"]
-            logger.info("X-SM-Addon detected: skipping signature, CI/beautifier active")
+            logger.info("SM-ADDON-INJECTED marker detected: skipping signature injection")
 
         logger.info(f"Processing mail from: {sender_email}")
 
