@@ -276,12 +276,21 @@ export default function SendersPage({ toast }) {
     setImporting(false);
   }
 
-  function handleExport(format) {
-    const token = localStorage.getItem("token");
-    const url = `/api/senders/export?format=${format}`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.click();
+  async function handleExport(format) {
+    try {
+      const token = localStorage.getItem("token");
+      const resp = await fetch(`/api/senders/export?format=${format}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) { toast("err", t("senders.importError")); return; }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `absender-profile.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast("err", t("senders.importError")); }
   }
 
   if (editing !== null) return (
