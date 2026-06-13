@@ -206,12 +206,45 @@ function SenderEditor({ sender, onSave, onCancel, toast }) {
   );
 }
 
+function ImportResultModal({ result, onClose, t }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 14, padding: "28px 32px", width: 420, maxWidth: "90vw" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-1)", margin: "0 0 20px" }}>{t("senders.importResult")}</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: t("senders.importCreated"), value: result.created, color: "var(--green-s)" },
+            { label: t("senders.importUpdated"), value: result.updated, color: "var(--accent)" },
+            { label: t("senders.importErrors"),  value: result.errors.length, color: result.errors.length ? "var(--red-s)" : "var(--text-5)" },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ background: "var(--bg-input)", borderRadius: 10, padding: "14px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color }}>{value}</div>
+              <div style={{ fontSize: 11, color: "var(--text-5)", marginTop: 3 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+        {result.errors.length > 0 && (
+          <div style={{ background: "var(--red-bg)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, maxHeight: 120, overflowY: "auto" }}>
+            {result.errors.map((e, i) => (
+              <div key={i} style={{ fontSize: 11, color: "var(--red-s)", marginBottom: 3 }}>{e}</div>
+            ))}
+          </div>
+        )}
+        <button style={{ ...btnPrimary, width: "100%" }} onClick={onClose}>{t("common.close")}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function SendersPage({ toast }) {
   const { t } = useI18n();
   const [senders, setSenders] = useState([]);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [importResult, setImportResult] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = React.useRef();
 
   const load = useCallback(async () => {
     try { const d = await api("GET", "/api/senders/"); setSenders(d); }
@@ -225,6 +258,30 @@ export default function SendersPage({ toast }) {
     await api("DELETE", `/api/senders/${id}`);
     toast("ok", t("senders.deleted"));
     load();
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const resp = await fetch("/api/senders/import", { method: "POST", body: form });
+      const result = await resp.json();
+      setImportResult(result);
+      load();
+    } catch { toast("err", t("senders.importError")); }
+    setImporting(false);
+  }
+
+  function handleExport(format) {
+    const token = localStorage.getItem("token");
+    const url = `/api/senders/export?format=${format}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.click();
   }
 
   if (editing !== null) return (
@@ -244,14 +301,30 @@ export default function SendersPage({ toast }) {
 
   return (
     <div>
+      {importResult && (
+        <ImportResultModal result={importResult} onClose={() => setImportResult(null)} t={t} />
+      )}
+      <input ref={fileInputRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={handleImport} />
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("senders.title")}</h1>
           <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>{t("senders.subtitle")}</p>
         </div>
-        <button style={btnPrimary} onClick={() => setEditing("new")}>
-          <i className="ti ti-plus" style={{ fontSize: 15 }} />{t("senders.newSender")}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button style={btnSecondary} onClick={() => handleExport("xlsx")} title={t("senders.exportXlsx")}>
+            <i className="ti ti-file-spreadsheet" style={{ fontSize: 15 }} /> XLSX
+          </button>
+          <button style={btnSecondary} onClick={() => handleExport("csv")} title={t("senders.exportCsv")}>
+            <i className="ti ti-file-text" style={{ fontSize: 15 }} /> CSV
+          </button>
+          <button style={btnSecondary} onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <i className="ti ti-upload" style={{ fontSize: 15 }} />{importing ? t("senders.importing") : t("senders.import")}
+          </button>
+          <button style={btnPrimary} onClick={() => setEditing("new")}>
+            <i className="ti ti-plus" style={{ fontSize: 15 }} />{t("senders.newSender")}
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--accent-bd)", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
