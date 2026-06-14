@@ -76,9 +76,9 @@ async def get_sender_limit(db) -> int | None:
 
 # ─── Machine-ID ───────────────────────────────────────────────────────────────
 def _machine_id() -> str:
+    # Nur Hostname + Product — kein uuid.getnode() (MAC ändert sich bei Container-Neustart)
     try:
-        import uuid
-        raw = f"{socket.gethostname()}-{uuid.getnode()}-{PRODUCT_SLUG}"
+        raw = f"{socket.gethostname()}-{PRODUCT_SLUG}"
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
     except Exception:
         return hashlib.sha256(PRODUCT_SLUG.encode()).hexdigest()[:32]
@@ -312,11 +312,13 @@ async def refresh(db: AsyncSession = Depends(get_db)):
     if not key:
         return {"ok": False, "error": "Kein Lizenzschlüssel gespeichert"}
     result = await _validate_online(key, email, endpoint="validate")
-    if result and result.get("valid"):
+    if result is None:
+        return {"ok": False, "error": f"Lizenzserver ({LICENSE_SERVER}) nicht erreichbar"}
+    if result.get("valid"):
         await _save_cache(db, result)
         await db.commit()
         return {"ok": True, "plan": result.get("plan"), "checked_at": datetime.utcnow().isoformat()}
-    return {"ok": False, "error": "Server nicht erreichbar oder Lizenz ungültig"}
+    return {"ok": False, "error": result.get("message") or result.get("error") or "Lizenz ungültig"}
 
 @router.delete("/")
 async def deactivate(db: AsyncSession = Depends(get_db)):
