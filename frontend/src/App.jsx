@@ -19,9 +19,13 @@ const PAGE_FEATURE = {
 const API = "";
 
 async function api(method, path, body) {
+  const token = localStorage.getItem("sm_token");
   const r = await fetch(API + path, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   return r.json();
