@@ -192,6 +192,14 @@ class MailQueueEntry(Base):
     rcpt_tos_json     = Column(Text, default="")   # JSON list of envelope RCPT TO addresses
     last_error        = Column(Text, default="")
 
+class SenderSlot(Base):
+    __tablename__ = "sender_slots"
+    id         = Column(Integer, primary_key=True)
+    email      = Column(String, unique=True, nullable=False, index=True)
+    first_seen = Column(DateTime, server_default=func.now())
+    last_seen  = Column(DateTime, server_default=func.now())
+    mail_count = Column(Integer, default=1)
+
 class MailLog(Base):
     __tablename__ = "mail_logs"
     id             = Column(Integer, primary_key=True)

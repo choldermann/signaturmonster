@@ -139,6 +139,22 @@ class RuleEngine:
         except Exception as e:
             logger.warning(f"Mail log failed: {e}")
 
+    async def touch_sender_slot(self, email: str) -> dict:
+        """Upsert in sender_slots; gibt {"limit_reached": True} zurück wenn Limit voll."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.backend_url}/api/sender-slots/touch",
+                    headers=_INTERNAL_HDR,
+                    json={"email": email},
+                    timeout=aiohttp.ClientTimeout(total=2),
+                ) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.warning(f"Sender slot touch failed: {e}")
+        return {"ok": True, "limit_reached": False}  # fail-open: Mail immer durchlassen
+
     async def get_enrichment(self, rule: dict, message: Message) -> dict | None:
         if rule.get("enrichment_source") != "lexware":
             return None

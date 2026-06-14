@@ -236,19 +236,172 @@ function ImportResultModal({ result, onClose, t }) {
   );
 }
 
+function UsageBar({ usage }) {
+  if (!usage) return null;
+  const { current, limit, unlimited, pct, warning, exceeded } = usage;
+  const barColor = exceeded ? "var(--red-s)" : warning ? "#f59e0b" : "var(--green-s)";
+  const bgColor  = exceeded ? "var(--red-bg)" : warning ? "#fef3c7" : "var(--bg-input)";
+
+  return (
+    <div style={{ background: bgColor, border: `1px solid ${exceeded ? "var(--red-bg)" : warning ? "#fde68a" : "var(--border-2)"}`, borderRadius: 10, padding: "14px 18px", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <i className={`ti ti-${exceeded ? "alert-circle" : warning ? "alert-triangle" : "users"}`}
+             style={{ fontSize: 16, color: barColor }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)" }}>
+            Absender-Kontingent
+          </span>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: barColor }}>
+          {current} / {unlimited ? "∞" : limit}
+          {!unlimited && <span style={{ fontSize: 11, fontWeight: 400, color: "var(--text-5)", marginLeft: 6 }}>({pct}%)</span>}
+        </span>
+      </div>
+      {!unlimited && (
+        <div style={{ background: "var(--border-3)", borderRadius: 4, height: 6, overflow: "hidden" }}>
+          <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.3s" }} />
+        </div>
+      )}
+      {exceeded && (
+        <div style={{ fontSize: 12, color: "var(--red-s)", marginTop: 8 }}>
+          Limit erreicht — neue Absender erhalten keine Signatur. Löschen Sie inaktive Absender oder upgraden Sie Ihren Plan.
+        </div>
+      )}
+      {warning && !exceeded && (
+        <div style={{ fontSize: 12, color: "#92400e", marginTop: 8 }}>
+          Absender-Limit fast erreicht. Bald erhalten neue Absender keine Signatur mehr.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActiveSendersTab({ toast }) {
+  const [slots,   setSlots]   = useState([]);
+  const [usage,   setUsage]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [u, s] = await Promise.all([
+        api("GET", "/api/sender-slots/usage"),
+        api("GET", "/api/sender-slots/"),
+      ]);
+      setUsage(u);
+      setSlots(s);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function deleteOne(email) {
+    await api("DELETE", `/api/sender-slots/${encodeURIComponent(email)}`);
+    toast("ok", "Absender entfernt");
+    load();
+  }
+
+  async function deleteAll() {
+    if (!window.confirm("Alle aktiven Absender aus der Liste löschen? Die Slots werden beim nächsten Mailversand wieder befüllt.")) return;
+    setDeleting(true);
+    await api("DELETE", "/api/sender-slots/clear");
+    toast("ok", "Alle Absender-Slots geleert");
+    load();
+    setDeleting(false);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+    catch { return iso; }
+  }
+
+  if (loading) return <div style={{ color: "var(--text-5)", padding: 40 }}>Lade...</div>;
+
+  return (
+    <div>
+      <UsageBar usage={usage} />
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: "var(--text-5)" }}>
+          Eindeutige From:-Adressen der letzten 30 Tage. Gelöschte Adressen geben Slots sofort frei.
+        </div>
+        {slots.length > 0 && (
+          <button style={btnDanger} onClick={deleteAll} disabled={deleting}>
+            <i className="ti ti-trash" style={{ fontSize: 13 }} />
+            {deleting ? "Lösche…" : "Alle löschen"}
+          </button>
+        )}
+      </div>
+
+      {slots.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-6)" }}>
+          <i className="ti ti-inbox" style={{ fontSize: 40, display: "block", margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 14 }}>Noch keine Absender in den letzten 30 Tagen</div>
+          <div style={{ fontSize: 12, color: "var(--text-7)", marginTop: 6 }}>Slots werden automatisch beim Mailversand befüllt.</div>
+        </div>
+      ) : (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--bg-nav)", borderBottom: "1px solid var(--border-2)" }}>
+                {[["Mailadresse", "auto"], ["Mails", "80px"], ["Zuletzt gesehen", "160px"], ["", "48px"]].map(([h, w]) => (
+                  <th key={h} style={{ padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "var(--text-5)", textTransform: "uppercase", letterSpacing: "0.6px", textAlign: "left", width: w }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {slots.map((s, i) => (
+                <tr key={s.email} style={{ borderBottom: i < slots.length - 1 ? "1px solid var(--border-3)" : "none" }}>
+                  <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--text-2)", fontFamily: "monospace" }}>
+                    {s.email}
+                  </td>
+                  <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--text-4)", textAlign: "right" }}>
+                    {s.mail_count}
+                  </td>
+                  <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--text-5)" }}>
+                    {fmtDate(s.last_seen)}
+                  </td>
+                  <td style={{ padding: "8px 10px" }}>
+                    <button style={btnDanger} onClick={() => deleteOne(s.email)} title="Slot freigeben">
+                      <i className="ti ti-trash" style={{ fontSize: 13 }} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SendersPage({ toast }) {
   const { t } = useI18n();
-  const [senders, setSenders] = useState([]);
-  const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [activeTab,    setActiveTab]    = useState("profiles");
+  const [senders,      setSenders]      = useState([]);
+  const [editing,      setEditing]      = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState("");
   const [importResult, setImportResult] = useState(null);
-  const [importing, setImporting] = useState(false);
+  const [importing,    setImporting]    = useState(false);
+  const [usage,        setUsage]        = useState(null);
   const fileInputRef = React.useRef();
 
   const load = useCallback(async () => {
-    try { const d = await api("GET", "/api/senders/"); setSenders(d); }
-    catch {}
+    try {
+      const [d, u] = await Promise.all([
+        api("GET", "/api/senders/"),
+        api("GET", "/api/sender-slots/usage"),
+      ]);
+      setSenders(d);
+      setUsage(u);
+    } catch {}
     setLoading(false);
   }, []);
 
@@ -308,6 +461,11 @@ export default function SendersPage({ toast }) {
     !search || [s.first_name, s.last_name, s.email, s.job_title, s.company].join(" ").toLowerCase().includes(search.toLowerCase())
   );
 
+  const tabBase = { padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "transparent", borderBottom: "2px solid transparent", color: "var(--text-5)" };
+  const tabActive = { ...tabBase, borderBottomColor: "var(--accent)", color: "var(--accent)" };
+
+  const usageBadgeColor = usage?.exceeded ? "var(--red-s)" : usage?.warning ? "#f59e0b" : "var(--text-5)";
+
   return (
     <div>
       {importResult && (
@@ -320,74 +478,102 @@ export default function SendersPage({ toast }) {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("senders.title")}</h1>
           <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>{t("senders.subtitle")}</p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button style={btnSecondary} onClick={() => handleExport("xlsx")} title={t("senders.exportXlsx")}>
-            <i className="ti ti-file-spreadsheet" style={{ fontSize: 15 }} /> XLSX
-          </button>
-          <button style={btnSecondary} onClick={() => handleExport("csv")} title={t("senders.exportCsv")}>
-            <i className="ti ti-file-text" style={{ fontSize: 15 }} /> CSV
-          </button>
-          <button style={btnSecondary} onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <i className="ti ti-upload" style={{ fontSize: 15 }} />{importing ? t("senders.importing") : t("senders.import")}
-          </button>
-          <button style={btnPrimary} onClick={() => setEditing("new")}>
-            <i className="ti ti-plus" style={{ fontSize: 15 }} />{t("senders.newSender")}
-          </button>
-        </div>
+        {activeTab === "profiles" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button style={btnSecondary} onClick={() => handleExport("xlsx")} title={t("senders.exportXlsx")}>
+              <i className="ti ti-file-spreadsheet" style={{ fontSize: 15 }} /> XLSX
+            </button>
+            <button style={btnSecondary} onClick={() => handleExport("csv")} title={t("senders.exportCsv")}>
+              <i className="ti ti-file-text" style={{ fontSize: 15 }} /> CSV
+            </button>
+            <button style={btnSecondary} onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              <i className="ti ti-upload" style={{ fontSize: 15 }} />{importing ? t("senders.importing") : t("senders.import")}
+            </button>
+            <button style={btnPrimary} onClick={() => setEditing("new")}>
+              <i className="ti ti-plus" style={{ fontSize: 15 }} />{t("senders.newSender")}
+            </button>
+          </div>
+        )}
       </div>
 
-      <div style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--accent-bd)", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
-        <i className="ti ti-variable" style={{ fontSize: 16, color: "var(--accent)", flexShrink: 0, marginTop: 1 }} />
-        <div style={{ fontSize: 12, color: "var(--text-5)", lineHeight: "18px" }}>
-          {t("senders.variableHint")}
-          {" "}{["{{vorname}}", "{{nachname}}", "{{email}}", "{{berufsbezeichnung}}", "{{telefon}}", "{{mobil}}", "{{strasse}}", "{{plz}}", "{{ort}}", "{{land}}", "{{adresse}}"].map(v => (
-            <code key={v} style={{ background: "var(--bg-nav)", border: "1px solid var(--border-3)", borderRadius: 3, padding: "0 4px", color: "var(--accent)", fontSize: 11, marginRight: 4, fontFamily: "monospace" }}>{v}</code>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-2)", marginBottom: 22, gap: 4 }}>
+        <button style={activeTab === "profiles" ? tabActive : tabBase} onClick={() => setActiveTab("profiles")}>
+          <i className="ti ti-id-badge" style={{ fontSize: 14, marginRight: 6 }} />
+          Absender-Profile
+          <span style={{ marginLeft: 8, fontSize: 11, background: "var(--bg-input)", border: "1px solid var(--border-3)", borderRadius: 10, padding: "1px 7px", color: "var(--text-5)" }}>
+            {senders.length}
+          </span>
+        </button>
+        <button style={activeTab === "active" ? tabActive : tabBase} onClick={() => setActiveTab("active")}>
+          <i className="ti ti-antenna" style={{ fontSize: 14, marginRight: 6 }} />
+          Aktive Absender (30 Tage)
+          {usage && (
+            <span style={{ marginLeft: 8, fontSize: 11, background: "var(--bg-input)", border: `1px solid ${usage.exceeded || usage.warning ? usageBadgeColor : "var(--border-3)"}`, borderRadius: 10, padding: "1px 7px", color: usageBadgeColor, fontWeight: usage.exceeded || usage.warning ? 700 : 400 }}>
+              {usage.current}/{usage.unlimited ? "∞" : usage.limit}
+            </span>
+          )}
+        </button>
       </div>
 
-      {senders.length > 4 && (
-        <div style={{ marginBottom: 14 }}>
-          <input style={iStyle} value={search} onChange={e => setSearch(e.target.value)} placeholder={t("senders.searchPlaceholder")} />
-        </div>
-      )}
-
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-6)" }}>
-          <i className="ti ti-users" style={{ fontSize: 40, display: "block", margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 14 }}>{search ? t("senders.noResults") : t("senders.empty")}</div>
-          {!search && <div style={{ fontSize: 12, color: "var(--text-7)", marginTop: 6 }}>{t("senders.emptyHint")}</div>}
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-          {filtered.map(s => (
-            <div key={s.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, padding: "16px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <Avatar sender={s} size={48} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  {[s.first_name, s.last_name].filter(Boolean).join(" ") || s.email}
-                </div>
-                {s.job_title && <div style={{ fontSize: 12, color: "var(--accent)", marginTop: 2 }}>{s.job_title}</div>}
-                <div style={{ fontSize: 11, color: "var(--text-5)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.email}</div>
-                {(s.phone || s.mobile) && (
-                  <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 4 }}>
-                    {s.phone && <span style={{ marginRight: 10 }}>📞 {s.phone}</span>}
-                    {s.mobile && <span>📱 {s.mobile}</span>}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button style={btnSecondary} onClick={() => setEditing(s)}>
-                  <i className="ti ti-edit" style={{ fontSize: 13 }} />
-                </button>
-                <button style={btnDanger} onClick={() => del(s.id)}>
-                  <i className="ti ti-trash" style={{ fontSize: 13 }} />
-                </button>
-              </div>
+      {activeTab === "profiles" && (
+        <>
+          <div style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--accent-bd)", borderRadius: 10, marginBottom: 20, display: "flex", gap: 12 }}>
+            <i className="ti ti-variable" style={{ fontSize: 16, color: "var(--accent)", flexShrink: 0, marginTop: 1 }} />
+            <div style={{ fontSize: 12, color: "var(--text-5)", lineHeight: "18px" }}>
+              {t("senders.variableHint")}
+              {" "}{["{{vorname}}", "{{nachname}}", "{{email}}", "{{berufsbezeichnung}}", "{{telefon}}", "{{mobil}}", "{{strasse}}", "{{plz}}", "{{ort}}", "{{land}}", "{{adresse}}"].map(v => (
+                <code key={v} style={{ background: "var(--bg-nav)", border: "1px solid var(--border-3)", borderRadius: 3, padding: "0 4px", color: "var(--accent)", fontSize: 11, marginRight: 4, fontFamily: "monospace" }}>{v}</code>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+
+          {senders.length > 4 && (
+            <div style={{ marginBottom: 14 }}>
+              <input style={iStyle} value={search} onChange={e => setSearch(e.target.value)} placeholder={t("senders.searchPlaceholder")} />
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-6)" }}>
+              <i className="ti ti-users" style={{ fontSize: 40, display: "block", margin: "0 auto 12px" }} />
+              <div style={{ fontSize: 14 }}>{search ? t("senders.noResults") : t("senders.empty")}</div>
+              {!search && <div style={{ fontSize: 12, color: "var(--text-7)", marginTop: 6 }}>{t("senders.emptyHint")}</div>}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+              {filtered.map(s => (
+                <div key={s.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, padding: "16px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  <Avatar sender={s} size={48} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-2)", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                      {[s.first_name, s.last_name].filter(Boolean).join(" ") || s.email}
+                    </div>
+                    {s.job_title && <div style={{ fontSize: 12, color: "var(--accent)", marginTop: 2 }}>{s.job_title}</div>}
+                    <div style={{ fontSize: 11, color: "var(--text-5)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.email}</div>
+                    {(s.phone || s.mobile) && (
+                      <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 4 }}>
+                        {s.phone && <span style={{ marginRight: 10 }}>📞 {s.phone}</span>}
+                        {s.mobile && <span>📱 {s.mobile}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button style={btnSecondary} onClick={() => setEditing(s)}>
+                      <i className="ti ti-edit" style={{ fontSize: 13 }} />
+                    </button>
+                    <button style={btnDanger} onClick={() => del(s.id)}>
+                      <i className="ti ti-trash" style={{ fontSize: 13 }} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
+
+      {activeTab === "active" && <ActiveSendersTab toast={toast} />}
     </div>
   );
 }

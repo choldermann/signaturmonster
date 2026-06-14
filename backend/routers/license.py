@@ -55,6 +55,25 @@ ALL_FEATURES = [
 ]
 FREE_FEATURES = {f["id"] for f in ALL_FEATURES if f["free"]}
 
+# ─── Sender-Slot-Limits pro Plan ──────────────────────────────────────────────
+SENDER_LIMITS: dict[str, int | None] = {
+    "kostenlos": 1,
+    "free":      1,
+    "standard":  25,
+    "pro":       100,
+    "business":  None,   # unbegrenzt
+    "enterprise": None,
+}
+
+async def get_sender_limit(db) -> int | None:
+    """Gibt das Sender-Limit für den aktuellen Plan zurück (None = unbegrenzt)."""
+    lic  = await _resolve_license(db)
+    plan = (lic.get("plan") or "kostenlos").lower()
+    for key, limit in SENDER_LIMITS.items():
+        if key in plan:
+            return limit
+    return 1  # Safe default: Free-Tier
+
 # ─── Machine-ID ───────────────────────────────────────────────────────────────
 def _machine_id() -> str:
     try:

@@ -90,6 +90,10 @@ class SignaturmonsterHandler(AsyncMessage):
 
         logger.info(f"Processing mail from: {sender_email}")
 
+        # Sender-Slot tracken + Limit prüfen (fail-open: bei Fehler wird Mail durchgelassen)
+        slot_result    = await self.rule_engine.touch_sender_slot(sender_email)
+        limit_reached  = slot_result.get("limit_reached", False)
+
         action            = "no_rule"
         rule_id           = None
         rule_name         = ""
@@ -97,8 +101,16 @@ class SignaturmonsterHandler(AsyncMessage):
         smtp_account      = None
         forward_addresses = []
 
+        if limit_reached:
+            action = "limit_exceeded"
+            logger.warning(
+                f"Sender limit reached ({slot_result.get('current')}/{slot_result.get('limit')}) "
+                f"— passing mail from {sender_email} without signature"
+            )
         try:
-            rule = await self.rule_engine.get_rule(sender_header, message)
+            rule = None
+            if not limit_reached:
+                rule = await self.rule_engine.get_rule(sender_header, message)
             if rule:
                 action         = "signed"
                 rule_id        = rule.get("rule_id")
