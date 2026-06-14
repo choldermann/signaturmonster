@@ -2,6 +2,7 @@ services:
 
   smtp-proxy:
     image: ghcr.io/choldermann/signaturmonster-smtp-proxy:latest
+    pull_policy: always
     container_name: sm-smtp
     restart: unless-stopped
     ports:
@@ -43,6 +44,7 @@ services:
 
   backend:
     image: ghcr.io/choldermann/signaturmonster-backend:latest
+    pull_policy: always
     container_name: sm-backend
     hostname: signaturmonster-backend
     restart: unless-stopped
@@ -68,6 +70,7 @@ services:
 
   frontend:
     image: ghcr.io/choldermann/signaturmonster-frontend:latest
+    pull_policy: always
     container_name: sm-frontend
     restart: unless-stopped
     expose:
