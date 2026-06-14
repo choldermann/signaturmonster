@@ -14,6 +14,7 @@ services:
       RELAY_PASS: "${RELAY_PASS}"
       SMTP_PORT: "587"
       PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
+      APP_VERSION: "${APP_VERSION:-dev}"
     volumes:
       - smdata:/data
     depends_on:
@@ -54,6 +55,7 @@ services:
       PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
       UPDATER_URL: "http://updater:9000"
       LICENSE_SERVER_URL: "${LICENSE_SERVER_URL:-https://monstersuite.de}"
+      APP_VERSION: "${APP_VERSION:-dev}"
     volumes:
       - smdata:/data
     healthcheck:

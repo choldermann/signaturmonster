@@ -10,8 +10,13 @@ fi
 
 echo "=== Release v$VERSION ==="
 
-# VERSION-Datei aktualisieren
+# VERSION-Datei + .env aktualisieren
 echo "$VERSION" > VERSION
+if grep -q "^APP_VERSION=" .env 2>/dev/null; then
+  sed -i "s/^APP_VERSION=.*/APP_VERSION=$VERSION/" .env
+else
+  echo "" >> .env && echo "APP_VERSION=$VERSION" >> .env
+fi
 
 # Images mit Versions-Tag und :latest bauen
 echo ""
