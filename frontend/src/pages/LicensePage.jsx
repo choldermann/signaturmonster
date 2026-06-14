@@ -2,7 +2,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "../AppContext.jsx";
 
 async function api(method, path, body) {
-  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const token = localStorage.getItem("sm_token");
+  const r = await fetch(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   return r.json();
 }
 

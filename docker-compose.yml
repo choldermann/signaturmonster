@@ -43,6 +43,7 @@ services:
   backend:
     image: ghcr.io/choldermann/signaturmonster-backend:latest
     container_name: sm-backend
+    hostname: signaturmonster-backend
     restart: unless-stopped
     expose:
       - "8000"
@@ -52,6 +53,7 @@ services:
       LEXWARE_API_TOKEN: "${LEXWARE_API_TOKEN:-}"
       PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
       UPDATER_URL: "http://updater:9000"
+      LICENSE_SERVER_URL: "${LICENSE_SERVER_URL:-https://monstersuite.de}"
     volumes:
       - smdata:/data
     healthcheck:
