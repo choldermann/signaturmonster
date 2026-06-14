@@ -18,6 +18,11 @@ else
   echo "" >> .env && echo "APP_VERSION=$VERSION" >> .env
 fi
 
+# VERSION in Build-Kontexte kopieren (wird ins Image gebacken)
+cp VERSION backend/VERSION
+cp VERSION smtp-proxy/VERSION
+trap 'rm -f backend/VERSION smtp-proxy/VERSION' EXIT
+
 # Images mit Versions-Tag und :latest bauen
 echo ""
 echo "--- Building images ---"

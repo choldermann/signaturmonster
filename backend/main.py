@@ -5,7 +5,17 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 load_dotenv()
 
-APP_VERSION = os.getenv("APP_VERSION", "dev")
+def _load_version():
+    try:
+        with open("/app/VERSION") as f:
+            v = f.read().strip()
+            if v:
+                return v
+    except OSError:
+        pass
+    return os.getenv("APP_VERSION", "dev")
+
+APP_VERSION = _load_version()
 from database import init_db
 from routers import signatures, users, settings, enrichment, templates
 from routers import rules as rules_router
