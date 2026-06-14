@@ -49,6 +49,7 @@ ALL_FEATURES = [
     {"id": "senders",     "name": "Mailadressen-Profile",   "description": "Personalisierte Absenderprofile mit Variablen",   "category": "Signaturen",    "free": False},
     {"id": "disclaimer",  "name": "Disclaimer-Verwaltung",  "description": "Zentral verwaltete Rechtstexte je Regel",         "category": "Signaturen",    "free": False},
     {"id": "banners",     "name": "Banner-Bibliothek",      "description": "Wiederverwendbare Kampagnen-Banner",              "category": "Signaturen",    "free": False},
+    {"id": "campaigns",   "name": "Kampagnen",              "description": "Zeitgesteuerte Banner-Kampagnen mit Klicktracking", "category": "Signaturen",    "free": False},
     {"id": "templates",   "name": "Angebots-Templates",     "description": "HTML-Vorlagen für Lexware & JTL-Wawi",            "category": "Templates",     "free": False},
     {"id": "user_mgmt",   "name": "Benutzerverwaltung",     "description": "Mehrere Administratoren anlegen und verwalten",   "category": "Konfiguration", "free": False},
 ]

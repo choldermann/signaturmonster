@@ -8,7 +8,7 @@ const PAGE_FEATURE = {
   "senders":     "senders",
   "disclaimers": "disclaimer",
   "banners":     "banners",
-  "campaigns":   "banners",
+  "campaigns":   "campaigns",
   "images":      "banners",
   "ci":          "ci_branding",
   "templates":   "templates",
