@@ -37,7 +37,7 @@ LICENSE_SECRET    = os.getenv("LICENSE_SECRET", "")       # nur für Offline-/De
 GRACE_DAYS        = int(os.getenv("LICENSE_GRACE_DAYS", "14"))
 CACHE_TTL_HOURS   = 24
 PRODUCT_SLUG      = "signaturmonster"
-VERSION           = "0.6.0"
+VERSION           = os.getenv("APP_VERSION", "dev")
 
 # ─── Feature-Definitionen ─────────────────────────────────────────────────────
 ALL_FEATURES = [

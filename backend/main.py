@@ -1,8 +1,11 @@
+import os
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 load_dotenv()
+
+APP_VERSION = os.getenv("APP_VERSION", "dev")
 from database import init_db
 from routers import signatures, users, settings, enrichment, templates
 from routers import rules as rules_router
@@ -23,11 +26,11 @@ from routers import mailqueue as mailqueue_router
 from routers import addon as addon_router
 from routers import sender_slots as sender_slots_router
 
-app = FastAPI(title="Signaturmonster API", version="0.7.0")
+app = FastAPI(title="Signaturmonster API", version=APP_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 import os as _os, re as _re
-AUTH_EXCLUDED   = {"/api/auth/login", "/health", "/api/smtp-users/verify"}
+AUTH_EXCLUDED   = {"/api/auth/login", "/health", "/api/version", "/api/smtp-users/verify"}
 _PUBLIC_PATTERNS = [
     _re.compile(r"^/api/images/\d+/(serve|thumb)$"),
     _re.compile(r"^/api/campaigns/\d+/track$"),
@@ -101,3 +104,7 @@ app.include_router(sender_slots_router.router, prefix="/api/sender-slots",  tags
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+@app.get("/api/version")
+async def version():
+    return {"version": APP_VERSION, "product": "signaturmonster"}

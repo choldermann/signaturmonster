@@ -80,6 +80,10 @@ function Toast({ toasts }) {
 function Nav({ page, setPage, user, onLogout, activeFeatures }) {
   const { t, lang, toggleLang } = useI18n();
   const { theme, toggleTheme } = useTheme();
+  const [appVersion, setAppVersion] = useState("…");
+  useEffect(() => {
+    fetch("/api/version").then(r => r.json()).then(d => setAppVersion(d.version)).catch(() => {});
+  }, []);
 
   const groups = [
     // "Mein Profil" (self-service) hidden until employee login exists
@@ -136,7 +140,7 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
       <div style={{ padding: "28px 24px 24px", borderBottom: "1px solid var(--border-1)" }}>
         <div style={{ fontSize: 11, letterSpacing: "2px", textTransform: "uppercase", color: "var(--accent)", fontWeight: 700 }}>Signatur</div>
         <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.5px" }}>Monster</div>
-        <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 2 }}>{t("nav.version")}</div>
+        <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 2 }}>v{appVersion} · self-hosted</div>
       </div>
 
       <div style={{ padding: "12px 12px", flex: 1, overflowY: "auto" }}>
