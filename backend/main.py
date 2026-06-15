@@ -9,7 +9,7 @@ def _load_version():
     try:
         with open("/app/VERSION") as f:
             v = f.read().strip()
-            if v:
+            if v and v != "dev":
                 return v
     except OSError:
         pass
