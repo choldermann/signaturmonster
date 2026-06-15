@@ -81,6 +81,7 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
   const { t, lang, toggleLang } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const [appVersion, setAppVersion] = useState("…");
+  const [openGroup, setOpenGroup] = useState(null);
   useEffect(() => {
     fetch("/api/version").then(r => r.json()).then(d => setAppVersion(d.version)).catch(() => {});
   }, []);
@@ -129,6 +130,11 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
     },
   ];
 
+  useEffect(() => {
+    const idx = groups.findIndex(g => g.items.some(item => item.id === page));
+    if (idx !== -1) setOpenGroup(idx);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <nav style={{
       width: 220, height: "100vh",
@@ -144,35 +150,50 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
       </div>
 
       <div style={{ padding: "12px 12px", flex: 1, overflowY: "auto" }}>
-        {groups.map(group => (
-          <div key={group.label} style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-6)", textTransform: "uppercase", letterSpacing: "1px", padding: "0 8px", marginBottom: 4 }}>
-              {group.label}
+        {groups.map((group, idx) => {
+          const isOpen = openGroup === idx;
+          return (
+            <div key={group.label} style={{ marginBottom: 2 }}>
+              <button
+                onClick={() => setOpenGroup(isOpen ? null : idx)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "5px 8px", borderRadius: 6, border: "none", cursor: "pointer",
+                  background: "transparent", textAlign: "left",
+                  fontSize: 10, fontWeight: 600,
+                  color: isOpen ? "var(--text-4)" : "var(--text-6)",
+                  textTransform: "uppercase", letterSpacing: "1px",
+                  marginBottom: isOpen ? 2 : 0, transition: "color .15s",
+                }}
+              >
+                {group.label}
+                <Icon name={isOpen ? "chevron-up" : "chevron-down"} size={11} style={{ flexShrink: 0, color: "var(--text-7)" }} />
+              </button>
+              {isOpen && group.items.map(item => {
+                const requiredFeature = PAGE_FEATURE[item.id];
+                const locked = requiredFeature && !activeFeatures.has(requiredFeature);
+                return (
+                  <button key={item.id} onClick={() => setPage(item.id)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "9px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                      marginBottom: 1, textAlign: "left", fontSize: 13, fontWeight: 500,
+                      background: page === item.id ? "var(--bg-hover)" : "transparent",
+                      color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-4)",
+                      transition: "all .15s",
+                      opacity: locked ? 0.65 : 1,
+                    }}>
+                    <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-6)" }} />
+                    {item.label}
+                    {locked
+                      ? <Icon name="lock" size={11} style={{ marginLeft: "auto", color: "var(--text-7)" }} />
+                      : page === item.id && <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
+                  </button>
+                );
+              })}
             </div>
-            {group.items.map(item => {
-              const requiredFeature = PAGE_FEATURE[item.id];
-              const locked = requiredFeature && !activeFeatures.has(requiredFeature);
-              return (
-                <button key={item.id} onClick={() => setPage(item.id)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "9px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                    marginBottom: 1, textAlign: "left", fontSize: 13, fontWeight: 500,
-                    background: page === item.id ? "var(--bg-hover)" : "transparent",
-                    color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-4)",
-                    transition: "all .15s",
-                    opacity: locked ? 0.65 : 1,
-                  }}>
-                  <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-6)" }} />
-                  {item.label}
-                  {locked
-                    ? <Icon name="lock" size={11} style={{ marginLeft: "auto", color: "var(--text-7)" }} />
-                    : page === item.id && <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{ padding: "0 12px" }}>
