@@ -3,7 +3,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
@@ -219,7 +219,9 @@ async def list_senders(db: AsyncSession = Depends(get_db)):
 
 @router.post("/", response_model=SenderOut)
 async def create_sender(data: SenderIn, db: AsyncSession = Depends(get_db)):
-    sender = SenderProfile(**data.model_dump())
+    values = data.model_dump()
+    values["email"] = values["email"].strip().lower()
+    sender = SenderProfile(**values)
     db.add(sender)
     await db.commit()
     await db.refresh(sender)
@@ -231,7 +233,9 @@ async def update_sender(sender_id: int, data: SenderIn, db: AsyncSession = Depen
     sender = result.scalar_one_or_none()
     if not sender:
         raise HTTPException(404, "Sender not found")
-    for k, v in data.model_dump().items():
+    values = data.model_dump()
+    values["email"] = values["email"].strip().lower()
+    for k, v in values.items():
         setattr(sender, k, v)
     await db.commit()
     await db.refresh(sender)
@@ -249,7 +253,9 @@ async def delete_sender(sender_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/by-email/{email}", response_model=Optional[SenderOut])
 async def get_by_email(email: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SenderProfile).where(SenderProfile.email == email))
+    result = await db.execute(
+        select(SenderProfile).where(func.lower(SenderProfile.email) == email.lower())
+    )
     return result.scalar_one_or_none()
 
 # ── Import ────────────────────────────────────────────────────────────────────
