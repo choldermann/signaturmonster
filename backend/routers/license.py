@@ -35,6 +35,7 @@ logger    = logging.getLogger(__name__)
 LICENSE_SERVER    = os.getenv("LICENSE_SERVER_URL", "https://monstersuite.de")
 LICENSE_SECRET    = os.getenv("LICENSE_SECRET", "")       # nur für Offline-/Dev-Keys
 GRACE_DAYS        = int(os.getenv("LICENSE_GRACE_DAYS", "14"))
+LICENSE_OFFLINE   = os.getenv("LICENSE_OFFLINE", "").lower() in ("1", "true", "yes")
 CACHE_TTL_HOURS   = 24
 PRODUCT_SLUG      = "signaturmonster"
 VERSION           = os.getenv("APP_VERSION", "dev")
@@ -188,6 +189,10 @@ async def _resolve_license(db) -> dict:
     cache     = await _load_cache(db)
     age_hours = await _cache_age_hours(db)
 
+    # Offline-Modus: Cache dauerhaft gültig, kein Server-Check
+    if LICENSE_OFFLINE and cache:
+        return _build_response(cache, age_hours, "offline", email)
+
     # Cache noch frisch → direkt zurückgeben
     if cache and age_hours is not None and age_hours < CACHE_TTL_HOURS:
         return _build_response(cache, age_hours, "cached", email)
@@ -195,27 +200,37 @@ async def _resolve_license(db) -> dict:
     # Cache veraltet → Server anfragen
     result = await _validate_online(key, email, endpoint="validate")
 
-    if result and result.get("valid"):
+    if result is None:
+        # Server nicht erreichbar → Grace Period
+        if cache:
+            grace_hours          = GRACE_DAYS * 24
+            grace_used           = age_hours or 0
+            grace_remaining_days = max(0, (grace_hours - grace_used) / 24)
+            if grace_used < grace_hours:
+                logger.warning(f"License server unreachable — grace period: {grace_remaining_days:.1f} days remaining")
+                return _build_response(cache, age_hours, "grace", email,
+                                       grace_remaining=round(grace_remaining_days, 1))
+            logger.warning("License grace period expired — reverting to free plan")
+            return {**free_response, "status": "grace_expired",
+                    "plan": "Grace Period abgelaufen", "email": email}
+        return {**free_response, "status": "invalid", "plan": "Ungültig", "email": email}
+
+    if result.get("valid"):
         await _save_cache(db, result)
         return _build_response(result, 0, "online", email)
 
-    # Server nicht erreichbar
-    if cache:
-        grace_hours    = GRACE_DAYS * 24
-        grace_used     = age_hours or 0
-        grace_remaining_days = max(0, (grace_hours - grace_used) / 24)
+    # Server erreichbar aber Lizenz abgelehnt
+    # Sonderfall: Aktivierung auf dieser Maschine fehlt → einmalig neu aktivieren
+    if result.get("error") == "not_activated":
+        logger.info("License not activated on this machine — attempting re-activation")
+        result = await _validate_online(key, email, endpoint="activate")
+        if result and result.get("valid"):
+            await _save_cache(db, result)
+            return _build_response(result, 0, "online", email)
 
-        if grace_used < grace_hours:
-            logger.warning(f"License server unreachable — grace period: {grace_remaining_days:.1f} days remaining")
-            return _build_response(cache, age_hours, "grace", email,
-                                   grace_remaining=round(grace_remaining_days, 1))
-
-        logger.warning("License grace period expired — reverting to free plan")
-        return {**free_response, "status": "grace_expired",
-                "plan": "Grace Period abgelaufen", "email": email}
-
-    # Gar kein Cache → ungültig
-    return {**free_response, "status": "invalid", "plan": "Ungültig", "email": email}
+    error_msg = result.get("message") or result.get("error") or "Lizenz ungültig"
+    logger.warning(f"License rejected by server: {error_msg}")
+    return {**free_response, "status": "invalid", "plan": error_msg, "email": email}
 
 
 def _build_response(server_data: dict, age_hours: Optional[float],
