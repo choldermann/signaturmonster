@@ -184,13 +184,13 @@ export default function LicensePage({ toast }) {
             </div>
           )}
           {license.last_check && (
-            <div style={{ fontSize: 11, color: "var(--text-6)", marginTop: 5, display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ fontSize: 11, color: "var(--text-4)", marginTop: 5, display: "flex", alignItems: "center", gap: 5 }}>
               <Icon name="clock" size={11} />
               {t("license.lastChecked")}: {license.last_check.replace("T", " ")}
             </div>
           )}
           {license.machine_id && (
-            <div style={{ fontSize: 10, color: "var(--text-7)", marginTop: 3, fontFamily: "monospace" }}>
+            <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 3, fontFamily: "monospace" }}>
               Machine-ID: {license.machine_id}
             </div>
           )}
