@@ -329,11 +329,14 @@ async def refresh(db: AsyncSession = Depends(get_db)):
     result = await _validate_online(key, email, endpoint="validate")
     if result is None:
         return {"ok": False, "error": f"Lizenzserver ({LICENSE_SERVER}) nicht erreichbar"}
-    if result.get("valid"):
+    if not result.get("valid") and result.get("error") == "not_activated":
+        logger.info("Refresh: not_activated — attempting re-activation")
+        result = await _validate_online(key, email, endpoint="activate")
+    if result and result.get("valid"):
         await _save_cache(db, result)
         await db.commit()
         return {"ok": True, "plan": result.get("plan"), "checked_at": datetime.utcnow().isoformat()}
-    return {"ok": False, "error": result.get("message") or result.get("error") or "Lizenz ungültig"}
+    return {"ok": False, "error": (result or {}).get("message") or (result or {}).get("error") or "Lizenz ungültig"}
 
 @router.delete("/")
 async def deactivate(db: AsyncSession = Depends(get_db)):
