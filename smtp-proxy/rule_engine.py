@@ -74,6 +74,25 @@ class RuleEngine:
             logger.warning(f"Campaign banner fetch failed: {e}")
         return None
 
+    async def get_offer_html(self, subject: str) -> str | None:
+        """Fragt Backend ob der Betreff eine Angebotsnummer enthält und gibt gerendertes HTML zurück."""
+        try:
+            import urllib.parse
+            encoded = urllib.parse.quote(subject, safe="")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.backend_url}/api/offers/render?subject={encoded}",
+                    headers=_INTERNAL_HDR,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data.get("found") and data.get("html"):
+                            return data["html"]
+        except Exception as e:
+            logger.warning(f"Offer render fetch failed: {e}")
+        return None
+
     async def enqueue_mail(self, body: dict) -> int | None:
         try:
             async with aiohttp.ClientSession() as session:

@@ -468,6 +468,130 @@ function OfferTemplatePicker({ onSelect, onBlank, onCancel }) {
   );
 }
 
+// ─── Lexware Config Panel ─────────────────────────────────────────────────────
+function LexwareConfigPanel({ templates, toast }) {
+  const { t } = useI18n();
+  const EMPTY_CFG = { lexware_api_token: "", offer_template_id: "", offer_subject_pattern: "[A-Z]{2,6}-\\d{4}-\\d+", offer_enabled: false };
+  const [cfg, setCfg]         = useState(EMPTY_CFG);
+  const [tokenInput, setTokenInput] = useState("");
+  const [tokenSet, setTokenSet]     = useState(false);
+  const [open, setOpen]       = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
+
+  useEffect(() => {
+    api("GET", "/api/offers/config").then(d => {
+      if (d && !d.detail) {
+        setCfg({ ...EMPTY_CFG, ...d });
+        setTokenSet(d.lexware_token_set || false);
+      }
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    const payload = { ...cfg, lexware_api_token: tokenInput || cfg.lexware_api_token };
+    const r = await api("PUT", "/api/offers/config", payload);
+    if (r?.ok) {
+      toast("ok", "Konfiguration gespeichert");
+      if (tokenInput) { setTokenSet(true); setTokenInput(""); }
+    }
+    setSaving(false);
+  }
+
+  async function testPreview() {
+    const tid = cfg.offer_template_id;
+    if (!tid) { toast("err", "Kein Standard-Template ausgewählt"); return; }
+    setPreviewing(true);
+    const r = await api("GET", `/api/offers/preview/${tid}`);
+    if (r?.html) setPreviewHtml(r.html);
+    else toast("err", "Vorschau fehlgeschlagen");
+    setPreviewing(false);
+  }
+
+  const iStyle = { width: "100%", background: "var(--bg-nav)", border: "1px solid var(--border-3)", borderRadius: 6, color: "var(--text-2)", fontSize: 12, padding: "6px 10px", boxSizing: "border-box" };
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-2)", borderRadius: 12, marginBottom: 20 }}>
+      <div style={{ padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setOpen(o => !o)}>
+        <i className="ti ti-brand-lexmark" style={{ fontSize: 16, color: "var(--accent)" }} />
+        <span style={{ fontWeight: 700, color: "var(--text-1)", fontSize: 13 }}>Lexoffice-Integration</span>
+        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: cfg.offer_enabled ? "var(--green-bg)" : "var(--bg-input)", color: cfg.offer_enabled ? "var(--green)" : "var(--text-5)", border: `1px solid ${cfg.offer_enabled ? "var(--green-bd)" : "var(--border-3)"}`, fontWeight: 700, marginLeft: 6 }}>
+          {cfg.offer_enabled ? "Aktiv" : "Inaktiv"}
+        </span>
+        {tokenSet && <span style={{ fontSize: 11, color: "var(--text-6)", marginLeft: 4 }}>· API-Token hinterlegt</span>}
+        <i className={`ti ti-chevron-${open ? "up" : "down"}`} style={{ fontSize: 13, color: "var(--text-5)", marginLeft: "auto" }} />
+      </div>
+
+      {open && (
+        <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 14, borderTop: "1px solid var(--border-1)" }}>
+          <div style={{ paddingTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+            <div>
+              <label style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Lexoffice API-Token</label>
+              <input type="password" style={iStyle} value={tokenInput}
+                onChange={e => setTokenInput(e.target.value)}
+                placeholder={tokenSet ? "••••••••  (hinterlegt – neu eingeben zum Ändern)" : "ey... API-Token von lexoffice.de"} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Standard-Angebots-Template</label>
+              <select style={{ ...iStyle, appearance: "auto" }} value={cfg.offer_template_id}
+                onChange={e => setCfg(c => ({ ...c, offer_template_id: e.target.value }))}>
+                <option value="">— keines ausgewählt —</option>
+                {templates.map(tmpl => <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: ".5px", display: "block", marginBottom: 4 }}>Betreff-Regex (Angebotsnummer)</label>
+              <input style={iStyle} value={cfg.offer_subject_pattern}
+                onChange={e => setCfg(c => ({ ...c, offer_subject_pattern: e.target.value }))}
+                placeholder="[A-Z]{2,6}-\d{4}-\d+" />
+              <div style={{ fontSize: 10, color: "var(--text-6)", marginTop: 3 }}>Treffer im Betreff lösen automatische Angebots-Konvertierung aus</div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", paddingTop: 18, gap: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={cfg.offer_enabled}
+                  onChange={e => setCfg(c => ({ ...c, offer_enabled: e.target.checked }))} />
+                <span style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 600 }}>Automatische Angebots-Erkennung aktiv</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 12, color: "var(--text-5)", background: "var(--bg-nav)", borderRadius: 8, padding: "10px 12px", lineHeight: "18px" }}>
+            <i className="ti ti-info-circle" style={{ color: "var(--blue)", marginRight: 6 }} />
+            Wenn aktiv: E-Mails mit passender Angebotsnummer im Betreff werden automatisch durch das gewählte Template ersetzt. Kundendaten werden aus Lexoffice geladen.
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={save} disabled={saving}
+              style={{ padding: "7px 16px", background: "var(--accent)", color: "var(--accent-fg)", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              <i className="ti ti-check" style={{ marginRight: 5 }} />{saving ? "Speichert..." : "Speichern"}
+            </button>
+            <button onClick={testPreview} disabled={previewing || !cfg.offer_template_id}
+              style={{ padding: "7px 16px", background: "transparent", border: "1px solid var(--border-3)", borderRadius: 7, color: "var(--text-3)", fontSize: 12, cursor: "pointer" }}>
+              <i className="ti ti-eye" style={{ marginRight: 5 }} />{previewing ? "Lädt..." : "Beispiel-Vorschau"}
+            </button>
+          </div>
+
+          {previewHtml && (
+            <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border-2)" }}>
+              <div style={{ background: "var(--bg-input)", padding: "6px 12px", fontSize: 11, color: "var(--text-5)" }}>
+                Vorschau mit Beispieldaten
+                <button onClick={() => setPreviewHtml("")} style={{ float: "right", background: "none", border: "none", color: "var(--text-5)", cursor: "pointer", fontSize: 11 }}>✕ Schließen</button>
+              </div>
+              <iframe srcDoc={previewHtml} style={{ width: "100%", height: 600, border: "none", display: "block" }} title="Angebots-Vorschau" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Templates List Page ──────────────────────────────────────────────────────
 export default function TemplatesPage({ toast }) {
   const { t } = useI18n();
@@ -513,7 +637,7 @@ export default function TemplatesPage({ toast }) {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>Templates</h1>
           <p style={{ fontSize: 13, color: "var(--text-4)", marginTop: 6 }}>{t("templates.subtitle")}</p>
@@ -523,6 +647,8 @@ export default function TemplatesPage({ toast }) {
           <i className="ti ti-plus" style={{ fontSize: 15 }} />{t("templates.newTemplate")}
         </button>
       </div>
+
+      <LexwareConfigPanel templates={templates} toast={toast} />
 
       {templates.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-6)" }}>

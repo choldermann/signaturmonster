@@ -67,6 +67,35 @@ class SignaturmonsterHandler(AsyncMessage):
         await self.handle_message(message, rcpt_tos=list(envelope.rcpt_tos), addon_injected=addon_injected)
         return "250 Message accepted for delivery"
 
+    def _replace_html_body(self, message: Message, html: str):
+        """Ersetzt den HTML-Body einer E-Mail durch gerendertes Angebots-HTML."""
+        encoded = html.encode("utf-8")
+        b64     = base64.encodebytes(encoded).decode("ascii")
+
+        def _set_part(part: Message):
+            part.set_param("charset", "utf-8")
+            if "content-transfer-encoding" in part:
+                del part["content-transfer-encoding"]
+            part["Content-Transfer-Encoding"] = "base64"
+            part.set_payload(b64)
+
+        if message.is_multipart():
+            for part in message.walk():
+                ct = part.get_content_type()
+                if ct == "text/html":
+                    _set_part(part)
+                elif ct == "text/plain":
+                    plain = "Dieses Angebot ist als HTML-E-Mail verfügbar."
+                    plain_b64 = base64.encodebytes(plain.encode("utf-8")).decode("ascii")
+                    part.set_param("charset", "utf-8")
+                    if "content-transfer-encoding" in part:
+                        del part["content-transfer-encoding"]
+                    part["Content-Transfer-Encoding"] = "base64"
+                    part.set_payload(plain_b64)
+        else:
+            if message.get_content_type() == "text/html":
+                _set_part(message)
+
     async def handle_message(self, message: Message, rcpt_tos: list | None = None, addon_injected: bool = False):
         t0            = time.time()
         sender_header = message.get("From", "")
@@ -89,6 +118,30 @@ class SignaturmonsterHandler(AsyncMessage):
             logger.info("SM-ADDON-INJECTED marker detected: preview stripped, real injection proceeds")
 
         logger.info(f"Processing mail from: {sender_email}")
+
+        # Angebots-Erkennung: wenn Betreff eine Angebotsnummer enthält, Body durch
+        # gerendertes Template ersetzen und normale Signatur-Injektion überspringen.
+        if subject and not commands.get("off"):
+            offer_html = await self.rule_engine.get_offer_html(subject)
+            if offer_html:
+                self._replace_html_body(message, offer_html)
+                logger.info(f"Offer template injected for subject: {subject[:80]}")
+                action = "offer"
+                await self.relay.send(message, sender_email=sender_email, rcpt_tos=rcpt_tos)
+                asyncio.ensure_future(self.rule_engine.log_mail({
+                    "sender":         sender_email,
+                    "recipients":     recipients,
+                    "subject":        subject[:200],
+                    "rule_id":        None,
+                    "rule_name":      "",
+                    "signature_name": "offer-template",
+                    "action":         "offer",
+                    "relay_ok":       True,
+                    "relay_error":    "",
+                    "duration_ms":    int((time.time() - t0) * 1000),
+                    "message_size":   len(message.as_bytes()),
+                }))
+                return
 
         # Sender-Slot tracken + Limit prüfen (fail-open: bei Fehler wird Mail durchgelassen)
         slot_result    = await self.rule_engine.touch_sender_slot(sender_email)

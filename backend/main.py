@@ -35,6 +35,7 @@ from routers import maillog as maillog_router
 from routers import mailqueue as mailqueue_router
 from routers import addon as addon_router
 from routers import sender_slots as sender_slots_router
+from routers import offers as offers_router
 
 app = FastAPI(title="Signaturmonster API", version=APP_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -110,6 +111,7 @@ app.include_router(maillog_router.router,       prefix="/api/maillog",       tag
 app.include_router(mailqueue_router.router,    prefix="/api/mailqueue",     tags=["mailqueue"])
 app.include_router(addon_router.router,        prefix="/api/addon",         tags=["addon"])
 app.include_router(sender_slots_router.router, prefix="/api/sender-slots",  tags=["sender-slots"])
+app.include_router(offers_router.router,       prefix="/api/offers",        tags=["offers"])
 
 @app.get("/health")
 async def health():
