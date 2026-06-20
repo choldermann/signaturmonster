@@ -51,7 +51,7 @@ services:
       - "8000"
     environment:
       DATABASE_URL: "sqlite+aiosqlite:////data/signaturmonster.db"
-      SECRET_KEY: "${SECRET_KEY:-changeme}"
+      JWT_SECRET: "${JWT_SECRET:-}"
       LEXWARE_API_TOKEN: "${LEXWARE_API_TOKEN:-}"
       PROXY_SECRET: "${PROXY_SECRET:-signaturmonster-internal-secret}"
       UPDATER_URL: "http://updater:9000"

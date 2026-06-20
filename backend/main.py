@@ -5,6 +5,38 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 load_dotenv()
 
+def _ensure_jwt_secret():
+    import secrets as _secrets
+    import logging as _logging
+    _log = _logging.getLogger("startup")
+    _PLACEHOLDERS = {"", "changeme", "signaturmonster-dev-secret-please-change"}
+    secret_file = "/data/.jwt_secret"
+
+    current = os.getenv("JWT_SECRET", "")
+    if current and current not in _PLACEHOLDERS:
+        return  # explizit gesetzt — nichts zu tun
+
+    # Aus persistenter Datei lesen (überlebt Container-Neustart)
+    try:
+        if os.path.exists(secret_file):
+            stored = open(secret_file).read().strip()
+            if stored and stored not in _PLACEHOLDERS:
+                os.environ["JWT_SECRET"] = stored
+                return
+    except Exception:
+        pass
+
+    # Neu generieren und persistieren
+    new_secret = _secrets.token_hex(32)
+    os.environ["JWT_SECRET"] = new_secret
+    try:
+        open(secret_file, "w").write(new_secret)
+        _log.info("JWT_SECRET auto-generiert und in /data/.jwt_secret gespeichert")
+    except Exception as e:
+        _log.warning(f"JWT_SECRET konnte nicht persistiert werden: {e} — gilt nur für diese Sitzung")
+
+_ensure_jwt_secret()
+
 def _load_version():
     try:
         with open("/app/VERSION") as f:
