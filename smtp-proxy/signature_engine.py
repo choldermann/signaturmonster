@@ -15,6 +15,13 @@ try:
 except ImportError:
     _PIL_OK = False
 
+try:
+    import css_inline as _css_inline
+    _CSS_INLINER = _css_inline.CSSInliner(remove_style_tags=True, load_remote_stylesheets=False)
+    _CSS_INLINE_OK = True
+except ImportError:
+    _CSS_INLINE_OK = False
+
 logger = logging.getLogger(__name__)
 
 POWERED_BY_HTML = (
@@ -55,7 +62,7 @@ class SignatureEngine:
         context["disclaimer_text"]      = disclaimer.get("text_content", "") if disclaimer else ""
         context["campaign_banner"]      = campaign.get("html", "") if campaign else ""
         context["campaign_banner_text"] = campaign.get("text", "") if campaign else ""
-        html_sig  = self._render(signature.get("html_content", ""), context)
+        html_sig  = self._inline_css(self._render(signature.get("html_content", ""), context))
         text_sig  = self._render(signature.get("text_content", ""), context)
         use_branding = bool(ci)  # CI-Dict vorhanden → Branding-Modus
 
@@ -375,3 +382,12 @@ class SignatureEngine:
         for k, v in data.items():
             template = template.replace(f"{{{{{k}}}}}", str(v))
         return template
+
+    def _inline_css(self, html: str) -> str:
+        if not _CSS_INLINE_OK or not html:
+            return html
+        try:
+            return _CSS_INLINER.inline(html)
+        except Exception as e:
+            logger.debug("CSS inlining skipped: %s", e)
+            return html
