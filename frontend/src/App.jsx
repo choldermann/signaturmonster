@@ -160,14 +160,16 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "5px 8px", borderRadius: 6, border: "none", cursor: "pointer",
                   background: "transparent", textAlign: "left",
-                  fontSize: 10, fontWeight: 600,
-                  color: isOpen ? "var(--text-4)" : "var(--text-6)",
-                  textTransform: "uppercase", letterSpacing: "1px",
+                  fontSize: 10, fontWeight: 700,
+                  color: isOpen ? "var(--accent)" : "var(--text-3)",
+                  textTransform: "uppercase", letterSpacing: "1.2px",
                   marginBottom: isOpen ? 2 : 0, transition: "color .15s",
+                  borderLeft: isOpen ? "2px solid var(--accent)" : "2px solid transparent",
+                  paddingLeft: isOpen ? 6 : 8,
                 }}
               >
                 {group.label}
-                <Icon name={isOpen ? "chevron-up" : "chevron-down"} size={11} style={{ flexShrink: 0, color: "var(--text-7)" }} />
+                <Icon name={isOpen ? "chevron-up" : "chevron-down"} size={11} style={{ flexShrink: 0, color: isOpen ? "var(--accent)" : "var(--text-4)" }} />
               </button>
               {isOpen && group.items.map(item => {
                 const requiredFeature = PAGE_FEATURE[item.id];
@@ -179,11 +181,11 @@ function Nav({ page, setPage, user, onLogout, activeFeatures }) {
                       padding: "9px 10px", borderRadius: 7, border: "none", cursor: "pointer",
                       marginBottom: 1, textAlign: "left", fontSize: 13, fontWeight: 500,
                       background: page === item.id ? "var(--bg-hover)" : "transparent",
-                      color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-4)",
+                      color: page === item.id ? "var(--accent)" : locked ? "var(--text-6)" : "var(--text-3)",
                       transition: "all .15s",
                       opacity: locked ? 0.65 : 1,
                     }}>
-                    <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : locked ? "var(--text-7)" : "var(--text-6)" }} />
+                    <Icon name={item.icon} size={15} style={{ color: page === item.id ? "var(--accent)" : locked ? "var(--text-6)" : "var(--text-4)" }} />
                     {item.label}
                     {locked
                       ? <Icon name="lock" size={11} style={{ marginLeft: "auto", color: "var(--text-7)" }} />
