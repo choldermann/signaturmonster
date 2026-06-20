@@ -40,7 +40,13 @@ class SignatureEngine:
         self.beautifier = MailBeautifier()
 
     async def inject(self, message: Message, signature: dict, enrichment: dict | None = None, ci: dict | None = None, sender: dict | None = None, disclaimer: dict | None = None, powered_by: bool = True, campaign: dict | None = None) -> Message:
-        context = {}
+        # Provide empty defaults for all sender variables so unresolved placeholders
+        # don't appear literally (e.g. {{vorname}}) in emails when no profile exists.
+        context: dict = {k: "" for k in (
+            "vorname", "nachname", "name", "email", "berufsbezeichnung",
+            "firma", "telefon", "mobil", "strasse", "plz", "ort", "land",
+            "adresse", "foto",
+        )}
         if sender:
             context.update(self._sender_context(sender))
         if enrichment:
