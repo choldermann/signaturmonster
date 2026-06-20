@@ -34,6 +34,7 @@ async def init_db():
             "ALTER TABLE sender_profiles ADD COLUMN claimed_by_user_id INTEGER REFERENCES users(id)",
             "ALTER TABLE mail_queue ADD COLUMN rcpt_tos_json TEXT DEFAULT ''",
             "ALTER TABLE rules ADD COLUMN forward_to TEXT",
+            "ALTER TABLE campaigns ADD COLUMN weight INTEGER DEFAULT 100",
         ]:
             try:
                 await conn.execute(text(migration))

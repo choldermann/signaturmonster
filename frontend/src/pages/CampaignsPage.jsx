@@ -44,7 +44,7 @@ function StatusBadge({ c }) {
 
 const EMPTY = {
   name: "", is_active: true, start_date: "", end_date: "",
-  image_asset_id: null, link_url: "",
+  image_asset_id: null, link_url: "", weight: 100,
   utm_source: "email", utm_medium: "email", utm_campaign: "", utm_content: "",
 };
 
@@ -165,6 +165,15 @@ function CampaignForm({ initial, onSave, onCancel }) {
         </F>
         <F label={t("campaigns.fieldEndDate")}>
           <input type="datetime-local" style={iStyle} value={form.end_date || ""} onChange={e => u("end_date", e.target.value)} />
+        </F>
+        <F label={t("campaigns.fieldWeight")}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input type="range" min={1} max={200} value={form.weight ?? 100}
+              onChange={e => u("weight", Number(e.target.value))}
+              style={{ flex: 1, accentColor: "var(--accent)" }} />
+            <span style={{ minWidth: 34, textAlign: "right", fontSize: 13, fontWeight: 700, color: "var(--accent)", fontFamily: "monospace" }}>{form.weight ?? 100}</span>
+          </div>
+          <span style={{ fontSize: 11, color: "var(--text-6)" }}>{t("campaigns.weightHint")}</span>
         </F>
       </div>
 
@@ -325,6 +334,9 @@ export default function CampaignsPage({ toast }) {
                         {c.end_date   ? new Date(c.end_date).toLocaleDateString("de-DE") : "∞"}
                       </span>
                     )}
+                    <span style={{ fontSize: 12, color: "var(--text-5)", display: "flex", gap: 5, alignItems: "center" }}>
+                      <Icon name="weight" size={12} />{t("campaigns.fieldWeight")}: <span style={{ color: "var(--accent)", fontWeight: 700 }}>{c.weight ?? 100}</span>
+                    </span>
                     <span style={{ fontSize: 12, color: "var(--text-5)", display: "flex", gap: 5, alignItems: "center" }}>
                       <Icon name="eye" size={12} />{c.impression_count || 0} {t("campaigns.impressions")}
                     </span>

@@ -162,6 +162,7 @@ class Campaign(Base):
     utm_medium       = Column(String, default="email")
     utm_campaign     = Column(String, default="")
     utm_content      = Column(String, default="")
+    weight           = Column(Integer, default=100)
     click_count      = Column(Integer, default=0)
     impression_count = Column(Integer, default=0)
     created_at       = Column(DateTime, server_default=func.now())

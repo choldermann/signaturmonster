@@ -573,6 +573,8 @@
   "campaigns.serverUrlHint": "Public URL of this server for click tracking",
   "campaigns.serverUrlNotSet": "Not configured",
   "campaigns.toastUrlSaved": "Server URL saved",
+  "campaigns.fieldWeight": "Weight",
+  "campaigns.weightHint": "Higher value = selected more often (relative to other campaigns)",
   "common.connectionError": "Connection error",
   "common.delete": "Delete",
   "common.description": "Description",

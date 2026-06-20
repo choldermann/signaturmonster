@@ -25,6 +25,7 @@ class CampaignIn(BaseModel):
     utm_medium:      str               = "email"
     utm_campaign:    str               = ""
     utm_content:     str               = ""
+    weight:          int               = 100
 
 
 class CampaignOut(BaseModel):
@@ -39,6 +40,7 @@ class CampaignOut(BaseModel):
     utm_medium:      str
     utm_campaign:    str
     utm_content:     str
+    weight:          int
     click_count:     int
     impression_count: int
     created_at:      Optional[str]
@@ -77,6 +79,7 @@ def _campaign_out(c: Campaign) -> dict:
         "utm_medium": c.utm_medium or "",
         "utm_campaign": c.utm_campaign or "",
         "utm_content": c.utm_content or "",
+        "weight": c.weight if c.weight is not None else 100,
         "click_count": c.click_count or 0,
         "impression_count": c.impression_count or 0,
         "created_at": _dt_str(c.created_at),
@@ -118,6 +121,7 @@ async def create_campaign(data: CampaignIn, db: AsyncSession = Depends(get_db)):
         image_asset_id=data.image_asset_id, link_url=data.link_url,
         utm_source=data.utm_source, utm_medium=data.utm_medium,
         utm_campaign=data.utm_campaign, utm_content=data.utm_content,
+        weight=max(data.weight, 1),
         click_count=0, impression_count=0,
     )
     db.add(c)
@@ -141,6 +145,7 @@ async def update_campaign(campaign_id: int, data: CampaignIn, db: AsyncSession =
     c.utm_medium = data.utm_medium
     c.utm_campaign = data.utm_campaign
     c.utm_content = data.utm_content
+    c.weight = max(data.weight, 1)
     await db.commit()
     await db.refresh(c)
     return _campaign_out(c)
@@ -173,7 +178,7 @@ async def pick_campaign(db: AsyncSession = Depends(get_db)):
     if not campaigns:
         return {"html": "", "text": "", "campaign_id": None}
 
-    c = random.choice(campaigns)
+    c = random.choices(campaigns, weights=[max(c.weight or 1, 1) for c in campaigns], k=1)[0]
     c.impression_count = (c.impression_count or 0) + 1
     await db.commit()
 
