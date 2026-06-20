@@ -279,12 +279,13 @@ export default function LicensePage({ toast }) {
         </div>
       ))}
 
-      {/* Info */}
-      <div style={{ marginTop: 8, padding: "14px 18px", background: "var(--bg-input)", border: "1px solid var(--border-2)", borderRadius: 10, fontSize: 12, color: "var(--text-5)", lineHeight: "19px" }}>
-        <Icon name="info-circle" size={13} style={{ color: "var(--accent)", marginRight: 6 }} />
-        {t("license.infoText")} <strong style={{ color: "var(--text-3)" }}>monstersuite.de</strong>.{" "}
-        {t("license.infoGrace")}
-      </div>
+      {/* Info — nur bei nicht-aktiver Lizenz */}
+      {!isActive && (
+        <div style={{ marginTop: 8, padding: "14px 18px", background: "var(--bg-input)", border: "1px solid var(--border-2)", borderRadius: 10, fontSize: 12, color: "var(--text-5)", lineHeight: "19px" }}>
+          <Icon name="info-circle" size={13} style={{ color: "var(--accent)", marginRight: 6 }} />
+          {isGrace ? t("license.infoGrace") : <>{t("license.infoText")} <strong style={{ color: "var(--text-3)" }}>monstersuite.de</strong>.</>}
+        </div>
+      )}
     </div>
   );
 }
