@@ -1,6 +1,6 @@
 # Signaturmonster — Funktionsübersicht
 
-**Version:** 0.7.0 · self-hosted  
+**Version:** 0.9.0 · self-hosted  
 **Stand:** Juni 2026
 
 ---
@@ -163,7 +163,7 @@ CI-Profile definieren das visuelle Erscheinungsbild von ausgehenden Mails. Wird 
 
 **Bekannte Einschränkung:** CSS aus dem `<head>` (klassenbasierte Styles) geht verloren — die Tags und Klassen bleiben erhalten, aber die Style-Definitionen nicht. Mails die stark auf `<head>`-CSS setzen (z.B. bestimmte Outlook-Exporte) können dadurch unformatiert wirken. Für den normalen Business-Mail-Anwendungsfall (Outlook/Thunderbird → Proxy → Relay) tritt das kaum auf, da diese Clients bereits Inline-Styles generieren.
 
-**Geplant:** CSS-Inliner als optionaler Vorverarbeitungsschritt (z.B. `css-inline`) — wandelt `<head>`-CSS-Regeln in Inline-Styles um, bevor der Beautifier die `<style>`-Tags entfernt. Relevant für den Fall dass HTML-Mails aus Marketing-Tools oder HTML-Editoren über den Proxy geleitet werden.
+**CSS-Inliner:** `<style>`-Blöcke im Signatur-HTML werden vor dem Versand automatisch per `css-inline` in Inline-Styles umgewandelt. Verbessert die Darstellung erheblich in Outlook, Apple Mail und Webmail-Clients. Der Inliner läuft vor dem Beautifier, sodass klassenbasierte Styles erhalten bleiben.
 
 **Konfigurierbare CI-Parameter:**
 
@@ -237,6 +237,7 @@ Kampagnen ermöglichen das zeitgesteuerte Ausspielen von Bild-Werbemitteln (z.B.
 |---|---|
 | `name` | Interner Kampagnenname |
 | `is_active` | Manuell aktivieren/deaktivieren |
+| `weight` | Auswahlgewicht 1–200 (Standard 100) — höheres Gewicht = häufiger ausgewählt; einstellbar per Slider im Formular |
 | `start_date` | Startdatum (optional, ISO-Datum) — null = sofort aktiv |
 | `end_date` | Enddatum (optional) — null = kein Ende |
 | `image_asset_id` | Bild aus der Bilddatenbank (Abschnitt 8) |
@@ -250,6 +251,9 @@ Kampagnen ermöglichen das zeitgesteuerte Ausspielen von Bild-Werbemitteln (z.B.
 
 **Zeitsteuerung:**  
 Beim Versand prüft der Proxy: `is_active == true` UND aktuelles Datum liegt zwischen `start_date` und `end_date` (falls gesetzt). Abgelaufene oder zukünftige Kampagnen werden übersprungen.
+
+**Gewichtete Zufallsauswahl:**  
+Sind mehrere aktive Kampagnen vorhanden, wird per gewichteter Zufallsauswahl eine davon ausgewählt. Eine Kampagne mit Gewicht 200 erscheint doppelt so häufig wie eine mit Gewicht 100.
 
 ---
 
@@ -563,7 +567,14 @@ Jede durch den SMTP-Proxy verarbeitete Mail wird mit vollständigen Metadaten pr
 
 ---
 
-## 17. Test-Werkzeuge
+## 17. Navigation & UI
+
+**Accordion-Sidebar:**  
+Die Seitennavigation ist in aufklappbare Kategorien gegliedert. Aktive Kategorien werden mit einem goldenen Akzentstreifen und Akzentfarbe hervorgehoben. Verbesserte Kontraste für Dark- und Light-Mode.
+
+---
+
+## 18. Test-Werkzeuge
 
 - **Testmail senden:** Beliebige Empfängeradresse angeben — sendet eine echte Mail über den Standard-SMTP-Relay (oder per Konto-Test direkt in den SMTP-Konten)
 - **Regel-Matching simulieren:** Absender-Adresse eingeben und "Als Antwort behandeln" togglen — zeigt, welche Regel greifen würde und welche Signatur zugewiesen wird
@@ -571,7 +582,7 @@ Jede durch den SMTP-Proxy verarbeitete Mail wird mit vollständigen Metadaten pr
 
 ---
 
-## 18. System-Log & Monitoring
+## 19. System-Log & Monitoring
 
 **System-Log-Seite (System → System-Log):**
 - Echtzeit-Log aller internen Events (Backend + SMTP-Proxy), filterbar nach Level und Service
@@ -583,7 +594,7 @@ Jede durch den SMTP-Proxy verarbeitete Mail wird mit vollständigen Metadaten pr
 
 ---
 
-## 19. Update-System (System → Update)
+## 20. Update-System (System → Update)
 
 Signaturmonster hat einen integrierten Self-Update-Mechanismus über einen separaten **Updater-Container**.
 
@@ -601,7 +612,7 @@ Signaturmonster hat einen integrierten Self-Update-Mechanismus über einen separ
 
 ---
 
-## 20. Deployment
+## 21. Deployment
 
 - Vollständig containerisiert via **Docker Compose**
 - nginx als Reverse Proxy vor Frontend und Backend
@@ -620,7 +631,7 @@ Neue Datenbanktabellen werden beim Start automatisch angelegt (`create_all`). Ne
 
 ---
 
-## 21. Thunderbird Addon
+## 22. Thunderbird Addon
 
 Das Thunderbird-Addon ist ein **Killer-Feature**: Es zeigt die Signaturmonster-Signatur direkt im Compose-Fenster an, damit der Benutzer sofort sieht, wie seine Mail beim Empfänger aussehen wird — inklusive aller Variablen (Name, Titel, Firma, Foto etc.).
 
@@ -653,10 +664,8 @@ Das Thunderbird-Addon ist ein **Killer-Feature**: Es zeigt die Signaturmonster-S
 
 ---
 
-## Bekannte Einschränkungen (v0.7.0)
+## Bekannte Einschränkungen (v0.9.0)
 
 - JTL-Wawi-Integration ist in der UI auswählbar, aber die Anreicherungslogik ist noch nicht implementiert (nur Lexware ist aktiv)
-- Keine Authentifizierung am SMTP-Proxy selbst (`auth_required=False`) — der Proxy sollte nur im internen Netz erreichbar sein
-- Lizenzprüfung zeigt Features als aktiv/gesperrt an, sperrt aber den UI-Zugriff noch nicht technisch — Feature-Gating folgt in einem späteren Release
-- monstersuite.de (Lizenzserver) ist als separates Projekt angelegt (`../monstersuite`), aber noch nicht deployed — Übergang via Offline-HMAC-Keys (`LICENSE_SECRET` in `.env`)
 - Wenn ein Banner-GIF regeneriert wird, muss er im Signatur-Designer erneut ausgewählt werden, damit die neue `gif_data` übernommen wird (GIF ist inline in der Signatur gespeichert, kein ID-Verweis)
+- Thunderbird-Addon muss manuell als `.xpi` installiert werden — kein AMO-Listing
