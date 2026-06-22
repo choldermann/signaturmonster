@@ -669,3 +669,23 @@ Das Thunderbird-Addon ist ein **Killer-Feature**: Es zeigt die Signaturmonster-S
 - JTL-Wawi-Integration ist in der UI auswählbar, aber die Anreicherungslogik ist noch nicht implementiert (nur Lexware ist aktiv)
 - Wenn ein Banner-GIF regeneriert wird, muss er im Signatur-Designer erneut ausgewählt werden, damit die neue `gif_data` übernommen wird (GIF ist inline in der Signatur gespeichert, kein ID-Verweis)
 - Thunderbird-Addon muss manuell als `.xpi` installiert werden — kein AMO-Listing
+
+---
+
+## Sicherheit & Kryptografie
+
+### S/MIME und PGP — Architekturelle Klarstellung
+
+Signaturmonster ist ein **SMTP-Proxy, der Mailinhalte modifiziert** (Signatur, Branding, Disclaimer). Das ist strukturell unvereinbar mit **Ende-zu-Ende-Kryptografie** (S/MIME, PGP), deren Kernaussage ist: "Ich, der Absender, habe genau diesen Inhalt signiert."
+
+Ein Proxy der Inhalte verändert und anschließend kryptografisch signiert, könnte diese Aussage nicht treffen — er hat den Inhalt ja verändert. Das ist kein Bug, sondern ein grundlegender Widerspruch, den alle inhaltsmodifizierenden Mailsysteme haben — einschließlich kommerzieller Cloud-Anbieter wie Exclaimer oder CodeTwo.
+
+**Warum ist das bei self-hosted Deployments weniger kritisch:**
+
+Bei Cloud-Diensten modifiziert ein **Dritter** deine Mails und signiert in deinem Namen — das ist ein echtes Vertrauensproblem. Signaturmonster läuft auf **deiner eigenen Infrastruktur**. Die Modifikation findet innerhalb deines kontrollierten Netzwerks statt, bevor die Mail dein System verlässt. Das ist vergleichbar mit einem Exchange-Server der serverseitig Signaturen anhängt — eine etablierte und akzeptierte Praxis in Unternehmensumgebungen.
+
+**Was ist möglich (Gateway-Signing):**
+
+Es wäre technisch möglich, nach der Signatur-Injektion mit einem **Organisations-Zertifikat** zu signieren. Das beweist: "Diese Mail hat die Organisation X in diesem Zustand versandt und wurde seitdem nicht verändert." Das ist kein E2E im persönlichen Sinne, aber für viele Compliance-Anforderungen ausreichend. Dieses Feature ist für eine zukünftige Version geplant und wird dann explizit als *Organisationssignatur* (nicht als persönliche E2E-Signatur) dokumentiert.
+
+**Fazit:** Wer persönliche E2E-Signierung benötigt (z. B. Anwaltskanzleien, Behörden mit qualifizierter elektronischer Signatur), sollte die kryptografische Signatur im Mailclient setzen **bevor** die Mail an den Proxy geht — und die Proxy-Funktionen (Signatur, Banner, Disclaimer) deaktivieren (`#sm:nosig`).
