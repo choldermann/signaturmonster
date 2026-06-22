@@ -17,9 +17,9 @@ except ImportError:
 
 try:
     import css_inline as _css_inline
-    _CSS_INLINER = _css_inline.CSSInliner(remove_style_tags=True, load_remote_stylesheets=False)
+    _CSS_INLINER = _css_inline.CSSInliner(load_remote_stylesheets=False)
     _CSS_INLINE_OK = True
-except ImportError:
+except (ImportError, TypeError):
     _CSS_INLINE_OK = False
 
 logger = logging.getLogger(__name__)
