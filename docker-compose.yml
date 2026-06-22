@@ -57,6 +57,8 @@ services:
       UPDATER_URL: "http://updater:9000"
       LICENSE_SERVER_URL: "${LICENSE_SERVER_URL:-https://monstersuite.de}"
       LICENSE_OFFLINE: "${LICENSE_OFFLINE:-false}"
+      SMTP_PROXY_HOST: "sm-smtp"
+      SMTP_PROXY_PORT: "587"
     volumes:
       - smdata:/data
     healthcheck:
