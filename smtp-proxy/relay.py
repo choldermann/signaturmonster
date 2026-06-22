@@ -75,3 +75,27 @@ class SMTPRelay:
             send_kwargs["recipients"] = rcpt_tos
         await aiosmtplib.send(message, **send_kwargs)
         logger.info(f"Relayed successfully via {host}")
+
+    async def send_raw(self, raw_bytes: bytes, sender_email: str = "", smtp_account: dict | None = None, rcpt_tos: list | None = None):
+        """Leitet rohe Mail-Bytes byte-genau weiter (z.B. für kryptografisch signierte Mails)."""
+        cfg = await get_relay_config(sender_email, smtp_account)
+        host = cfg.get("relay_host", "")
+
+        if not host:
+            logger.warning("No RELAY_HOST configured — mail not sent")
+            return
+
+        logger.info(f"Relaying raw (signed) via {host}:{cfg.get('relay_port', 587)} (sender: {sender_email or '?'})")
+
+        send_kwargs: dict = dict(
+            hostname=host,
+            port=int(cfg.get("relay_port", 587)),
+            username=cfg.get("relay_user", ""),
+            password=cfg.get("relay_pass", ""),
+            start_tls=True,
+            sender=sender_email,
+        )
+        if rcpt_tos:
+            send_kwargs["recipients"] = rcpt_tos
+        await aiosmtplib.send(raw_bytes, **send_kwargs)
+        logger.info(f"Signed mail relayed successfully via {host}")

@@ -19,9 +19,10 @@ const btnSecondary = { ...btnBase, background: "var(--bg-hover)", color: "#999",
 const btnDanger    = { ...btnBase, background: "var(--red-bg)", color: "var(--red)", border: "1px solid var(--red-bd)" };
 
 const ACTION_LABEL = {
-  signed:  { labelKey: "maillog.actionSigned",  bg: "#1a2a1a", color: "var(--green)" },
-  no_rule: { labelKey: "maillog.actionNoRule",   bg: "#2a2a1a", color: "#fcd34d" },
-  error:   { labelKey: "maillog.actionError",    bg: "#2a1a1a", color: "var(--red)" },
+  signed:             { labelKey: "maillog.actionSigned",             bg: "#1a2a1a", color: "var(--green)" },
+  no_rule:            { labelKey: "maillog.actionNoRule",             bg: "#2a2a1a", color: "#fcd34d" },
+  error:              { labelKey: "maillog.actionError",              bg: "#2a1a1a", color: "var(--red)" },
+  passthrough_signed: { labelKey: "maillog.actionPassthroughSigned",  bg: "#1a1a2a", color: "#818cf8" },
 };
 
 function StatCard({ icon, value, label, color }) {
@@ -171,6 +172,7 @@ export default function MailLogPage({ toast }) {
               <option value="signed">{t("maillog.actionSigned")}</option>
               <option value="no_rule">{t("maillog.actionNoRule")}</option>
               <option value="error">{t("maillog.actionError")}</option>
+              <option value="passthrough_signed">{t("maillog.actionPassthroughSigned")}</option>
             </select>
           </div>
           <div>

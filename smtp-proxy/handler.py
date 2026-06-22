@@ -56,6 +56,63 @@ class SignaturmonsterHandler(AsyncMessage):
         else:
             _process_part(message)
 
+    def _is_cryptographically_signed(self, message: Message) -> bool:
+        ct = message.get_content_type()
+        if ct in ("multipart/signed", "application/pkcs7-mime"):
+            return True
+        if message.is_multipart():
+            for part in message.walk():
+                if part.get_content_type() in (
+                    "application/pkcs7-signature",
+                    "application/x-pkcs7-signature",
+                    "application/pgp-signature",
+                ):
+                    return True
+        else:
+            payload = message.get_payload(decode=False)
+            if isinstance(payload, str) and "-----BEGIN PGP SIGNED MESSAGE-----" in payload:
+                return True
+        return False
+
+    async def _passthrough_signed(self, message: Message, envelope):
+        sender_email = envelope.mail_from or self.rule_engine._extract_address(message.get("From", ""))
+        to_raw   = message.get("To",  "") or ""
+        cc_raw   = message.get("Cc",  "") or ""
+        subject  = message.get("Subject", "") or ""
+        recipients = ", ".join(
+            self.rule_engine._extract_addresses(to_raw) +
+            self.rule_engine._extract_addresses(cc_raw)
+        )
+        logger.info(f"Cryptographically signed mail from {sender_email} — passing through unchanged")
+
+        relay_ok    = True
+        relay_error = ""
+        t0 = time.time()
+        try:
+            await self.relay.send_raw(
+                envelope.content,
+                sender_email=sender_email,
+                rcpt_tos=list(envelope.rcpt_tos),
+            )
+        except Exception as e:
+            relay_ok    = False
+            relay_error = str(e)[:300]
+            logger.error(f"Relay failed for signed mail from {sender_email}: {e}")
+
+        asyncio.ensure_future(self.rule_engine.log_mail({
+            "sender":         sender_email,
+            "recipients":     recipients,
+            "subject":        subject[:200],
+            "rule_id":        None,
+            "rule_name":      "",
+            "signature_name": "",
+            "action":         "passthrough_signed",
+            "relay_ok":       relay_ok,
+            "relay_error":    relay_error,
+            "duration_ms":    int((time.time() - t0) * 1000),
+            "message_size":   len(envelope.content),
+        }))
+
     async def handle_DATA(self, server, session, envelope):
         if self.rate_limiter:
             ip = session.peer[0] if session.peer else "unknown"
@@ -63,6 +120,11 @@ class SignaturmonsterHandler(AsyncMessage):
                 return "451 4.7.1 Rate limit exceeded, please try again later"
         from email import message_from_bytes
         message = message_from_bytes(envelope.content)
+
+        if self._is_cryptographically_signed(message):
+            await self._passthrough_signed(message, envelope)
+            return "250 Message accepted for delivery"
+
         addon_injected = b"<!--SM-ADDON-INJECTED-->" in envelope.content
         await self.handle_message(message, rcpt_tos=list(envelope.rcpt_tos), addon_injected=addon_injected)
         return "250 Message accepted for delivery"

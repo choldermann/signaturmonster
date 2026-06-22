@@ -709,6 +709,7 @@
   "maillog.actionSigned": "Signiert",
   "maillog.actionNoRule": "Keine Regel",
   "maillog.actionError": "Fehler",
+  "maillog.actionPassthroughSigned": "Signiert (Bypass)",
   "maillog.statTodayTotal": "Heute gesamt",
   "maillog.statTodaySigned": "Heute signiert",
   "maillog.statTodayNoRule": "Ohne Regel",
