@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+import base64
+import io
+import csv
+import json
+import logging
+from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, delete
 from database import get_db
-from models import MailLog, Setting
+from models import MailLog, MailQueueEntry, Setting
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
-import io, csv
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class MailLogCreate(BaseModel):
@@ -23,12 +28,20 @@ class MailLogCreate(BaseModel):
     relay_error: str = ""
     duration_ms: int = 0
     message_size: int = 0
+    message_b64: Optional[str] = None
 
 @router.post("/")
 async def create_log(data: MailLogCreate, db: AsyncSession = Depends(get_db)):
-    entry = MailLog(**data.model_dump())
+    payload = data.model_dump()
+
+    # message_b64 nur speichern wenn Mail-Archiv aktiviert
+    archive_setting = await db.get(Setting, "mail_archive_enabled")
+    if not (archive_setting and archive_setting.value == "true"):
+        payload["message_b64"] = None
+
+    entry = MailLog(**payload)
     db.add(entry)
-    # Auto-cleanup: delete entries older than retention period
+
     ret = await db.get(Setting, "log_retention_days")
     days = int(ret.value) if ret and ret.value and ret.value.isdigit() else 90
     if days > 0:
@@ -53,11 +66,11 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     error_q  = await db.execute(select(func.count()).select_from(MailLog).where(
         and_(func.strftime("%Y-%m-%d", MailLog.timestamp) == today, MailLog.action == "error")))
     return {
-        "total_all":    total_q.scalar(),
-        "total_today":  today_q.scalar(),
-        "signed_today": signed_q.scalar(),
+        "total_all":     total_q.scalar(),
+        "total_today":   today_q.scalar(),
+        "signed_today":  signed_q.scalar(),
         "no_rule_today": norule_q.scalar(),
-        "error_today":  error_q.scalar(),
+        "error_today":   error_q.scalar(),
     }
 
 @router.get("/")
@@ -134,6 +147,46 @@ async def export_csv(
         headers={"Content-Disposition": "attachment; filename=mail-audit.csv"},
     )
 
+@router.get("/{log_id}/eml")
+async def download_eml(log_id: int, db: AsyncSession = Depends(get_db)):
+    entry = await db.get(MailLog, log_id)
+    if not entry:
+        raise HTTPException(404, "Log-Eintrag nicht gefunden")
+    if not entry.message_b64:
+        raise HTTPException(404, "Kein Mail-Archiv für diesen Eintrag (Archiv-Funktion aktivieren)")
+    raw = base64.b64decode(entry.message_b64)
+    safe_subject = "".join(c for c in (entry.subject or "mail")[:40] if c.isalnum() or c in " -_")
+    filename = f"{safe_subject.strip() or 'mail'}.eml"
+    return Response(
+        content=raw,
+        media_type="message/rfc822",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+@router.post("/{log_id}/resend")
+async def resend_mail(log_id: int, db: AsyncSession = Depends(get_db)):
+    entry = await db.get(MailLog, log_id)
+    if not entry:
+        raise HTTPException(404, "Log-Eintrag nicht gefunden")
+    if not entry.message_b64:
+        raise HTTPException(404, "Kein Mail-Archiv für diesen Eintrag (Archiv-Funktion aktivieren)")
+
+    rcpt_list = [e.strip() for e in (entry.recipients or "").split(",") if e.strip()]
+    queue_entry = MailQueueEntry(
+        sender            = entry.sender,
+        recipients        = entry.recipients,
+        subject           = entry.subject,
+        message_b64       = entry.message_b64,
+        smtp_account_json = "",
+        rcpt_tos_json     = json.dumps(rcpt_list),
+        status            = "pending",
+        max_attempts      = 5,
+    )
+    db.add(queue_entry)
+    await db.commit()
+    logger.info(f"Mail re-queued from log entry {log_id} (sender={entry.sender})")
+    return {"ok": True, "queue_id": queue_entry.id}
+
 @router.delete("/")
 async def clear_logs(db: AsyncSession = Depends(get_db)):
     await db.execute(delete(MailLog))
@@ -155,4 +208,5 @@ def _row(r: MailLog) -> dict:
         "relay_error":    r.relay_error,
         "duration_ms":    r.duration_ms,
         "message_size":   r.message_size,
+        "has_eml":        bool(r.message_b64),
     }

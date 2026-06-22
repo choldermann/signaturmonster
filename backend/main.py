@@ -152,3 +152,21 @@ async def health():
 @app.get("/api/version")
 async def version():
     return {"version": APP_VERSION, "product": "signaturmonster"}
+
+@app.get("/api/proxy/status")
+async def proxy_status():
+    import asyncio
+    host = os.getenv("SMTP_PROXY_HOST", "smtp-proxy")
+    port = int(os.getenv("SMTP_PROXY_PORT", "587"))
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), timeout=2.0
+        )
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return {"online": True, "host": host, "port": port}
+    except Exception as e:
+        return {"online": False, "host": host, "port": port, "error": str(e)[:100]}

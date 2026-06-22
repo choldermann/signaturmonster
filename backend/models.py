@@ -211,8 +211,9 @@ class MailLog(Base):
     rule_id        = Column(Integer, nullable=True)
     rule_name      = Column(String, default="")
     signature_name = Column(String, default="")
-    action         = Column(String, default="signed", index=True)  # signed|no_rule|error
+    action         = Column(String, default="signed", index=True)  # signed|no_rule|error|passthrough_signed
     relay_ok       = Column(Boolean, default=True)
     relay_error    = Column(String, default="")
     duration_ms    = Column(Integer, default=0)
     message_size   = Column(Integer, default=0)
+    message_b64    = Column(Text, nullable=True)   # raw .eml as base64; nur wenn mail_archive_enabled

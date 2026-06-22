@@ -17,12 +17,13 @@ const btnBase = {
 const btnPrimary   = { ...btnBase, background: "var(--accent)", color: "var(--accent-fg)" };
 const btnSecondary = { ...btnBase, background: "var(--bg-hover)", color: "#999", border: "1px solid var(--border-3)" };
 const btnDanger    = { ...btnBase, background: "var(--red-bg)", color: "var(--red)", border: "1px solid var(--red-bd)" };
+const btnIcon      = { ...btnBase, padding: "4px 8px", fontSize: 11 };
 
 const ACTION_LABEL = {
-  signed:             { labelKey: "maillog.actionSigned",             bg: "#1a2a1a", color: "var(--green)" },
-  no_rule:            { labelKey: "maillog.actionNoRule",             bg: "#2a2a1a", color: "#fcd34d" },
-  error:              { labelKey: "maillog.actionError",              bg: "#2a1a1a", color: "var(--red)" },
-  passthrough_signed: { labelKey: "maillog.actionPassthroughSigned",  bg: "#1a1a2a", color: "#818cf8" },
+  signed:             { labelKey: "maillog.actionSigned",            bg: "#1a2a1a", color: "var(--green)" },
+  no_rule:            { labelKey: "maillog.actionNoRule",            bg: "#2a2a1a", color: "#fcd34d" },
+  error:              { labelKey: "maillog.actionError",             bg: "#2a1a1a", color: "var(--red)" },
+  passthrough_signed: { labelKey: "maillog.actionPassthroughSigned", bg: "#1a1a2a", color: "#818cf8" },
 };
 
 function StatCard({ icon, value, label, color }) {
@@ -36,31 +37,47 @@ function StatCard({ icon, value, label, color }) {
   );
 }
 
+function Toggle({ on, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{
+      width: 36, height: 20, borderRadius: 10, border: "none", cursor: "pointer", position: "relative",
+      background: on ? "var(--accent)" : "var(--border-3)", transition: "background .2s", flexShrink: 0,
+    }}>
+      <span style={{ position: "absolute", top: 2, left: on ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: on ? "var(--accent-fg)" : "var(--text-5)", transition: "left .2s" }} />
+    </button>
+  );
+}
+
 export default function MailLogPage({ toast }) {
   const { t } = useI18n();
-  const [data, setData]       = useState({ items: [], total: 0, page: 1, pages: 1 });
-  const [stats, setStats]     = useState({});
-  const [loading, setLoading] = useState(true);
-  const [page, setPage]       = useState(1);
-  const [filter, setFilter]   = useState({ sender: "", action: "", date_from: "", date_to: "" });
-  const [showSubject, setShowSubject] = useState(false);
-  const [retDays, setRetDays] = useState("90");
-  const [retSaved, setRetSaved] = useState("90");
+  const [data, setData]                 = useState({ items: [], total: 0, page: 1, pages: 1 });
+  const [stats, setStats]               = useState({});
+  const [loading, setLoading]           = useState(true);
+  const [page, setPage]                 = useState(1);
+  const [filter, setFilter]             = useState({ sender: "", action: "", date_from: "", date_to: "" });
+  const [showSubject, setShowSubject]   = useState(false);
+  const [archiveEnabled, setArchive]    = useState(false);
+  const [proxyOnline, setProxyOnline]   = useState(null);
+  const [retDays, setRetDays]           = useState("90");
+  const [retSaved, setRetSaved]         = useState("90");
   const [confirmClear, setConfirmClear] = useState(false);
 
   const load = useCallback(async (p = page, f = filter) => {
     setLoading(true);
     const params = new URLSearchParams({ page: p, limit: 50, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) });
-    const [d, s, settings] = await Promise.all([
+    const [d, s, settings, proxy] = await Promise.all([
       fetch(`/api/maillog/?${params}`).then(r => r.json()),
       fetch("/api/maillog/stats").then(r => r.json()),
       fetch("/api/settings/").then(r => r.json()),
+      fetch("/api/proxy/status").then(r => r.json()).catch(() => ({ online: false })),
     ]);
     setData(d);
     setStats(s);
+    setProxyOnline(proxy.online);
     const saved = settings?.log_retention_days || "90";
     setRetDays(saved); setRetSaved(saved);
     setShowSubject(settings?.log_show_subject === "true");
+    setArchive(settings?.mail_archive_enabled === "true");
     setLoading(false);
   }, [page, filter]);
 
@@ -100,6 +117,38 @@ export default function MailLogPage({ toast }) {
     setShowSubject(next);
   }
 
+  async function toggleArchive() {
+    const next = !archiveEnabled;
+    await fetch("/api/settings/mail_archive_enabled", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: next ? "true" : "false" }),
+    });
+    setArchive(next);
+    toast("ok", next ? t("maillog.archiveOn") : t("maillog.archiveOff"));
+  }
+
+  async function downloadEml(id, subject) {
+    const r = await fetch(`/api/maillog/${id}/eml`);
+    if (!r.ok) { toast("error", t("maillog.emlNotFound")); return; }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `${(subject || "mail").slice(0, 40)}.eml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function resendMail(id) {
+    const r = await fetch(`/api/maillog/${id}/resend`, { method: "POST" });
+    if (r.ok) {
+      toast("ok", t("maillog.resendOk"));
+    } else {
+      const err = await r.json().catch(() => ({}));
+      toast("error", err.detail || t("maillog.resendError"));
+    }
+  }
+
   function exportUrl() {
     const params = new URLSearchParams(Object.fromEntries(Object.entries(filter).filter(([, v]) => v)));
     return `/api/maillog/export.csv?${params}`;
@@ -109,9 +158,24 @@ export default function MailLogPage({ toast }) {
 
   return (
     <div>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("maillog.title")}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{t("maillog.title")}</h1>
+            {proxyOnline !== null && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: proxyOnline ? "#1a2a1a" : "#2a1a1a",
+                color: proxyOnline ? "var(--green)" : "var(--red)",
+                border: `1px solid ${proxyOnline ? "var(--green)" : "var(--red)"}`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: proxyOnline ? "var(--green)" : "var(--red)", display: "inline-block" }} />
+                {t(proxyOnline ? "maillog.proxyOnline" : "maillog.proxyOffline")}
+              </span>
+            )}
+          </div>
           <p style={{ fontSize: 13, color: "var(--text-5)", marginTop: 6 }}>{t("maillog.subtitle")}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -131,11 +195,11 @@ export default function MailLogPage({ toast }) {
 
       {/* Stats */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        <StatCard icon="mail" value={stats.total_today ?? 0} label={t("maillog.statTodayTotal")} color="var(--blue)" />
-        <StatCard icon="signature" value={stats.signed_today ?? 0} label={t("maillog.statTodaySigned")} color="var(--green)" />
+        <StatCard icon="mail"           value={stats.total_today  ?? 0} label={t("maillog.statTodayTotal")}  color="var(--blue)" />
+        <StatCard icon="signature"      value={stats.signed_today ?? 0} label={t("maillog.statTodaySigned")} color="var(--green)" />
         <StatCard icon="alert-triangle" value={stats.no_rule_today ?? 0} label={t("maillog.statTodayNoRule")} color="#fcd34d" />
-        <StatCard icon="circle-x" value={stats.error_today ?? 0} label={t("maillog.statTodayError")} color="var(--red)" />
-        <StatCard icon="database" value={stats.total_all ?? 0} label={t("maillog.statTotal")} color="var(--purple)" />
+        <StatCard icon="circle-x"       value={stats.error_today  ?? 0} label={t("maillog.statTodayError")}  color="var(--red)" />
+        <StatCard icon="database"       value={stats.total_all    ?? 0} label={t("maillog.statTotal")}        color="var(--purple)" />
       </div>
 
       {/* Settings row */}
@@ -148,13 +212,12 @@ export default function MailLogPage({ toast }) {
           </button>
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <button onClick={toggleSubject} style={{
-            width: 36, height: 20, borderRadius: 10, border: "none", cursor: "pointer", position: "relative",
-            background: showSubject ? "var(--accent)" : "var(--border-3)", transition: "background .2s", flexShrink: 0,
-          }}>
-            <span style={{ position: "absolute", top: 2, left: showSubject ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: showSubject ? "var(--accent-fg)" : "var(--text-5)", transition: "left .2s" }} />
-          </button>
+          <Toggle on={showSubject} onToggle={toggleSubject} />
           <span style={{ fontSize: 12, color: showSubject ? "var(--accent)" : "var(--text-5)" }}>{t("maillog.showSubject")}</span>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <Toggle on={archiveEnabled} onToggle={toggleArchive} />
+          <span style={{ fontSize: 12, color: archiveEnabled ? "var(--accent)" : "var(--text-5)" }}>{t("maillog.archiveLabel")}</span>
         </label>
       </div>
 
@@ -210,6 +273,7 @@ export default function MailLogPage({ toast }) {
                   <th style={{ padding: "8px 14px", textAlign: "left", fontWeight: 600 }}>{t("maillog.colAction")}</th>
                   <th style={{ padding: "8px 14px", textAlign: "left", fontWeight: 600 }}>Relay</th>
                   <th style={{ padding: "8px 14px", textAlign: "right", fontWeight: 600 }}>ms</th>
+                  <th style={{ padding: "8px 14px", textAlign: "right", fontWeight: 600 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -233,6 +297,20 @@ export default function MailLogPage({ toast }) {
                           : <span title={row.relay_error} style={{ cursor: "help" }}><Icon name="circle-x" size={14} style={{ color: "var(--red)" }} /></span>}
                       </td>
                       <td style={{ padding: "7px 14px", color: "var(--text-6)", textAlign: "right", fontFamily: "monospace" }}>{row.duration_ms}</td>
+                      <td style={{ padding: "7px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        {row.has_eml && (
+                          <>
+                            <button title={t("maillog.downloadEml")} onClick={() => downloadEml(row.id, row.subject)}
+                              style={{ ...btnIcon, background: "var(--bg-hover)", color: "var(--text-4)", border: "1px solid var(--border-3)", marginRight: 4 }}>
+                              <Icon name="file-download" size={12} />
+                            </button>
+                            <button title={t("maillog.resend")} onClick={() => resendMail(row.id)}
+                              style={{ ...btnIcon, background: "var(--bg-hover)", color: "#818cf8", border: "1px solid var(--border-3)" }}>
+                              <Icon name="send" size={12} />
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

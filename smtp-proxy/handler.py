@@ -83,35 +83,40 @@ class SignaturmonsterHandler(AsyncMessage):
             self.rule_engine._extract_addresses(to_raw) +
             self.rule_engine._extract_addresses(cc_raw)
         )
+        message_b64 = base64.b64encode(envelope.content).decode()
         logger.info(f"Cryptographically signed mail from {sender_email} — passing through unchanged")
 
-        relay_ok    = True
-        relay_error = ""
-        t0 = time.time()
-        try:
-            await self.relay.send_raw(
-                envelope.content,
-                sender_email=sender_email,
-                rcpt_tos=list(envelope.rcpt_tos),
-            )
-        except Exception as e:
-            relay_ok    = False
-            relay_error = str(e)[:300]
-            logger.error(f"Relay failed for signed mail from {sender_email}: {e}")
+        async def _bg():
+            t0 = time.time()
+            relay_ok    = True
+            relay_error = ""
+            try:
+                await self.relay.send_raw(
+                    envelope.content,
+                    sender_email=sender_email,
+                    rcpt_tos=list(envelope.rcpt_tos),
+                )
+            except Exception as e:
+                relay_ok    = False
+                relay_error = str(e)[:300]
+                logger.error(f"Relay failed for signed mail from {sender_email}: {e}")
 
-        asyncio.ensure_future(self.rule_engine.log_mail({
-            "sender":         sender_email,
-            "recipients":     recipients,
-            "subject":        subject[:200],
-            "rule_id":        None,
-            "rule_name":      "",
-            "signature_name": "",
-            "action":         "passthrough_signed",
-            "relay_ok":       relay_ok,
-            "relay_error":    relay_error,
-            "duration_ms":    int((time.time() - t0) * 1000),
-            "message_size":   len(envelope.content),
-        }))
+            await self.rule_engine.log_mail({
+                "sender":         sender_email,
+                "recipients":     recipients,
+                "subject":        subject[:200],
+                "rule_id":        None,
+                "rule_name":      "",
+                "signature_name": "",
+                "action":         "passthrough_signed",
+                "relay_ok":       relay_ok,
+                "relay_error":    relay_error,
+                "duration_ms":    int((time.time() - t0) * 1000),
+                "message_size":   len(envelope.content),
+                "message_b64":    message_b64,
+            })
+
+        asyncio.ensure_future(_bg())
 
     async def handle_DATA(self, server, session, envelope):
         if self.rate_limiter:
@@ -158,6 +163,46 @@ class SignaturmonsterHandler(AsyncMessage):
             if message.get_content_type() == "text/html":
                 _set_part(message)
 
+    async def _relay_and_log(
+        self, message: Message, sender_email: str, smtp_account,
+        rcpt_tos, forward_addresses, queue_id, t0: float,
+        recipients: str, subject: str, rule_id, rule_name: str,
+        signature_name: str, action: str, message_b64: str,
+    ):
+        relay_ok    = True
+        relay_error = ""
+        try:
+            await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=rcpt_tos)
+            if queue_id:
+                await self.rule_engine.mark_sent(queue_id)
+            for fwd_addr in forward_addresses:
+                try:
+                    await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=[fwd_addr])
+                    logger.info(f"Forward copy sent to {fwd_addr} for rule {rule_id}")
+                except Exception as fe:
+                    logger.warning(f"Forward copy to {fwd_addr} failed: {fe}")
+        except Exception as e:
+            relay_ok    = False
+            relay_error = str(e)[:300]
+            logger.error(f"Relay failed for {sender_email}: {e}")
+            if queue_id:
+                await self.rule_engine.mark_failed(queue_id, relay_error)
+
+        await self.rule_engine.log_mail({
+            "sender":         sender_email,
+            "recipients":     recipients,
+            "subject":        subject[:200],
+            "rule_id":        rule_id,
+            "rule_name":      rule_name,
+            "signature_name": signature_name,
+            "action":         action,
+            "relay_ok":       relay_ok,
+            "relay_error":    relay_error,
+            "duration_ms":    int((time.time() - t0) * 1000),
+            "message_size":   len(message.as_bytes()),
+            "message_b64":    message_b64,
+        })
+
     async def handle_message(self, message: Message, rcpt_tos: list | None = None, addon_injected: bool = False):
         t0            = time.time()
         sender_header = message.get("From", "")
@@ -188,21 +233,34 @@ class SignaturmonsterHandler(AsyncMessage):
             if offer_html:
                 self._replace_html_body(message, offer_html)
                 logger.info(f"Offer template injected for subject: {subject[:80]}")
-                action = "offer"
-                await self.relay.send(message, sender_email=sender_email, rcpt_tos=rcpt_tos)
-                asyncio.ensure_future(self.rule_engine.log_mail({
-                    "sender":         sender_email,
-                    "recipients":     recipients,
-                    "subject":        subject[:200],
-                    "rule_id":        None,
-                    "rule_name":      "",
-                    "signature_name": "offer-template",
-                    "action":         "offer",
-                    "relay_ok":       True,
-                    "relay_error":    "",
-                    "duration_ms":    int((time.time() - t0) * 1000),
-                    "message_size":   len(message.as_bytes()),
-                }))
+                msg_b64 = base64.b64encode(message.as_bytes()).decode()
+
+                async def _offer_bg():
+                    t1 = time.time()
+                    relay_ok    = True
+                    relay_error = ""
+                    try:
+                        await self.relay.send(message, sender_email=sender_email, rcpt_tos=rcpt_tos)
+                    except Exception as e:
+                        relay_ok    = False
+                        relay_error = str(e)[:300]
+                        logger.error(f"Offer relay failed for {sender_email}: {e}")
+                    await self.rule_engine.log_mail({
+                        "sender":         sender_email,
+                        "recipients":     recipients,
+                        "subject":        subject[:200],
+                        "rule_id":        None,
+                        "rule_name":      "",
+                        "signature_name": "offer-template",
+                        "action":         "offer",
+                        "relay_ok":       relay_ok,
+                        "relay_error":    relay_error,
+                        "duration_ms":    int((time.time() - t1) * 1000),
+                        "message_size":   len(message.as_bytes()),
+                        "message_b64":    msg_b64,
+                    })
+
+                asyncio.ensure_future(_offer_bg())
                 return
 
         # Sender-Slot tracken + Limit prüfen (fail-open: bei Fehler wird Mail durchgelassen)
@@ -263,8 +321,9 @@ class SignaturmonsterHandler(AsyncMessage):
             logger.error(f"Error processing mail: {e}")
             action = "error"
 
-        # Enqueue for retry safety (best-effort, non-blocking)
+        # Enqueue für Retry-Sicherheit (vor dem Relay — 250 kommt nach enqueue, Relay läuft async)
         queue_id = None
+        msg_b64  = ""
         try:
             msg_b64    = base64.b64encode(message.as_bytes()).decode()
             smtp_json  = json.dumps(smtp_account) if smtp_account else ""
@@ -279,38 +338,10 @@ class SignaturmonsterHandler(AsyncMessage):
         except Exception as e:
             logger.warning(f"Queue enqueue failed (proceeding without queue): {e}")
 
-        relay_ok    = True
-        relay_error = ""
-        try:
-            await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=rcpt_tos)
-            if queue_id:
-                asyncio.ensure_future(self.rule_engine.mark_sent(queue_id))
-            for fwd_addr in forward_addresses:
-                try:
-                    await self.relay.send(message, sender_email=sender_email, smtp_account=smtp_account, rcpt_tos=[fwd_addr])
-                    logger.info(f"Forward copy sent to {fwd_addr} for rule {rule_id}")
-                except Exception as fe:
-                    logger.warning(f"Forward copy to {fwd_addr} failed: {fe}")
-        except Exception as e:
-            relay_ok    = False
-            relay_error = str(e)[:300]
-            logger.error(f"Relay failed for {sender_email}: {e}")
-            if queue_id:
-                asyncio.ensure_future(self.rule_engine.mark_failed(queue_id, relay_error))
-
-        duration_ms = int((time.time() - t0) * 1000)
-        msg_size    = len(message.as_bytes())
-
-        asyncio.ensure_future(self.rule_engine.log_mail({
-            "sender":         sender_email,
-            "recipients":     recipients,
-            "subject":        subject[:200],
-            "rule_id":        rule_id,
-            "rule_name":      rule_name,
-            "signature_name": signature_name,
-            "action":         action,
-            "relay_ok":       relay_ok,
-            "relay_error":    relay_error,
-            "duration_ms":    duration_ms,
-            "message_size":   msg_size,
-        }))
+        # Relay + Log im Hintergrund — Thunderbird bekommt sofort "250" nach enqueue
+        asyncio.ensure_future(self._relay_and_log(
+            message, sender_email, smtp_account, rcpt_tos,
+            forward_addresses, queue_id, t0,
+            recipients, subject, rule_id, rule_name, signature_name, action,
+            msg_b64,
+        ))
