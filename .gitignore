@@ -28,3 +28,6 @@ frontend/dist/
 # Sonstiges
 *.log
 {smtp-proxy,backend
+
+# Claude Code
+.claude/
