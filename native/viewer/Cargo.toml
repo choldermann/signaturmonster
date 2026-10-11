@@ -1,0 +1,20 @@
+[package]
+name = "signaturmonster-viewer"
+version = "0.1.0"
+edition = "2021"
+
+# Eigenständiges Workspace: Tauri braucht System-Bibliotheken (WebKitGTK unter
+# Linux), der Service soll ohne sie baubar bleiben.
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = true

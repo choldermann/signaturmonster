@@ -1,0 +1,7 @@
+# Rechner verträgt nur wenige parallele Threads: Cargo baut strikt seriell,
+# der Linker (rust-lld) läuft ebenfalls single-threaded.
+[build]
+jobs = 1
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-Wl,--threads=1"]

@@ -1,0 +1,37 @@
+[package]
+name = "signaturmonster-service"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "signaturmonster-service"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+axum = "0.8.9"
+base64 = "0.23.1"
+bcrypt = "0.19.3"
+chrono = "0.4.45"
+chrono-tz = "0.10.4"
+css-inline = { version = "0.22.0", default-features = false }
+getrandom = "0.4.3"
+hmac = "0.13.0"
+lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots"] }
+mailparse = "0.18.0"
+mime_guess = "2.0.5"
+rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "pem", "ring"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+rust-embed = "8.13.0"
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.153"
+service-manager = "0.11.0"
+sha2 = "0.11.0"
+tokio = { version = "1.53.2", features = ["rt", "net", "io-util", "macros", "time", "sync", "signal"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "tls12", "logging"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std", "env-filter"] }
+
+[target."cfg(windows)".dependencies]
+windows-service = "0.8.1"

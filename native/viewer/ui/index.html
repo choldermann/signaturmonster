@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Signaturmonster</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #181818; color: #e8e8e8;
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 460px; padding: 32px; text-align: center; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  h1 .a { color: #fce499; }
+  p { color: #a8a8a8; margin: 8px 0; }
+  code { background: #262626; padding: 2px 6px; border-radius: 4px; color: #fce499; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e5534b; margin-right: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1><span class="a">Signatur</span>monster</h1>
+  <p><span class="dot"></span>Der Signaturmonster-Dienst ist nicht erreichbar.</p>
+  <p>Dienst starten mit <code>signaturmonster-service start</code><br>
+     (als Administrator bzw. mit <code>sudo</code>).</p>
+  <p>Andere Adresse? In <code>~/.config/signaturmonster/viewer.conf</code><br>z.B. <code>url=http://192.168.20.5:8080</code> eintragen.</p>
+  <p>Die Seite wechselt automatisch, sobald der Dienst erreichbar ist.</p>
+</main>
+</body>
+</html>
