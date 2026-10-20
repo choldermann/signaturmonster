@@ -976,5 +976,9 @@
   "queue.pendingInfo": "{count} E-Mail(s) warten auf Zustellung",
   "queue.failedInfo": "{count} E-Mail(s) dauerhaft fehlgeschlagen",
   "queue.pagination": "{total} Einträge · Seite {page} von {pages}",
-  "queue.attempt": "Versuch {n}"
+  "queue.attempt": "Versuch {n}",
+  "designer.colLeftBg": "Hintergrund linke Spalte",
+  "designer.colRightBg": "Hintergrund rechte Spalte",
+  "designer.colInnerPaddingPx": "Innenabstand (px)",
+  "designer.colRadiusPx": "Eckenradius (px)"
 }

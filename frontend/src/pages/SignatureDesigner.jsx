@@ -75,6 +75,7 @@ const DEFAULT_PROPS = {
   divider: { color: "#dddddd", thickness: "1", margin: "8", paddingLeft: "0", paddingRight: "0" },
   spacer:  { height: "12", paddingLeft: "0", paddingRight: "0" },
   columns: { leftWidth: "50", leftBlocks: [], rightBlocks: [],
+    leftBg: "", rightBg: "", colPadding: "0", colRadius: "0",
     paddingTop: "0", paddingBottom: "0", paddingLeft: "0", paddingRight: "0" },
   table: {
     borderColor: "#dddddd", borderWidth: "1", cellPadding: "8", tableBg: "",
@@ -268,7 +269,13 @@ function blockToHTML(block) {
   if (block.type === "columns") {
     const leftHtml  = (p.leftBlocks  || []).map(blockToHTML).join("");
     const rightHtml = (p.rightBlocks || []).map(blockToHTML).join("");
-    const inner = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;"><tr><td width="${p.leftWidth}%" style="vertical-align:top;padding-right:8px;">${leftHtml}</td><td style="vertical-align:top;">${rightHtml}</td></tr></table>`;
+    const cpad = parseInt(p.colPadding) || 0;
+    const crad = parseInt(p.colRadius) || 0;
+    const colTd = (bg, html, width) => {
+      const style = `vertical-align:top;${bg ? `background:${bg};` : ""}${cpad ? `padding:${cpad}px;` : ""}${bg && crad ? `border-radius:${crad}px;` : ""}`;
+      return `<td${width ? ` width="${width}%"` : ""}${bg ? ` bgcolor="${bg}"` : ""} style="${style}">${html}</td>`;
+    };
+    const inner = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;"><tr>${colTd(p.leftBg, leftHtml, p.leftWidth)}<td width="8" style="width:8px;font-size:0;">&nbsp;</td>${colTd(p.rightBg, rightHtml)}</tr></table>`;
     const pad = gp(p);
     return pad !== "0px 0px 0px 0px" ? `<div style="padding:${pad};">${inner}</div>` : inner;
   }
@@ -451,11 +458,12 @@ function BlockPreview({ block }) {
     <div style={op(p)}>
       <table width="100%" cellPadding="0" cellSpacing="0" style={{ fontFamily: "Arial, sans-serif" }}>
         <tbody><tr>
-          <td width={`${p.leftWidth}%`} style={{ verticalAlign: "top", paddingRight: 8 }}>
+          <td width={`${p.leftWidth}%`} style={colPreviewStyle(p, p.leftBg)}>
             {(p.leftBlocks || []).map(b => <BlockPreview key={b.id} block={b} />)}
             {!(p.leftBlocks || []).length && <div style={{ fontSize: 11, color: "#aaa", padding: "4px 0" }}>—</div>}
           </td>
-          <td style={{ verticalAlign: "top" }}>
+          <td style={{ width: 8 }} />
+          <td style={colPreviewStyle(p, p.rightBg)}>
             {(p.rightBlocks || []).map(b => <BlockPreview key={b.id} block={b} />)}
             {!(p.rightBlocks || []).length && <div style={{ fontSize: 11, color: "#aaa", padding: "4px 0" }}>—</div>}
           </td>
@@ -495,6 +503,13 @@ function BlockPreview({ block }) {
 
 // ─── Prop Editors ─────────────────────────────────────────────────────────────
 const iStyle = { width: "100%", padding: "7px 10px", background: "#111", border: "1px solid #2a2a2a", borderRadius: 6, color: "#ddd", fontSize: 12, fontFamily: "inherit", boxSizing: "border-box" };
+const colPreviewStyle = (p, bg) => ({
+  verticalAlign: "top",
+  background: bg || "transparent",
+  padding: parseInt(p.colPadding) || 0,
+  borderRadius: bg ? (parseInt(p.colRadius) || 0) : 0,
+});
+
 const F = ({ label, children, hint }) => (
   <div style={{ marginBottom: 10 }}>
     <label style={{ display: "block", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 3 }}>{label}</label>
@@ -935,6 +950,12 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
       <F label={t("designer.leftColWidthPct")}>
         <input style={iStyle} type="number" value={p.leftWidth} onChange={e => u("leftWidth", e.target.value)} min={10} max={90} />
       </F>
+      <BgRow label={t("designer.colLeftBg")} value={p.leftBg} onSet={v => u("leftBg", v)} onClear={() => u("leftBg", "")} clearLabel={t("designer.transparent")} />
+      <BgRow label={t("designer.colRightBg")} value={p.rightBg} onSet={v => u("rightBg", v)} onClear={() => u("rightBg", "")} clearLabel={t("designer.transparent")} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <F label={t("designer.colInnerPaddingPx")}><input style={iStyle} type="number" value={p.colPadding || "0"} onChange={e => u("colPadding", e.target.value)} min={0} max={60} /></F>
+        <F label={t("designer.colRadiusPx")}><input style={iStyle} type="number" value={p.colRadius || "0"} onChange={e => u("colRadius", e.target.value)} min={0} max={40} /></F>
+      </div>
       <div style={{ marginTop: 4, padding: "8px 10px", background: "#111", borderRadius: 6, fontSize: 11, color: "#555", lineHeight: "16px" }}>
         <i className="ti ti-drag-drop" style={{ marginRight: 4 }} />
         {t("designer.dragToColumns")}
@@ -946,18 +967,6 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
   if (block.type === "table") {
     const sc = selectedCell;
     const scCell = sc ? (p.cells?.[sc.ri]?.[sc.ci]) : null;
-    const BgRow = ({ label, value, onSet, onClear, clearLabel }) => (
-      <F label={label}>
-        <div style={{ display: "flex", gap: 6, height: 32 }}>
-          <input type="color" value={value || "#ffffff"} onChange={e => onSet(e.target.value)}
-            style={{ width: 32, height: "100%", padding: 2, border: "1px solid #2a2a2a", borderRadius: 5, cursor: "pointer", background: "#1a1a1a", flexShrink: 0 }} />
-          <button onClick={onClear}
-            style={{ flex: 1, padding: "4px 8px", background: value ? "#1a1a1a" : "#2a2a2a", border: "1px solid #2a2a2a", borderRadius: 5, color: value ? "#555" : "#aaa", fontSize: 11, cursor: "pointer" }}>
-            {value || clearLabel}
-          </button>
-        </div>
-      </F>
-    );
     return (
       <div>
         <F label={t("designer.borderColor")}><ColorInput value={p.borderColor || "#dddddd"} onChange={v => u("borderColor", v)} /></F>
@@ -989,6 +998,21 @@ function PropEditor({ block, onChange, selectedCell, onCellPropChange, varTarget
   }
 
   return null;
+}
+
+function BgRow({ label, value, onSet, onClear, clearLabel }) {
+  return (
+    <F label={label}>
+      <div style={{ display: "flex", gap: 6, height: 32 }}>
+        <input type="color" value={value || "#ffffff"} onChange={e => onSet(e.target.value)}
+          style={{ width: 32, height: "100%", padding: 2, border: "1px solid #2a2a2a", borderRadius: 5, cursor: "pointer", background: "#1a1a1a", flexShrink: 0 }} />
+        <button onClick={onClear}
+          style={{ flex: 1, padding: "4px 8px", background: value ? "#1a1a1a" : "#2a2a2a", border: "1px solid #2a2a2a", borderRadius: 5, color: value ? "#555" : "#aaa", fontSize: 11, cursor: "pointer" }}>
+          {value || clearLabel}
+        </button>
+      </div>
+    </F>
+  );
 }
 
 // ─── Social Prop Editor ───────────────────────────────────────────────────────
@@ -1482,7 +1506,7 @@ function InlineCanvasContent({ block, isSelected, onUpdate, selectedSubId, onSel
           style={{
             minHeight: 52, borderRadius: 6, padding: "4px 4px 2px",
             border: `1px dashed ${canDrop ? "#fce499" : "#2a2a2a"}`,
-            background: canDrop ? "#1e1e0a" : "#131313",
+            background: canDrop ? "#1e1e0a" : ((side === "left" ? p.leftBg : p.rightBg) || "#131313"),
             transition: "border-color .15s, background .15s",
           }}
           onDragOver={e => { if (canDrop) { e.preventDefault(); e.stopPropagation(); }}}

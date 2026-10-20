@@ -976,5 +976,9 @@
   "queue.pendingInfo": "{count} email(s) waiting for delivery",
   "queue.failedInfo": "{count} email(s) permanently failed",
   "queue.pagination": "{total} entries · page {page} of {pages}",
-  "queue.attempt": "Attempt {n}"
+  "queue.attempt": "Attempt {n}",
+  "designer.colLeftBg": "Left column background",
+  "designer.colRightBg": "Right column background",
+  "designer.colInnerPaddingPx": "Inner padding (px)",
+  "designer.colRadiusPx": "Corner radius (px)"
 }
